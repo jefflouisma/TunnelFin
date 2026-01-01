@@ -26,14 +26,14 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project directory structure per plan.md (src/TunnelFin with Core, Networking, BitTorrent, Streaming, Indexers, Discovery, Models, Configuration, Jellyfin subdirectories)
-- [ ] T002 Initialize C# .NET 10.0 class library project in src/TunnelFin/TunnelFin.csproj
-- [ ] T003 [P] Add NuGet dependencies: MonoTorrent 3.0.2, NSec.Cryptography 25.4.0, Jellyfin.Controller 10.11.5, Jellyfin.Model 10.11.5, Microsoft.Extensions.Http 10.0.1
-- [ ] T004 [P] Initialize test projects: tests/TunnelFin.Tests/TunnelFin.Tests.csproj (unit tests) and tests/TunnelFin.Integration/TunnelFin.Integration.csproj (integration tests)
-- [ ] T005 [P] Add test dependencies: xUnit 2.9.3, FluentAssertions 8.8.0, Moq 4.20.72, Coverlet 6.0.4 to both test projects
-- [ ] T006 [P] Configure .editorconfig for C# code style and formatting
-- [ ] T007 [P] Create test fixtures directory: tests/TunnelFin.Tests/Fixtures/ with sample torrent data and mock indexer responses
-- [ ] T008 Create .gitignore for .NET projects (bin/, obj/, *.user, .vs/)
+- [X] T001 Create project directory structure per plan.md (src/TunnelFin with Core, Networking, BitTorrent, Streaming, Indexers, Discovery, Models, Configuration, Jellyfin subdirectories)
+- [X] T002 Initialize C# .NET 10.0 class library project in src/TunnelFin/TunnelFin.csproj
+- [X] T003 [P] Add NuGet dependencies: MonoTorrent 3.0.2, NSec.Cryptography 25.4.0, Jellyfin.Controller 10.11.5, Jellyfin.Model 10.11.5, Microsoft.Extensions.Http 10.0.1
+- [X] T004 [P] Initialize test projects: tests/TunnelFin.Tests/TunnelFin.Tests.csproj (unit tests) and tests/TunnelFin.Integration/TunnelFin.Integration.csproj (integration tests)
+- [X] T005 [P] Add test dependencies: xUnit 2.9.3, FluentAssertions 8.8.0, Moq 4.20.72, Coverlet 6.0.4 to both test projects
+- [X] T006 [P] Configure .editorconfig for C# code style and formatting
+- [X] T007 [P] Create test fixtures directory: tests/TunnelFin.Tests/Fixtures/ with sample torrent data and mock indexer responses
+- [X] T008 Create .gitignore for .NET projects (bin/, obj/, *.user, .vs/)
 
 ---
 
