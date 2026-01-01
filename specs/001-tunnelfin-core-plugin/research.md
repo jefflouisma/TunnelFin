@@ -46,6 +46,78 @@ class TunnelCommunity:
 - Use async/await for non-blocking network I/O
 - Reference MonoTorrent's peer communication patterns for socket management
 
+**IPv8 Wire Format Compatibility Requirements** (see `ipv8-wire-format.md` for complete specification):
+
+**Byte Order**: IPv8 uses **big-endian (network byte order)** for all multi-byte integers. Python uses `struct.pack(">I", value)` format strings where `>` indicates big-endian. C# MUST use `System.Buffers.Binary.BinaryPrimitives` methods:
+
+```csharp
+// CORRECT: Big-endian serialization for IPv8 messages
+BinaryPrimitives.WriteUInt32BigEndian(buffer.AsSpan(offset), circuitId);
+BinaryPrimitives.WriteUInt16BigEndian(buffer.AsSpan(offset), portNumber);
+
+// WRONG: Platform-dependent byte order
+BitConverter.GetBytes(circuitId); // DO NOT USE
+
+// WRONG: Little-endian only
+using var writer = new BinaryWriter(stream); // DO NOT USE
+```
+
+**Integer Types**: All IPv8 protocol fields use **unsigned integers**:
+- Circuit IDs: `uint` (4 bytes, `">I"`)
+- Sequence numbers: `uint` (4 bytes, `">I"`)
+- Timestamps: `ulong` (8 bytes, `">Q"`)
+- Port numbers: `ushort` (2 bytes, `">H"`)
+- Message types: `byte` (1 byte, `">B"`)
+
+**Boolean Serialization**: Single byte (0x00 = false, 0x01 = true):
+```csharp
+buffer[offset] = value ? (byte)1 : (byte)0;
+```
+
+**Variable-Length Fields**: 2-byte big-endian length prefix + data:
+```csharp
+BinaryPrimitives.WriteUInt16BigEndian(buffer.AsSpan(offset), (ushort)data.Length);
+offset += 2;
+data.CopyTo(buffer, offset);
+offset += data.Length;
+```
+
+**Ed25519 Key Compatibility**: NSec.Cryptography MUST use 32-byte raw seed format to match PyNaCl:
+
+```csharp
+// Import PyNaCl seed (from to_seed(), 32 bytes)
+var creationParams = new KeyCreationParameters
+{
+    ExportPolicy = KeyExportPolicies.AllowPlaintextArchiving
+};
+var key = Key.Import(
+    SignatureAlgorithm.Ed25519,
+    seedBytes,  // 32-byte seed from PyNaCl
+    KeyBlobFormat.RawPrivateKey,  // Matches to_seed() format
+    creationParams
+);
+
+// Export public key (32 bytes, matches PyNaCl verify_key.encode())
+byte[] publicKey = key.PublicKey.Export(KeyBlobFormat.RawPublicKey);
+
+// Sign message (64-byte signature, RFC 8032 compliant)
+byte[] signature = SignatureAlgorithm.Ed25519.Sign(key, messageBytes);
+```
+
+**Critical**: Ed25519 keys use **little-endian** encoding (RFC 8032), while IPv8 messages use **big-endian**. Do not mix these byte orders.
+
+**TrustChain Block Serialization** (exact field order for signature verification):
+1. Creator public key (74 bytes)
+2. Link public key (74 bytes)
+3. Sequence number (4 bytes, big-endian `uint`)
+4. Previous hash (32 bytes, SHA-3)
+5. Timestamp (8 bytes, big-endian `ulong`, milliseconds since epoch)
+6. Message length (2 bytes, big-endian `ushort`)
+7. Message content (variable bytes)
+8. Signature (64 bytes, Ed25519)
+
+Signature is computed over fields 1-7 in exact byte order above.
+
 ---
 
 ### 2. Sequential Torrent Streaming with MonoTorrent

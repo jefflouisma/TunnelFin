@@ -70,8 +70,16 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 > **CONSTITUTION REQUIREMENT: Write these tests FIRST, ensure they FAIL before implementation**
 
 - [ ] T020 [P] [US1] Write unit tests for IPv8 protocol implementation in tests/TunnelFin.Tests/Networking/IPv8ProtocolTests.cs (peer discovery, handshake, message serialization)
+- [ ] T020a [P] [US1] Write byte-level IPv8 message verification tests in tests/TunnelFin.Tests/Networking/IPv8WireFormatTests.cs (verify C# serialization produces byte-identical output to Python struct.pack for introduction-request, puncture-request, CREATE messages using hex test vectors from py-ipv8)
+- [ ] T020b [P] [US1] Create Python test vector generation script in tests/fixtures/generate_ipv8_vectors.py (generates hex dumps of IPv8 messages using py-ipv8 for C# test verification per FR-048)
 - [ ] T021 [P] [US1] Write unit tests for circuit creation in tests/TunnelFin.Tests/Networking/CircuitManagerTests.cs (CREATE/CREATED/EXTEND/EXTENDED messages, hop selection, key exchange)
+- [ ] T021a [P] [US1] Write circuit message byte-level verification tests in tests/TunnelFin.Tests/Networking/CircuitMessageTests.cs (verify CREATE/CREATED/EXTEND/EXTENDED messages serialize with big-endian circuit IDs and correct field ordering)
+- [ ] T021b [P] [US1] Write circuit message parsing tests in tests/TunnelFin.Tests/Networking/CircuitMessageParsingTests.cs (verify C# can parse Python-generated circuit messages from test vectors)
 - [ ] T022 [P] [US1] Write unit tests for Ed25519 identity in tests/TunnelFin.Tests/Networking/Ed25519KeyPairTests.cs (key generation, signing, verification)
+- [ ] T022a [P] [US1] Write Ed25519 cross-language key format tests in tests/TunnelFin.Tests/Networking/Ed25519KeyFormatTests.cs (verify NSec RawPrivateKey import of PyNaCl to_seed() produces identical public key)
+- [ ] T022b [P] [US1] Write Ed25519 signature compatibility tests in tests/TunnelFin.Tests/Networking/Ed25519SignatureTests.cs (verify C# signatures verify in Python and vice versa using test vectors per FR-049)
+- [ ] T022c [P] [US1] Create Python Ed25519 test vector script in tests/fixtures/generate_ed25519_vectors.py (generates keypairs, signatures using PyNaCl for C# cross-validation)
+- [ ] T022d [P] [US1] Write Ed25519 signature determinism tests in tests/TunnelFin.Tests/Networking/Ed25519DeterminismTests.cs (verify same seed + message produces identical signature in C# and Python)
 - [ ] T023 [P] [US1] Write unit tests for TorrentEngine in tests/TunnelFin.Tests/BitTorrent/TorrentEngineTests.cs (torrent initialization, piece prioritization, stream creation)
 - [ ] T024 [P] [US1] Write unit tests for StreamManager in tests/TunnelFin.Tests/Streaming/StreamManagerTests.cs (HTTP endpoint creation, range requests, concurrent stream limits per FR-013)
 - [ ] T025 [P] [US1] Write unit tests for BufferManager in tests/TunnelFin.Tests/Streaming/BufferManagerTests.cs (buffer status tracking, >10s buffer requirement per SC-003)
@@ -79,23 +87,26 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 ### Implementation for User Story 1
 
-**IPv8 Protocol & Anonymity Layer (FR-001 to FR-006)**
+**IPv8 Protocol & Anonymity Layer (FR-001 to FR-006, FR-048)**
 
 - [ ] T027 [P] [US1] Implement IPv8 protocol base in src/TunnelFin/Networking/IPv8/Protocol.cs (message types, serialization, peer discovery per research.md)
+- [ ] T027a [P] [US1] Implement IPv8 message serialization in src/TunnelFin/Networking/IPv8/MessageSerializer.cs (use BinaryPrimitives for big-endian byte order per FR-048, ipv8-wire-format.md - circuit IDs as uint, ports as ushort, all big-endian)
+- [ ] T027b [P] [US1] Implement IPv8 message deserialization in src/TunnelFin/Networking/IPv8/MessageDeserializer.cs (parse big-endian messages from Python peers per ipv8-wire-format.md)
 - [ ] T028 [P] [US1] Implement Peer class in src/TunnelFin/Networking/IPv8/Peer.cs (peer info, connection state, handshake)
 - [ ] T029 [P] [US1] Implement Handshake protocol in src/TunnelFin/Networking/IPv8/Handshake.cs (four-message discovery: introduction-request/response, puncture-request/puncture)
 - [ ] T030 [US1] Implement CircuitManager in src/TunnelFin/Networking/Circuits/CircuitManager.cs (circuit creation, extension, relay selection per FR-001, FR-002, FR-003)
 - [ ] T031 [P] [US1] Implement Circuit class in src/TunnelFin/Networking/Circuits/Circuit.cs (state management, hop tracking, encryption keys per data-model.md)
 - [ ] T032 [P] [US1] Implement HopNode class in src/TunnelFin/Networking/Circuits/HopNode.cs (relay peer info, shared secret, encryption/decryption)
-- [ ] T033 [US1] Implement NetworkIdentity in src/TunnelFin/Networking/Identity/NetworkIdentity.cs (Ed25519 keypair generation, peer ID derivation per FR-004)
-- [ ] T034 [P] [US1] Implement Ed25519KeyPair in src/TunnelFin/Networking/Identity/Ed25519KeyPair.cs (NSec.Cryptography wrapper, key storage per FR-038)
+- [ ] T033 [US1] Implement NetworkIdentity in src/TunnelFin/Networking/Identity/NetworkIdentity.cs (Ed25519 keypair generation, peer ID derivation per FR-004, FR-049)
+- [ ] T034 [P] [US1] Implement Ed25519KeyPair in src/TunnelFin/Networking/Identity/Ed25519KeyPair.cs (NSec.Cryptography wrapper using RawPrivateKey format for 32-byte seed compatibility with PyNaCl per FR-049, ipv8-wire-format.md, key storage per FR-038)
 - [ ] T035 [US1] Implement bandwidth contribution tracking in src/TunnelFin/Networking/BandwidthTracker.cs (proportional relay per FR-005, SC-010)
+- [ ] T035a [P] [US1] Implement TrustChain block serialization in src/TunnelFin/Networking/TrustChain/BlockSerializer.cs (exact field ordering per FR-050, ipv8-wire-format.md: creator key, link key, sequence, hash, timestamp, message length, message, signature)
 - [ ] T036 [US1] Implement circuit retry logic with configurable timeout in CircuitManager (default 30s per FR-040)
 
 **BitTorrent Streaming Engine (FR-007 to FR-015)**
 
 - [ ] T037 [P] [US1] Implement TorrentEngine in src/TunnelFin/BitTorrent/TorrentEngine.cs (MonoTorrent integration, engine initialization per FR-007)
-- [ ] T038 [P] [US1] Implement TorrentStream in src/TunnelFin/BitTorrent/TorrentStream.cs (MonoTorrent.Streaming wrapper, torrent state management per data-model.md)
+- [ ] T038 [P] [US1] Implement TorrentStream in src/TunnelFin/BitTorrent/TorrentStream.cs (wraps MonoTorrent.Client.TorrentManager with streaming-specific logic, uses MonoTorrent.Streaming.StreamProvider for HTTP endpoint creation, manages torrent state per data-model.md)
 - [ ] T039 [P] [US1] Implement PiecePrioritizer in src/TunnelFin/BitTorrent/PiecePrioritizer.cs (sequential piece selection per FR-008, research.md custom prioritizer pattern)
 - [ ] T040 [P] [US1] Implement PeerManager in src/TunnelFin/BitTorrent/PeerManager.cs (peer connection management, routing through circuits)
 - [ ] T041 [US1] Implement StreamManager in src/TunnelFin/Streaming/StreamManager.cs (HTTP endpoint management, concurrent stream limits per FR-013, FR-015)
@@ -457,9 +468,9 @@ Task T041: "Implement StreamManager in src/TunnelFin/Streaming/StreamManager.cs"
 - **US4**: Adjust hop count → Verify circuits use new setting → Verify contribution tracking
 
 **Suggested MVP Scope**: Phase 1 + Phase 2 + Phase 3 (User Story 1 only)
-- **50 tasks total for MVP**
-- **Estimated time**: 20-30 days single developer, 10-15 days with 2 developers
-- **Deliverable**: Core anonymous torrent streaming functionality
+- **61 tasks total for MVP** (includes 11 new binary protocol compatibility tasks)
+- **Estimated time**: 25-35 days single developer, 12-18 days with 2 developers
+- **Deliverable**: Core anonymous torrent streaming functionality with verified byte-level IPv8/Ed25519 compatibility
 
 ---
 
@@ -468,9 +479,10 @@ Task T041: "Implement StreamManager in src/TunnelFin/Streaming/StreamManager.cs"
 ✅ **All tasks follow checklist format**: `- [ ] [ID] [P?] [Story?] Description with file path`
 ✅ **All user story tasks have [Story] labels**: [US1], [US2], [US3], [US4]
 ✅ **All tasks include exact file paths**: src/TunnelFin/..., tests/TunnelFin.Tests/...
-✅ **All parallelizable tasks marked [P]**: 67 tasks can run in parallel
-✅ **Tests are MANDATORY**: 26 test tasks across all user stories (Constitution compliance)
+✅ **All parallelizable tasks marked [P]**: 78 tasks can run in parallel
+✅ **Tests are MANDATORY**: 37 test tasks across all user stories (Constitution compliance)
 ✅ **Independent test criteria defined**: Each user story has clear validation steps
+✅ **Binary protocol compatibility**: 11 new tasks (T020a-T022d, T027a-T027b, T035a) ensure byte-level IPv8/Ed25519 compatibility with Python
 
 ---
 

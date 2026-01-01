@@ -164,6 +164,12 @@ A privacy-conscious user wants to configure their anonymity settings including h
 - **FR-046**: System MUST track and expose indexer response time metrics for each configured indexer
 - **FR-047**: System MUST track and expose cache hit rate metrics (metadata cache, torrent data cache)
 
+**Binary Protocol Compatibility**
+
+- **FR-048**: IPv8 protocol implementation MUST serialize all messages using big-endian byte order (BinaryPrimitives) to ensure byte-identical wire format compatibility with Python py-ipv8 implementation
+- **FR-049**: Ed25519 cryptographic keys MUST use 32-byte raw seed format (NSec RawPrivateKey) compatible with PyNaCl to_seed() for cross-platform signature verification
+- **FR-050**: TrustChain block serialization MUST follow exact field ordering (creator key, link key, sequence, hash, timestamp, message length, message, signature) to ensure signature verification succeeds across Python and C# implementations
+
 ### Key Entities
 
 - **Torrent Stream**: Represents an active torrent being downloaded and streamed, including torrent metadata, download progress, peer connections, and HTTP stream endpoint
