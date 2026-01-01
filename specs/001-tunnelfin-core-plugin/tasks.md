@@ -43,15 +43,15 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T009 Implement Plugin base class in src/TunnelFin/Core/Plugin.cs (inherits BasePlugin<PluginConfiguration>)
-- [ ] T010 [P] Create PluginConfiguration class in src/TunnelFin/Core/PluginConfiguration.cs (inherits BasePluginConfiguration)
+- [X] T009 Implement Plugin base class in src/TunnelFin/Core/Plugin.cs (inherits BasePlugin<PluginConfiguration>)
+- [X] T010 [P] Create PluginConfiguration class in src/TunnelFin/Core/PluginConfiguration.cs (inherits BasePluginConfiguration)
 - [ ] T011 [P] Implement ServiceRegistration in src/TunnelFin/Core/ServiceRegistration.cs for dependency injection setup
 - [ ] T012 [P] Create base entity models in src/TunnelFin/Models/: TorrentStream.cs, AnonymityCircuit.cs, SearchResult.cs, FilterProfile.cs, IndexerConfiguration.cs, NetworkIdentity.cs
 - [ ] T013 [P] Create enumerations in src/TunnelFin/Models/Enums.cs: TorrentStreamState, CircuitState, ContentType, IndexerType, FilterAttribute, FilterOperator, SortAttribute, SortDirection
 - [ ] T014 [P] Implement configuration models in src/TunnelFin/Configuration/: AnonymitySettings.cs, ResourceLimits.cs, FilterSettings.cs
 - [ ] T015 [P] Create error handling infrastructure in src/TunnelFin/Core/Exceptions.cs (custom exception types: CircuitEstablishmentException, StreamInitializationException, ResourceLimitException)
 - [ ] T016 [P] Implement logging infrastructure in src/TunnelFin/Core/Logging.cs (privacy-aware logger that excludes PII and content titles per FR-037, FR-041)
-- [ ] T017 Write unit tests for Plugin initialization in tests/TunnelFin.Tests/Core/PluginTests.cs (verify GUID, Name, service registration)
+- [X] T017 Write unit tests for Plugin initialization in tests/TunnelFin.Tests/Core/PluginTests.cs (verify GUID, Name, service registration)
 - [ ] T018 [P] Write unit tests for configuration models in tests/TunnelFin.Tests/Configuration/ConfigurationTests.cs (verify defaults, validation rules)
 - [ ] T019 [P] Write unit tests for logging infrastructure in tests/TunnelFin.Tests/Core/LoggingTests.cs (verify PII exclusion, content title redaction)
 
