@@ -1,0 +1,289 @@
+openapi: 3.0.3
+info:
+  title: TunnelFin Search Provider Contract
+  description: Jellyfin ISearchProvider implementation contract for torrent content discovery
+  version: 1.0.0
+  contact:
+    name: TunnelFin Development
+
+paths:
+  /search:
+    get:
+      summary: Search for torrent content
+      description: |
+        Searches across configured indexers, applies filters/sorting, deduplicates results,
+        and fetches metadata from TMDB/AniList. Returns results within 5 seconds (SC-004).
+      operationId: searchContent
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Search query string
+          schema:
+            type: string
+            example: "Inception 2010"
+        - name: contentType
+          in: query
+          required: false
+          description: Content type for profile selection
+          schema:
+            type: string
+            enum: [Movies, TVShows, Anime]
+            default: Movies
+        - name: profileId
+          in: query
+          required: false
+          description: Specific filter profile to apply (overrides contentType default)
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Search results with metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - results
+                  - totalResults
+                  - searchDuration
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SearchResult'
+                  totalResults:
+                    type: integer
+                    description: Total results before limit applied
+                    example: 47
+                  searchDuration:
+                    type: string
+                    description: Search execution time (ISO 8601 duration)
+                    example: "PT3.2S"
+                  indexersQueried:
+                    type: array
+                    items:
+                      type: string
+                    example: ["1337x", "Nyaa.si", "RARBG"]
+        '408':
+          description: Search timeout (exceeded 5 seconds)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Resource limits reached (max concurrent searches)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stream/initialize:
+    post:
+      summary: Initialize torrent stream
+      description: |
+        Creates a new torrent stream from search result. Checks Tribler network availability,
+        establishes circuit if needed, and begins torrent download. Returns stream endpoint
+        within 30 seconds (SC-001) or timeout error within 60 seconds (FR-012).
+      operationId: initializeStream
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - infoHash
+              properties:
+                infoHash:
+                  type: string
+                  description: BitTorrent infohash (40-char hex)
+                  example: "b415c913643e5ff49fe37d304bbb5e6e11ad5101"
+                magnetUri:
+                  type: string
+                  description: Magnet URI (alternative to infohash)
+                  example: "magnet:?xt=urn:btih:b415c913643e5ff49fe37d304bbb5e6e11ad5101"
+                forceNonAnonymous:
+                  type: boolean
+                  description: User consent for non-anonymous streaming
+                  default: false
+      responses:
+        '201':
+          description: Stream initialized successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - streamId
+                  - streamUrl
+                  - isAnonymous
+                properties:
+                  streamId:
+                    type: string
+                    format: uuid
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+                  streamUrl:
+                    type: string
+                    format: uri
+                    example: "http://localhost:8096/TunnelFin/stream/550e8400-e29b-41d4-a716-446655440000"
+                  isAnonymous:
+                    type: boolean
+                    example: true
+                  circuitId:
+                    type: string
+                    format: uuid
+                    nullable: true
+                    example: "660e8400-e29b-41d4-a716-446655440001"
+        '403':
+          description: Non-anonymous streaming requires explicit consent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentRequired'
+        '408':
+          description: Stream initialization timeout (60 seconds exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Resource limits reached (max concurrent streams)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    SearchResult:
+      type: object
+      required:
+        - id
+        - infoHash
+        - title
+        - isAnonymousAvailable
+      properties:
+        id:
+          type: string
+          format: uuid
+        infoHash:
+          type: string
+          example: "b415c913643e5ff49fe37d304bbb5e6e11ad5101"
+        title:
+          type: string
+          example: "Inception (2010) 1080p BluRay x265 HEVC"
+        originalFilename:
+          type: string
+          example: "Inception.2010.1080p.BluRay.x265.HEVC.AAC.5.1-RARBG"
+        resolution:
+          type: string
+          example: "1080p"
+        quality:
+          type: string
+          example: "BluRay"
+        videoCodec:
+          type: string
+          example: "x265"
+        audioCodec:
+          type: string
+          example: "AAC"
+        fileSize:
+          type: integer
+          format: int64
+          example: 2147483648
+        seeders:
+          type: integer
+          example: 142
+        leechers:
+          type: integer
+          example: 23
+        sourceIndexer:
+          type: string
+          example: "RARBG"
+        isAnonymousAvailable:
+          type: boolean
+          description: Whether available on Tribler network
+          example: true
+        metadata:
+          $ref: '#/components/schemas/MediaMetadata'
+        matchConfidence:
+          type: number
+          format: double
+          description: Confidence score (0.0-1.0)
+          example: 0.95
+
+    MediaMetadata:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Inception"
+        year:
+          type: integer
+          example: 2010
+        overview:
+          type: string
+          example: "A thief who steals corporate secrets through dream-sharing technology..."
+        posterUrl:
+          type: string
+          format: uri
+          example: "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg"
+        backdropUrl:
+          type: string
+          format: uri
+        rating:
+          type: number
+          format: double
+          example: 8.8
+        genres:
+          type: array
+          items:
+            type: string
+          example: ["Action", "Science Fiction", "Thriller"]
+
+    ConsentRequired:
+      type: object
+      required:
+        - code
+        - message
+        - warning
+      properties:
+        code:
+          type: string
+          example: "CONSENT_REQUIRED"
+        message:
+          type: string
+          example: "This content is only available via non-anonymous BitTorrent"
+        warning:
+          type: string
+          example: "Your IP address will be visible to other peers in the swarm. Proceed only if you accept this privacy risk."
+        retryWithConsent:
+          type: boolean
+          example: true
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+

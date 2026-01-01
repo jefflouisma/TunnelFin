@@ -1,0 +1,264 @@
+openapi: 3.0.3
+info:
+  title: TunnelFin Plugin Configuration Schema
+  description: Configuration schema for TunnelFin plugin settings stored in Jellyfin
+  version: 1.0.0
+
+components:
+  schemas:
+    PluginConfiguration:
+      type: object
+      description: Root configuration object for TunnelFin plugin
+      required:
+        - anonymitySettings
+        - resourceLimits
+        - indexers
+        - filterProfiles
+      properties:
+        anonymitySettings:
+          $ref: '#/components/schemas/AnonymitySettings'
+        resourceLimits:
+          $ref: '#/components/schemas/ResourceLimits'
+        indexers:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndexerConfiguration'
+        filterProfiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterProfile'
+        networkIdentity:
+          $ref: '#/components/schemas/NetworkIdentity'
+        loggingLevel:
+          type: string
+          enum: [Minimal, Verbose]
+          default: Minimal
+          description: Logging verbosity (FR-037, FR-041)
+
+    AnonymitySettings:
+      type: object
+      description: Privacy and anonymity configuration (FR-003, FR-006, FR-040)
+      required:
+        - defaultHopCount
+        - allowNonAnonymousFallback
+        - circuitRetryDuration
+      properties:
+        defaultHopCount:
+          type: integer
+          minimum: 1
+          maximum: 3
+          default: 3
+          description: Default number of hops for anonymity circuits (FR-003, FR-006)
+        allowNonAnonymousFallback:
+          type: boolean
+          default: true
+          description: Whether to offer non-anonymous fallback when Tribler unavailable
+        circuitRetryDuration:
+          type: integer
+          minimum: 10
+          maximum: 120
+          default: 30
+          description: Circuit establishment retry duration in seconds (FR-040)
+        enableNetworkContribution:
+          type: boolean
+          default: true
+          description: Whether to relay traffic for other peers (FR-005)
+
+    ResourceLimits:
+      type: object
+      description: Resource usage limits (FR-013, FR-014, FR-015, FR-018)
+      required:
+        - maxConcurrentStreams
+        - maxTorrentCacheSize
+        - maxConcurrentSearches
+      properties:
+        maxConcurrentStreams:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 3
+          description: Maximum concurrent torrent streams (FR-013)
+        maxTorrentCacheSize:
+          type: integer
+          format: int64
+          minimum: 1073741824
+          maximum: 107374182400
+          default: 10737418240
+          description: Maximum torrent cache size in bytes (default 10GB) (FR-014)
+        maxConcurrentSearches:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+          description: Maximum concurrent indexer searches (FR-018)
+        streamInitializationTimeout:
+          type: integer
+          minimum: 30
+          maximum: 300
+          default: 60
+          description: Stream initialization timeout in seconds (FR-012)
+
+    IndexerConfiguration:
+      type: object
+      description: Torrent indexer configuration (FR-016, FR-017)
+      required:
+        - id
+        - name
+        - type
+        - isEnabled
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "1337x"
+        type:
+          type: string
+          enum: [BuiltIn, Torznab]
+        endpointUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: API endpoint (required for Torznab)
+          example: "https://custom-tracker.example.com/api"
+        apiKey:
+          type: string
+          nullable: true
+          description: API key (for Torznab)
+        isEnabled:
+          type: boolean
+          default: true
+        priority:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Search priority (lower = higher priority)
+        timeoutSeconds:
+          type: integer
+          minimum: 5
+          maximum: 60
+          default: 10
+
+    FilterProfile:
+      type: object
+      description: Content filtering and sorting profile (FR-019-FR-024)
+      required:
+        - id
+        - name
+        - contentType
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "High Quality Movies"
+        contentType:
+          type: string
+          enum: [Movies, TVShows, Anime]
+        requiredFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterRule'
+        preferredFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterRule'
+        excludedFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterRule'
+        includeFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterRule'
+        conditionalFilters:
+          type: array
+          items:
+            type: string
+          description: Expression-based conditional filters (FR-022)
+          example: ["exclude 720p if >5 results at 1080p"]
+        sortCriteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/SortCriterion'
+        isDefault:
+          type: boolean
+          default: false
+
+    FilterRule:
+      type: object
+      required:
+        - attribute
+        - operator
+        - value
+      properties:
+        attribute:
+          type: string
+          enum: [Resolution, Quality, VideoCodec, AudioCodec, AudioChannels, HdrFormat, Language, FileSize, Seeders, ReleaseGroup]
+        operator:
+          type: string
+          enum: [Equals, NotEquals, Contains, NotContains, GreaterThan, LessThan, Regex]
+        value:
+          type: string
+          example: "1080p"
+
+    SortCriterion:
+      type: object
+      required:
+        - attribute
+        - direction
+        - priority
+      properties:
+        attribute:
+          type: string
+          enum: [Resolution, Quality, Seeders, Leechers, FileSize, MatchConfidence, DiscoveredAt]
+        direction:
+          type: string
+          enum: [Ascending, Descending]
+        priority:
+          type: integer
+          minimum: 0
+          description: Sort order priority (0 = highest)
+
+    NetworkIdentity:
+      type: object
+      description: Tribler network identity (FR-004, FR-038)
+      required:
+        - peerId
+        - publicKey
+        - privateKeyEncrypted
+      properties:
+        peerId:
+          type: string
+          description: Unique peer identifier (derived from public key)
+        publicKey:
+          type: string
+          format: byte
+          description: Ed25519 public key (base64)
+        privateKeyEncrypted:
+          type: string
+          format: byte
+          description: Ed25519 private key (encrypted, base64)
+        networkContribution:
+          $ref: '#/components/schemas/NetworkContributionStats'
+
+    NetworkContributionStats:
+      type: object
+      description: Bandwidth contribution statistics (FR-005, SC-010)
+      properties:
+        totalBytesDownloaded:
+          type: integer
+          format: int64
+        totalBytesUploaded:
+          type: integer
+          format: int64
+        totalBytesRelayed:
+          type: integer
+          format: int64
+        contributionRatio:
+          type: number
+          format: double
+          description: Relayed / Downloaded ratio
+
