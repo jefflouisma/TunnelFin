@@ -145,3 +145,8 @@ ServiceFabricBackup/
 *.rptproj.bak
 
 .augment/
+
+# Environment variables
+.env
+.env.*
+!.env.example
