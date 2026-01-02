@@ -1,5 +1,8 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using TunnelFin.Discovery;
+using TunnelFin.Indexers;
 using TunnelFin.Jellyfin;
 using TunnelFin.Models;
 using Xunit;
@@ -581,6 +584,47 @@ public class TunnelFinSearchProviderTests
         // SearchEngine handles indexer failures gracefully, so this should not throw
         var response = await provider.SearchAsync("Test", ContentType.Movie);
         response.Results.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Log_Error_And_Rethrow_On_SearchEngine_Exception()
+    {
+        // Arrange
+        var mockDeduplicator = new Mock<IDeduplicator>();
+        mockDeduplicator
+            .Setup(d => d.Deduplicate(It.IsAny<List<SearchResult>>()))
+            .Throws(new InvalidOperationException("Deduplication failed"));
+
+        var indexerManager = new IndexerManager(NullLogger.Instance);
+        var metadataFetcher = new MetadataFetcher(NullLogger.Instance);
+        var searchEngine = new SearchEngine(
+            NullLogger.Instance,
+            indexerManager,
+            mockDeduplicator.Object,
+            metadataFetcher);
+
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance, searchEngine);
+
+        // Add a test indexer that returns results
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 10,
+            Leechers = 1,
+            ContentType = ContentType.Movie
+        };
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        indexerManager.AddIndexer(indexer);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await provider.SearchAsync("Test", ContentType.Movie);
+        });
+
+        exception.Message.Should().Be("Deduplication failed");
     }
 
 }

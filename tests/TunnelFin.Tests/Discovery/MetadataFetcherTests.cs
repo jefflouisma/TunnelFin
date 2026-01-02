@@ -982,5 +982,135 @@ public class MetadataFetcherTests
         metadata.MatchConfidence.Should().BeApproximately(0.9, 0.01);
     }
 
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Remove_Invalid_Year_Below_1900()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Ancient Movie 1850 1080p",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Year.Should().BeNull("year 1850 is before 1900 and should be removed");
+        metadata.MatchConfidence.Should().BeLessThan(0.7, "confidence should be reduced for invalid year");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Remove_Invalid_Year_Above_2030()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Future Movie 2050 1080p",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Year.Should().BeNull("year 2050 is after 2030 and should be removed");
+        metadata.MatchConfidence.Should().BeLessThan(0.7, "confidence should be reduced for invalid year");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Remove_Invalid_Season_Below_1()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "TV Show S00E01 1080p", // Season 0 is invalid
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Season.Should().BeNull("season 0 is below 1 and should be removed");
+        metadata.MatchConfidence.Should().BeLessThan(0.7, "confidence should be reduced for invalid season");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Remove_Invalid_Season_Above_50()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "TV Show S99E01 1080p", // Season 99 is invalid
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Season.Should().BeNull("season 99 is above 50 and should be removed");
+        metadata.MatchConfidence.Should().BeLessThan(0.7, "confidence should be reduced for invalid season");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Remove_Invalid_Episode_Below_1()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "TV Show S01E00 1080p", // Episode 0 is invalid
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Episode.Should().BeNull("episode 0 is below 1 and should be removed");
+        metadata.MatchConfidence.Should().BeLessThan(0.7, "confidence should be reduced for invalid episode");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Accept_Valid_Episode_999()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "TV Show S01E999 1080p", // Episode 999 is the maximum valid
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Episode.Should().Be(999, "episode 999 is the maximum valid episode number");
+        metadata.Season.Should().Be(1);
+        metadata.MatchConfidence.Should().BeGreaterThan(0.6, "confidence should not be reduced for valid episode");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Multiple_Invalid_Fields()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Invalid Show 1850 S99E01 1080p", // Year and season invalid
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Year.Should().BeNull("year 1850 is invalid");
+        metadata.Season.Should().BeNull("season 99 is invalid");
+        metadata.Episode.Should().Be(1, "episode 1 is valid");
+        // Confidence reduced 2 times: 0.5 * 0.8 * 0.8 = 0.32, plus 0.2 for episode = 0.52
+        metadata.MatchConfidence.Should().BeLessThan(0.6, "confidence should be reduced for multiple invalid fields");
+    }
+
 }
 
