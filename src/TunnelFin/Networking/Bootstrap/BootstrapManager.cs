@@ -260,24 +260,38 @@ public class BootstrapManager : IBootstrapManager
 
             _logger.LogDebug("Received {Length} bytes from {Endpoint}", data.Length, e.RemoteEndPoint);
 
-            // Check minimum message length (IPv8 prefix + message type + minimal payload)
-            if (data.Length < 24)
+            // Check minimum message length
+            // py-ipv8 format: prefix (22 bytes) + msg_type (1) + auth + global_time + payload + signature
+            if (data.Length < 23)
             {
                 _logger.LogDebug("Message too short: {Length} bytes", data.Length);
                 return;
             }
 
-            // Check for IPv8 community prefix (first byte is version 0x02)
-            if (data[0] != 0x02)
+            // Check for py-ipv8 message format
+            // Format: 0x00 + 0x02 + community_id (20 bytes) + message_type
+            byte messageType;
+            int payloadOffset;
+
+            if (data[0] == 0x00 && data[1] == 0x02)
             {
-                _logger.LogDebug("Invalid IPv8 version: 0x{Version:X2}", data[0]);
+                // New py-ipv8 format: 0x00 + 0x02 + community_id (20 bytes) + msg_type at byte 22
+                messageType = data[22];
+                payloadOffset = 23;
+                _logger.LogDebug("Received py-ipv8 format message, type: {Type}", messageType);
+            }
+            else if (data[0] == 0x02)
+            {
+                // Legacy format: 0x02 + community_id (20 bytes) + service_id + reserved + msg_type at byte 23
+                messageType = data[23];
+                payloadOffset = 24;
+                _logger.LogDebug("Received legacy format message, type: {Type}", messageType);
+            }
+            else
+            {
+                _logger.LogDebug("Unknown message format, first bytes: 0x{B0:X2} 0x{B1:X2}", data[0], data[1]);
                 return;
             }
-
-            // Extract message type (at offset 23)
-            var messageType = data[23];
-
-            _logger.LogDebug("Received message type: {Type}", messageType);
 
             // Only process introduction-response messages
             if (messageType != MSG_INTRODUCTION_RESPONSE)
@@ -288,31 +302,46 @@ public class BootstrapManager : IBootstrapManager
 
             _logger.LogInformation("Received introduction-response from {Endpoint}", e.RemoteEndPoint);
 
-            // Parse introduction-response payload (after IPv8 header at offset 24)
-            // Format: destination(6) + source_lan(6) + source_wan(6) + lan_intro(6) + wan_intro(6) + identifier(2) + ...
-            if (data.Length < 24 + 32) // Minimum payload size
+            // Parse introduction-response payload
+            // py-ipv8 format after prefix: BinMemberAuth (varlenH) + GlobalTime (8 bytes) + IntroductionResponsePayload
+            // IntroductionResponsePayload: dest(6) + source_lan(6) + source_wan(6) + lan_intro(6) + wan_intro(6) + identifier(2)
+
+            if (data.Length < payloadOffset + 10) // Minimum: auth_len(2) + some data
+            {
+                _logger.LogDebug("Payload too short");
                 return;
+            }
 
-            var payload = new byte[data.Length - 24];
-            Array.Copy(data, 24, payload, 0, payload.Length);
+            // Skip BinMemberAuthenticationPayload (varlenH = 2-byte length + data)
+            int offset = payloadOffset;
+            var authLen = (data[offset] << 8) | data[offset + 1];
+            offset += 2 + authLen;
 
-            // Extract source WAN address (offset 12-17 in payload)
+            // Skip GlobalTimeDistributionPayload (8 bytes)
+            offset += 8;
+
+            // Now we're at IntroductionResponsePayload
+            // Format: dest(6) + source_lan(6) + source_wan(6) + lan_intro(6) + wan_intro(6) + identifier(2)
+            if (data.Length < offset + 32)
+            {
+                _logger.LogDebug("IntroductionResponsePayload too short");
+                return;
+            }
+
+            // Extract source WAN address (offset 12-17 in IntroductionResponsePayload)
             var ipBytes = new byte[4];
-            Array.Copy(payload, 12, ipBytes, 0, 4);
-            if (BitConverter.IsLittleEndian)
-                Array.Reverse(ipBytes);
-            var ipv4Address = BitConverter.ToUInt32(ipBytes, 0);
+            Array.Copy(data, offset + 12, ipBytes, 0, 4);
+            // IPv4 addresses are in network byte order (big-endian)
+            var ipv4Address = (uint)((ipBytes[0] << 24) | (ipBytes[1] << 16) | (ipBytes[2] << 8) | ipBytes[3]);
 
-            var portBytes = new byte[2];
-            Array.Copy(payload, 16, portBytes, 0, 2);
-            if (BitConverter.IsLittleEndian)
-                Array.Reverse(portBytes);
-            var port = BitConverter.ToUInt16(portBytes, 0);
+            var port = (ushort)((data[offset + 16] << 8) | data[offset + 17]);
 
-            // For now, we don't have the public key from the response, so we'll create a placeholder
-            // In a full implementation, we would extract the public key from the message signature
+            // Extract public key from BinMemberAuthenticationPayload
             var publicKey = new byte[32];
-            Array.Copy(payload, 0, publicKey, 0, Math.Min(32, payload.Length));
+            if (authLen >= 32)
+            {
+                Array.Copy(data, payloadOffset + 2, publicKey, 0, 32);
+            }
 
             // Create peer and add to table
             var peer = new Peer(publicKey, ipv4Address, port);
