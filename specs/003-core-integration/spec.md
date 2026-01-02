@@ -11,9 +11,14 @@
 
 ### Session 2026-01-02
 
-- Q: Which indexers should be implemented first? → A: Torznab (Jackett/Prowlarr compatible) has highest priority as it provides unified API; 1337x, Nyaa, RARBG are secondary
+- Q: Which indexers should be implemented first? → A: Torznab (Jackett/Prowlarr compatible) has highest priority as it provides unified API; 1337x, Nyaa, TorrentGalaxy, EZTV are secondary built-in scrapers
 - Q: Should HTTP streaming use Kestrel or Jellyfin's built-in HTTP? → A: Use MonoTorrent's built-in HttpStream with Jellyfin's HTTP prefix routing
 - Q: How to handle indexer rate limiting? → A: 1 request/second per indexer with exponential backoff on 429/503 errors
+- Q: Replace RARBG (shut down 2023)? → A: Replace with TorrentGalaxy (movies/TV, verified uploaders) and EZTV (TV-specialized). Both have clean HTML structures suitable for scraping.
+- Q: Metadata enrichment approach? → A: Defer to Jellyfin's existing metadata providers - let Jellyfin handle IMDB/TMDB enrichment for consistency with library items
+- Q: Download persistence? → A: Ephemeral - torrents are stream-only, deleted when stream ends. Simpler implementation, no disk management complexity.
+- Q: Multi-file torrents? → A: Present as playlist - group files as single item with episode/file selection UI
+- Q: Subtitle support? → A: Use Jellyfin's existing subtitle plugins (Open Subtitles, Subscene, etc.) - consistent UX, no additional dependencies
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -122,6 +127,8 @@ The system checks Tribler network availability and displays appropriate UI indic
 - **FR-005**: System MUST support HTTP Range requests for video seeking (206 Partial Content)
 - **FR-006**: System MUST prioritize pieces based on current stream position for smooth playback
 - **FR-007**: System MUST expose stream URLs at configurable HTTP prefix (default: /tunnelfin/stream/)
+- **FR-007a**: System MUST delete torrent data when stream ends (ephemeral mode)
+- **FR-007b**: System MUST present multi-file torrents as playlist with file selection UI
 
 **Indexer Integration**
 
@@ -129,7 +136,7 @@ The system checks Tribler network availability and displays appropriate UI indic
 - **FR-009**: System MUST parse Torznab XML responses extracting: title, size, seeders, leechers, infohash, magnet link
 - **FR-010**: System MUST implement rate limiting (1 request/second per indexer)
 - **FR-011**: System MUST implement exponential backoff on 429/503 errors (1s, 2s, 4s, 8s, max 60s)
-- **FR-012**: System MUST support built-in scrapers for: 1337x, Nyaa, RARBG (if available)
+- **FR-012**: System MUST support built-in scrapers for: 1337x, Nyaa, TorrentGalaxy, EZTV
 - **FR-013**: System MUST normalize search results into common TorrentSearchResult model
 
 **Jellyfin Integration**
@@ -501,7 +508,8 @@ public enum IndexerType
     Torznab,
     BuiltIn1337x,
     BuiltInNyaa,
-    BuiltInRARBG
+    BuiltInTorrentGalaxy,
+    BuiltInEZTV
 }
 ```
 
@@ -553,6 +561,8 @@ public enum IndexerType
 | T011 | Implement exponential backoff for errors | 2h |
 | T012 | Implement Indexer1337x HTML scraper | 4h |
 | T013 | Implement IndexerNyaa HTML scraper | 3h |
+| T013a | Implement IndexerTorrentGalaxy HTML scraper | 3h |
+| T013b | Implement IndexerEZTV HTML scraper | 2h |
 | T014 | Update IndexerManager to aggregate results | 2h |
 | T015 | Unit tests for Torznab XML parsing | 2h |
 | T016 | Unit tests for HTML scraping | 2h |
@@ -601,7 +611,7 @@ public enum IndexerType
 | T032 | Error handling edge cases | 3h |
 | T033 | Documentation and configuration guide | 2h |
 
-**Total Estimate**: ~85 hours
+**Total Estimate**: ~90 hours (includes TorrentGalaxy + EZTV scrapers)
 
 ### Dependencies
 
@@ -617,15 +627,22 @@ All Phases ───────────────► Phase 5 (Polish)
 
 ## Open Questions
 
-1. **Indexer Selection**: Should we implement RARBG scraper given the site's uncertain status, or focus on more stable alternatives like TorrentGalaxy?
+*All questions resolved - see Clarifications section above.*
 
-2. **Metadata Enrichment**: Should we automatically fetch IMDB/TMDB metadata for search results, or defer to Jellyfin's existing metadata providers?
+~~1. **Indexer Selection**: Should we implement RARBG scraper given the site's uncertain status, or focus on more stable alternatives like TorrentGalaxy?~~
+**Resolved**: Replace RARBG with TorrentGalaxy and EZTV.
 
-3. **Download Persistence**: Should torrents persist across Jellyfin restarts, or should they be ephemeral (stream-only)?
+~~2. **Metadata Enrichment**: Should we automatically fetch IMDB/TMDB metadata for search results, or defer to Jellyfin's existing metadata providers?~~
+**Resolved**: Defer to Jellyfin's existing metadata providers.
 
-4. **Multi-file Torrents**: How should we handle torrents with multiple video files? Present as playlist or individual items?
+~~3. **Download Persistence**: Should torrents persist across Jellyfin restarts, or should they be ephemeral (stream-only)?~~
+**Resolved**: Ephemeral (stream-only).
 
-5. **Subtitle Support**: Should we integrate OpenSubtitles or similar for automatic subtitle fetching?
+~~4. **Multi-file Torrents**: How should we handle torrents with multiple video files? Present as playlist or individual items?~~
+**Resolved**: Present as playlist with file selection.
+
+~~5. **Subtitle Support**: Should we integrate OpenSubtitles or similar for automatic subtitle fetching?~~
+**Resolved**: Use Jellyfin's existing subtitle plugins.
 
 ## References
 
