@@ -30,6 +30,192 @@ public class CircuitManagerTests
     }
 
     [Fact]
+    public void Constructor_Should_Throw_When_Settings_Is_Null()
+    {
+        // Act
+        var act = () => new CircuitManager(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("settings");
+    }
+
+    [Fact]
+    public void AddPeer_Should_Throw_When_Peer_Is_Null()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var act = () => manager.AddPeer(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("peer");
+    }
+
+    [Fact]
+    public void AddPeer_Should_Not_Add_Duplicate_Peer()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+        var publicKey = new byte[32];
+        var peer = new Peer(publicKey, 0x7F000001, 8000);
+
+        // Act
+        manager.AddPeer(peer);
+        manager.AddPeer(peer); // Try to add duplicate
+
+        // Assert
+        manager.Peers.Should().HaveCount(1, "should not add duplicate peer");
+    }
+
+    [Fact]
+    public void AddPeer_Should_Throw_When_Disposed()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+        manager.Dispose();
+        var peer = new Peer(new byte[32], 0x7F000001, 8000);
+
+        // Act
+        var act = () => manager.AddPeer(peer);
+
+        // Assert
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Throw_When_Disposed()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+        manager.Dispose();
+
+        // Act
+        var act = async () => await manager.CreateCircuitAsync();
+
+        // Assert
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Throw_When_HopCount_Below_Minimum()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { MinHopCount = 1, MaxHopCount = 3 };
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var act = async () => await manager.CreateCircuitAsync(0);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>()
+            .WithParameterName("hopCount");
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Throw_When_HopCount_Above_Maximum()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { MinHopCount = 1, MaxHopCount = 3 };
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var act = async () => await manager.CreateCircuitAsync(4);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>()
+            .WithParameterName("hopCount");
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Throw_When_Max_Concurrent_Circuits_Reached()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { MaxConcurrentCircuits = 1, DefaultHopCount = 1 };
+        var manager = new CircuitManager(settings);
+
+        var peer = new Peer(new byte[32] { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0x7F000001, 8000);
+        peer.IsHandshakeComplete = true;
+        peer.IsRelayCandidate = true;
+        manager.AddPeer(peer);
+
+        await manager.CreateCircuitAsync(1);
+
+        // Act
+        var act = async () => await manager.CreateCircuitAsync(1);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Maximum concurrent circuits*");
+    }
+
+    [Fact]
+    public void GetCircuit_Should_Return_Circuit_When_Exists()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var circuit = manager.GetCircuit(1);
+
+        // Assert
+        circuit.Should().BeNull("circuit does not exist");
+    }
+
+    [Fact]
+    public void CloseCircuit_Should_Remove_Circuit()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        manager.CloseCircuit(1);
+
+        // Assert
+        manager.TotalCircuitCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void Dispose_Should_Clear_All_Circuits_And_Peers()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+        var peer = new Peer(new byte[32], 0x7F000001, 8000);
+        manager.AddPeer(peer);
+
+        // Act
+        manager.Dispose();
+
+        // Assert
+        manager.TotalCircuitCount.Should().Be(0);
+        manager.Peers.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Dispose_Should_Be_Idempotent()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        manager.Dispose();
+        var act = () => manager.Dispose();
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
     public async Task CircuitManager_Should_Create_Circuit_With_Specified_Hops()
     {
         // Arrange
@@ -313,16 +499,6 @@ public class CircuitManagerTests
 
         // Assert
         circuit.Should().BeNull();
-    }
-
-    [Fact]
-    public void Constructor_Should_Throw_When_Settings_Is_Null()
-    {
-        // Arrange & Act
-        var act = () => new CircuitManager(null!);
-
-        // Assert
-        act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]

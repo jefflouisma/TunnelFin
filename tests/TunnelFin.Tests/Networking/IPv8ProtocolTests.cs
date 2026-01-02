@@ -1,5 +1,6 @@
 using FluentAssertions;
 using TunnelFin.Configuration;
+using TunnelFin.Networking.Identity;
 using TunnelFin.Networking.IPv8;
 using Xunit;
 
@@ -105,6 +106,200 @@ public class IPv8ProtocolTests
         // Assert
         messageType.Should().Be(IPv8MessageType.IntroductionResponse);
         deserializedPayload.Should().Equal(payload);
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_Settings_Is_Null()
+    {
+        // Act
+        var act = () => new Protocol(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("settings");
+    }
+
+    [Fact]
+    public void Constructor_Should_Accept_Custom_Identity()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var identity = new Ed25519KeyPair();
+
+        // Act
+        using var protocol = new Protocol(settings, identity);
+
+        // Assert
+        protocol.Identity.Should().BeSameAs(identity);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_Should_Be_Idempotent()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        using var protocol = new Protocol(settings);
+
+        // Act
+        await protocol.InitializeAsync();
+        await protocol.InitializeAsync(); // Call again
+
+        // Assert
+        protocol.IsInitialized.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InitializeAsync_Should_Throw_When_Disposed()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var protocol = new Protocol(settings);
+        protocol.Dispose();
+
+        // Act
+        var act = async () => await protocol.InitializeAsync();
+
+        // Assert
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public async Task PerformHandshakeAsync_Should_Throw_When_Disposed()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var protocol = new Protocol(settings);
+        protocol.Dispose();
+
+        // Act
+        var act = async () => await protocol.PerformHandshakeAsync("127.0.0.1", 8080);
+
+        // Assert
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public async Task PerformHandshakeAsync_Should_Throw_When_Not_Initialized()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        using var protocol = new Protocol(settings);
+
+        // Act
+        var act = async () => await protocol.PerformHandshakeAsync("127.0.0.1", 8080);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not initialized*");
+    }
+
+    [Fact]
+    public async Task DiscoverPeersAsync_Should_Throw_When_Disposed()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var protocol = new Protocol(settings);
+        protocol.Dispose();
+
+        // Act
+        var act = async () => await protocol.DiscoverPeersAsync();
+
+        // Assert
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public async Task DiscoverPeersAsync_Should_Throw_When_Not_Initialized()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        using var protocol = new Protocol(settings);
+
+        // Act
+        var act = async () => await protocol.DiscoverPeersAsync();
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not initialized*");
+    }
+
+    [Fact]
+    public void SerializeMessage_Should_Throw_When_Disposed()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var protocol = new Protocol(settings);
+        protocol.Dispose();
+
+        // Act
+        var act = () => protocol.SerializeMessage(IPv8MessageType.IntroductionRequest, new byte[4]);
+
+        // Assert
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void DeserializeMessage_Should_Throw_When_Disposed()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var protocol = new Protocol(settings);
+        protocol.Dispose();
+
+        // Act
+        var act = () => protocol.DeserializeMessage(new byte[24]);
+
+        // Assert
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void DeserializeMessage_Should_Throw_When_Message_Too_Short()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        using var protocol = new Protocol(settings);
+
+        // Act
+        var act = () => protocol.DeserializeMessage(new byte[23]); // Too short
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("message")
+            .WithMessage("*too short*");
+    }
+
+    [Fact]
+    public void SerializeMessage_Should_Include_23Byte_Prefix()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        using var protocol = new Protocol(settings);
+        var payload = new byte[] { 0xAA, 0xBB };
+
+        // Act
+        var message = protocol.SerializeMessage(IPv8MessageType.Create, payload);
+
+        // Assert
+        message.Length.Should().Be(24 + 2, "should have 23-byte prefix + 1-byte type + 2-byte payload");
+        message[23].Should().Be(IPv8MessageType.Create);
+        message[24].Should().Be(0xAA);
+        message[25].Should().Be(0xBB);
+    }
+
+    [Fact]
+    public void Dispose_Should_Be_Idempotent()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var protocol = new Protocol(settings);
+
+        // Act
+        protocol.Dispose();
+        var act = () => protocol.Dispose();
+
+        // Assert
+        act.Should().NotThrow();
     }
 }
 
