@@ -163,6 +163,174 @@ public class SortEngineTests
         sorted[1].Title.Should().Be("Movie A");
         sorted[2].Title.Should().Be("Movie C"); // Oldest
     }
+
+    [Fact]
+    public void Sort_Should_Sort_By_Relevance_When_Specified()
+    {
+        // Arrange
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie A", RelevanceScore = 0.5 },
+            new SearchResult { Title = "Movie B", RelevanceScore = 0.9 },
+            new SearchResult { Title = "Movie C", RelevanceScore = 0.3 }
+        };
+
+        _sortEngine.SetSortCriteria(SortAttribute.Relevance, SortDirection.Descending);
+
+        // Act
+        var sorted = _sortEngine.Sort(results);
+
+        // Assert
+        sorted[0].RelevanceScore.Should().Be(0.9);
+        sorted[1].RelevanceScore.Should().Be(0.5);
+        sorted[2].RelevanceScore.Should().Be(0.3);
+    }
+
+    [Fact]
+    public void Sort_Should_Sort_By_Title_When_Specified()
+    {
+        // Arrange
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Zebra Movie" },
+            new SearchResult { Title = "Alpha Movie" },
+            new SearchResult { Title = "Beta Movie" }
+        };
+
+        _sortEngine.SetSortCriteria(SortAttribute.Title, SortDirection.Ascending);
+
+        // Act
+        var sorted = _sortEngine.Sort(results);
+
+        // Assert
+        sorted[0].Title.Should().Be("Alpha Movie");
+        sorted[1].Title.Should().Be("Beta Movie");
+        sorted[2].Title.Should().Be("Zebra Movie");
+    }
+
+    [Fact]
+    public void Sort_Should_Handle_Null_Quality_Values()
+    {
+        // Arrange
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie A", Quality = null },
+            new SearchResult { Title = "Movie B", Quality = "1080p" },
+            new SearchResult { Title = "Movie C", Quality = null }
+        };
+
+        _sortEngine.SetSortCriteria(SortAttribute.Quality, SortDirection.Descending);
+
+        // Act
+        var sorted = _sortEngine.Sort(results);
+
+        // Assert
+        sorted[0].Quality.Should().Be("1080p");
+        sorted[1].Quality.Should().BeNull();
+        sorted[2].Quality.Should().BeNull();
+    }
+
+    [Fact]
+    public void Sort_Should_Handle_Null_UploadedAt_Values()
+    {
+        // Arrange
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie A", UploadedAt = null },
+            new SearchResult { Title = "Movie B", UploadedAt = DateTime.UtcNow },
+            new SearchResult { Title = "Movie C", UploadedAt = null }
+        };
+
+        _sortEngine.SetSortCriteria(SortAttribute.UploadDate, SortDirection.Descending);
+
+        // Act
+        var sorted = _sortEngine.Sort(results);
+
+        // Assert
+        sorted[0].UploadedAt.Should().NotBeNull();
+        sorted[1].UploadedAt.Should().BeNull();
+        sorted[2].UploadedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void Sort_Should_Handle_Unknown_Quality_Values()
+    {
+        // Arrange
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie A", Quality = "UNKNOWN" },
+            new SearchResult { Title = "Movie B", Quality = "1080p" },
+            new SearchResult { Title = "Movie C", Quality = "CUSTOM" }
+        };
+
+        _sortEngine.SetSortCriteria(SortAttribute.Quality, SortDirection.Descending);
+
+        // Act
+        var sorted = _sortEngine.Sort(results);
+
+        // Assert
+        sorted[0].Quality.Should().Be("1080p");
+    }
+
+    [Fact]
+    public void Sort_Should_Return_Empty_List_For_Null_Input()
+    {
+        // Act
+        var sorted = _sortEngine.Sort(null!);
+
+        // Assert
+        sorted.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Sort_Should_Return_Empty_List_For_Empty_Input()
+    {
+        // Arrange
+        var results = new List<SearchResult>();
+
+        // Act
+        var sorted = _sortEngine.Sort(results);
+
+        // Assert
+        sorted.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SetSortCriteria_Should_Throw_When_Arrays_Have_Different_Lengths()
+    {
+        // Arrange
+        var criteria = new[] { SortAttribute.Seeders, SortAttribute.Quality };
+        var directions = new[] { SortDirection.Descending };
+
+        // Act
+        var act = () => _sortEngine.SetSortCriteria(criteria, directions);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*same length*");
+    }
+
+    [Fact]
+    public void Sort_Should_Sort_By_480p_Quality()
+    {
+        // Arrange
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie A", Quality = "480p" },
+            new SearchResult { Title = "Movie B", Quality = "720p" },
+            new SearchResult { Title = "Movie C", Quality = "480p" }
+        };
+
+        _sortEngine.SetSortCriteria(SortAttribute.Quality, SortDirection.Descending);
+
+        // Act
+        var sorted = _sortEngine.Sort(results);
+
+        // Assert
+        sorted[0].Quality.Should().Be("720p");
+        sorted[1].Quality.Should().Be("480p");
+        sorted[2].Quality.Should().Be("480p");
+    }
 }
 
 

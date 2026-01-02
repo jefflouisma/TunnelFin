@@ -138,6 +138,194 @@ public class ConfigurationTests
         errors.Should().Contain(e => e.Contains("MinBufferPieces"));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(11)]
+    public void ResourceLimits_Should_Fail_Validation_With_Invalid_MaxConcurrentStreams(int value)
+    {
+        // Arrange
+        var limits = new ResourceLimits { MaxConcurrentStreams = value };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxConcurrentStreams"));
+    }
+
+    [Theory]
+    [InlineData(9)]
+    [InlineData(1001)]
+    public void ResourceLimits_Should_Fail_Validation_With_Invalid_MaxSearchResults(int value)
+    {
+        // Arrange
+        var limits = new ResourceLimits { MaxSearchResults = value };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxSearchResults"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(21)]
+    public void ResourceLimits_Should_Fail_Validation_With_Invalid_MaxConcurrentIndexerQueries(int value)
+    {
+        // Arrange
+        var limits = new ResourceLimits { MaxConcurrentIndexerQueries = value };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxConcurrentIndexerQueries"));
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(301)]
+    public void ResourceLimits_Should_Fail_Validation_With_Invalid_SearchTimeoutSeconds(int value)
+    {
+        // Arrange
+        var limits = new ResourceLimits { SearchTimeoutSeconds = value };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("SearchTimeoutSeconds"));
+    }
+
+    [Theory]
+    [InlineData(9)]
+    [InlineData(601)]
+    public void ResourceLimits_Should_Fail_Validation_With_Invalid_StreamInitializationTimeoutSeconds(int value)
+    {
+        // Arrange
+        var limits = new ResourceLimits { StreamInitializationTimeoutSeconds = value };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("StreamInitializationTimeoutSeconds"));
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(301)]
+    public void ResourceLimits_Should_Fail_Validation_With_Invalid_MetadataDownloadTimeoutSeconds(int value)
+    {
+        // Arrange
+        var limits = new ResourceLimits { MetadataDownloadTimeoutSeconds = value };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MetadataDownloadTimeoutSeconds"));
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(101)]
+    public void ResourceLimits_Should_Fail_Validation_With_Invalid_MaxBufferPieces(int value)
+    {
+        // Arrange
+        var limits = new ResourceLimits { MaxBufferPieces = value };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxBufferPieces"));
+    }
+
+    [Theory]
+    [InlineData(9)]
+    [InlineData(501)]
+    public void ResourceLimits_Should_Fail_Validation_With_Invalid_MaxPeerConnections(int value)
+    {
+        // Arrange
+        var limits = new ResourceLimits { MaxPeerConnections = value };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxPeerConnections"));
+    }
+
+    [Fact]
+    public void ResourceLimits_Should_Fail_Validation_When_MaxTotalPeerConnections_Less_Than_MaxPeerConnections()
+    {
+        // Arrange
+        var limits = new ResourceLimits
+        {
+            MaxPeerConnections = 100,
+            MaxTotalPeerConnections = 50
+        };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxTotalPeerConnections"));
+    }
+
+    [Fact]
+    public void ResourceLimits_Should_Fail_Validation_With_Too_Small_MaxCacheSize()
+    {
+        // Arrange
+        var limits = new ResourceLimits { MaxCacheSize = 1073741823L }; // 1 byte less than 1GB
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxCacheSize"));
+    }
+
+    [Fact]
+    public void ResourceLimits_Should_Fail_Validation_With_Too_Small_DiskCacheSize()
+    {
+        // Arrange
+        var limits = new ResourceLimits { DiskCacheSize = 104857599L }; // 1 byte less than 100MB
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("DiskCacheSize"));
+    }
+
+    [Fact]
+    public void ResourceLimits_Should_Fail_Validation_With_Invalid_CacheMaxAgeDays()
+    {
+        // Arrange
+        var limits = new ResourceLimits { CacheMaxAgeDays = 0 };
+
+        // Act
+        var isValid = limits.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("CacheMaxAgeDays"));
+    }
+
     [Fact]
     public void FilterSettings_Should_Have_Valid_Defaults()
     {
