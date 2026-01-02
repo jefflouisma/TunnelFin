@@ -41,12 +41,10 @@ public class BufferManager
 
         return new BufferStatus
         {
-            StreamId = streamId,
-            BufferedSeconds = state.BufferedSeconds,
-            IsBuffering = state.IsBuffering,
-            IsReadyForPlayback = state.BufferedSeconds >= _minimumBufferSeconds,
-            BufferedBytes = state.BufferedBytes,
-            DownloadSpeedBytesPerSecond = state.DownloadSpeedBytesPerSecond,
+            BufferedRanges = state.BufferedRanges,
+            PrebufferComplete = state.BufferedSeconds >= _minimumBufferSeconds,
+            CurrentBufferedBytes = state.BufferedBytes,
+            DownloadRate = state.DownloadSpeedBytesPerSecond,
             LastUpdated = state.LastUpdated
         };
     }
@@ -120,6 +118,7 @@ public class BufferManager
     /// </summary>
     private class BufferState
     {
+        public List<(long Start, long End)> BufferedRanges { get; set; } = new();
         public long BufferedBytes { get; set; }
         public long DownloadSpeedBytesPerSecond { get; set; }
         public double BufferedSeconds { get; set; }

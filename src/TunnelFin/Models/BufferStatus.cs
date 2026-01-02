@@ -1,44 +1,50 @@
 namespace TunnelFin.Models;
 
 /// <summary>
-/// Represents the buffer status for a stream (FR-010, SC-003).
-/// Tracks buffered data to ensure >10s buffer requirement.
+/// Represents the buffer status for a stream.
+/// Lifecycle: Updated continuously during streaming, deleted when stream ends.
+/// Storage: In-memory as part of StreamSession.
 /// </summary>
 public class BufferStatus
 {
     /// <summary>
-    /// Unique identifier for the stream.
+    /// List of buffered byte ranges (start, end) for the file.
     /// </summary>
-    public Guid StreamId { get; set; }
+    public required List<(long Start, long End)> BufferedRanges { get; set; }
 
     /// <summary>
-    /// Number of seconds of playback data currently buffered.
+    /// Whether prebuffering is complete and playback can start.
     /// </summary>
-    public double BufferedSeconds { get; set; }
+    public bool PrebufferComplete { get; set; }
 
     /// <summary>
-    /// Whether the stream is currently buffering.
+    /// Current number of bytes buffered.
     /// </summary>
-    public bool IsBuffering { get; set; }
+    public long CurrentBufferedBytes { get; set; }
 
     /// <summary>
-    /// Whether the stream has reached minimum buffer and is ready for playback.
+    /// Current download rate in bytes per second.
     /// </summary>
-    public bool IsReadyForPlayback { get; set; }
+    public double DownloadRate { get; set; }
 
     /// <summary>
-    /// Number of bytes currently buffered.
+    /// Timestamp of last buffer update.
     /// </summary>
-    public long BufferedBytes { get; set; }
+    public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
 
     /// <summary>
-    /// Current download speed in bytes per second.
+    /// Validates the buffer status according to specification rules.
     /// </summary>
-    public long DownloadSpeedBytesPerSecond { get; set; }
+    public void Validate()
+    {
+        if (BufferedRanges == null)
+            throw new ArgumentException("BufferedRanges must not be null", nameof(BufferedRanges));
 
-    /// <summary>
-    /// Timestamp of the last buffer update.
-    /// </summary>
-    public DateTime LastUpdated { get; set; }
+        if (CurrentBufferedBytes < 0)
+            throw new ArgumentException("CurrentBufferedBytes must be non-negative", nameof(CurrentBufferedBytes));
+
+        if (DownloadRate < 0)
+            throw new ArgumentException("DownloadRate must be non-negative", nameof(DownloadRate));
+    }
 }
 

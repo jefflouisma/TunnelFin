@@ -82,7 +82,7 @@ BitTorrent peer connections must route through established Tribler circuits to h
 
 **Acceptance Scenarios**:
 
-1. **Given** established circuit exists, **When** PeerManager.ConnectToPeerAsync is called, **Then** connection routes through TunnelProxy
+1. **Given** established circuit exists, **When** MonoTorrent connects to peer via TunnelSocketConnector, **Then** connection routes through TunnelProxy
 2. **Given** circuit fails mid-download, **When** traffic cannot route, **Then** fallback prompt appears (if AllowNonAnonymousFallback=true)
 3. **Given** no circuits available, **When** connection attempted, **Then** operation waits or fails based on settings
 
@@ -121,9 +121,9 @@ The system checks Tribler network availability and displays appropriate UI indic
 **Streaming Engine (MonoTorrent Integration)**
 
 - **FR-001**: System MUST initialize MonoTorrent ClientEngine with streaming-optimized settings (sequential piece picking, disk cache enabled)
-- **FR-002**: System MUST support adding torrents via magnet link using AddStreamingAsync
+- **FR-002**: System MUST support adding torrents via magnet link using AddTorrentAsync
 - **FR-003**: System MUST wait for metadata (BEP-9) with configurable timeout (default 90s)
-- **FR-004**: System MUST create HTTP streaming endpoints via StreamProvider.CreateHttpStreamAsync
+- **FR-004**: System MUST create HTTP streaming endpoints via StreamProvider.CreateStreamAsync
 - **FR-005**: System MUST support HTTP Range requests for video seeking (206 Partial Content)
 - **FR-006**: System MUST prioritize pieces based on current stream position for smooth playback
 - **FR-007**: System MUST expose stream URLs at configurable HTTP prefix (default: /tunnelfin/stream/)
@@ -137,7 +137,7 @@ The system checks Tribler network availability and displays appropriate UI indic
 - **FR-010**: System MUST implement rate limiting (1 request/second per indexer)
 - **FR-011**: System MUST implement exponential backoff on 429/503 errors (1s, 2s, 4s, 8s, max 60s)
 - **FR-012**: System MUST support built-in scrapers for: 1337x, Nyaa, TorrentGalaxy, EZTV
-- **FR-013**: System MUST normalize search results into common TorrentSearchResult model
+- **FR-013**: System MUST normalize search results into common TorrentResult model
 
 **Jellyfin Integration**
 
@@ -164,7 +164,7 @@ The system checks Tribler network availability and displays appropriate UI indic
 ### Key Entities
 
 - **TorrentManager**: Represents an active torrent download/stream session with MonoTorrent
-- **TorrentSearchResult**: Normalized search result from any indexer (title, size, seeders, infohash, magnet)
+- **TorrentResult**: Normalized search result from any indexer (title, size, seeders, infohash, magnet)
 - **IndexerConfig**: Configuration for a single indexer (type, URL, API key, rate limits)
 - **StreamSession**: Active streaming session linking TorrentManager to HTTP endpoint
 - **CircuitConnection**: Wrapper around peer connection that routes through Tribler circuit
@@ -252,7 +252,7 @@ public class TorrentEngine : IDisposable
     }
 
     // Add torrent with streaming support
-    public async Task<TorrentManager> AddStreamingAsync(
+    public async Task<TorrentManager> AddTorrentAsync(
         string magnetLink,
         string downloadPath,
         CancellationToken ct = default);
@@ -264,7 +264,7 @@ public class TorrentEngine : IDisposable
         CancellationToken ct = default);
 
     // Create HTTP stream for file
-    public async Task<IHttpStream> CreateHttpStreamAsync(
+    public async Task<Stream> CreateStreamAsync(
         TorrentManager manager,
         ITorrentManagerFile file,
         bool prebuffer = true,
@@ -462,8 +462,8 @@ public CircuitConnectionMetrics GetMetrics() => new CircuitConnectionMetrics
 
 2. **Stream Flow**:
    ```
-   Select Result → TorrentEngine.AddStreamingAsync → WaitForMetadata
-   → CreateHttpStreamAsync → HTTP URL → Jellyfin Player
+   Select Result → TorrentEngine.AddTorrentAsync → WaitForMetadata
+   → CreateStreamAsync → HTTP URL → Jellyfin Player
    ```
 
 3. **Anonymous Connection Flow**:
@@ -540,9 +540,9 @@ public enum IndexerType
 | Task | Description | Estimate |
 |------|-------------|----------|
 | T001 | Implement TorrentEngine wrapper with streaming settings | 4h |
-| T002 | Implement AddStreamingAsync with magnet link parsing | 2h |
+| T002 | Implement AddTorrentAsync with magnet link parsing | 2h |
 | T003 | Implement WaitForMetadataAsync with timeout | 2h |
-| T004 | Implement CreateHttpStreamAsync with prebuffering | 3h |
+| T004 | Implement CreateStreamAsync with prebuffering | 3h |
 | T005 | Wire StreamManager to TorrentEngine | 2h |
 | T006 | Add HTTP Range request support verification | 2h |
 | T007 | Unit tests for TorrentEngine | 3h |

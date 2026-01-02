@@ -146,6 +146,13 @@ Live network tests against Tribler network.
 - [X] T067 [SC-009] Audit all files for TODO comments and placeholder implementations
 - [X] T068 Run full test suite, verify all success criteria pass
 
+### E2E Test Reference
+**Test Torrent**: Big Buck Bunny (Creative Commons licensed)
+- **InfoHash**: `dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c`
+- **Magnet**: Uses opentrackr.org, explodie.org, coppersurfer.tk, leechers-paradise.org, btorrent.xyz, fastcast.nz, openwebtorrent.com trackers
+- **WebSeed**: webtorrent.io
+- **Note**: Seeder discovery may take 30-60 seconds; confirmed working with Tribler network 2026-01-02
+
 ## Task Dependencies
 
 ```mermaid
