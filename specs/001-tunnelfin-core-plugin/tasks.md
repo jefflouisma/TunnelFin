@@ -184,20 +184,20 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 ### Tests for User Story 3 (MANDATORY - Test-First Development) ⚠️
 
-- [ ] T073 [P] [US3] Write unit tests for FilterEngine in tests/TunnelFin.Tests/Discovery/FilterEngineTests.cs (Required, Preferred, Excluded, Include filters per FR-019, FR-020, FR-021, FR-022)
-- [ ] T074 [P] [US3] Write unit tests for SortEngine in tests/TunnelFin.Tests/Discovery/SortEngineTests.cs (multi-criteria sorting per FR-023, <1s for 100+ results per SC-005)
-- [ ] T075 [P] [US3] Write unit tests for attribute parsing in tests/TunnelFin.Tests/Discovery/AttributeParserTests.cs (resolution, quality, codecs from filenames)
-- [ ] T076 [P] [US3] Write integration test for filter profiles in tests/TunnelFin.Integration/FilterProfileTests.cs (create profile, apply to search, verify results)
+- [X] T073 [P] [US3] Write unit tests for FilterEngine in tests/TunnelFin.Tests/Discovery/FilterEngineTests.cs (Required, Preferred, Excluded, Include filters per FR-019, FR-020, FR-021, FR-022)
+- [X] T074 [P] [US3] Write unit tests for SortEngine in tests/TunnelFin.Tests/Discovery/SortEngineTests.cs (multi-criteria sorting per FR-023, <1s for 100+ results per SC-005)
+- [X] T075 [P] [US3] Write unit tests for attribute parsing in tests/TunnelFin.Tests/Discovery/AttributeParserTests.cs (resolution, quality, codecs from filenames)
+- [X] T076 [P] [US3] Write integration test for filter profiles in tests/TunnelFin.Integration/FilterProfileTests.cs (create profile, apply to search, verify results)
 
 ### Implementation for User Story 3
 
 **Filtering Engine (FR-019 to FR-024)**
 
-- [ ] T077 [P] [US3] Implement FilterEngine in src/TunnelFin/Discovery/FilterEngine.cs (Required, Preferred, Excluded, Include filter types per FR-019)
-- [ ] T078 [P] [US3] Implement attribute extraction in FilterEngine (resolution, quality, codecs, audio, HDR, language, size, seeders, release group per FR-020)
-- [ ] T079 [P] [US3] Implement keyword/regex matching in FilterEngine (filename pattern matching per FR-021)
-- [ ] T080 [US3] Implement conditional filtering in FilterEngine (expression language support per FR-022, e.g., "exclude 720p if >5 results at 1080p")
-- [ ] T081 [P] [US3] Implement SortEngine in src/TunnelFin/Discovery/SortEngine.cs (multi-criteria sorting per FR-023, <1s for 100+ results per SC-005)
+- [X] T077 [P] [US3] Implement FilterEngine in src/TunnelFin/Discovery/FilterEngine.cs (Required, Preferred, Excluded, Include filter types per FR-019)
+- [X] T078 [P] [US3] Implement attribute extraction in AttributeParser (resolution, quality, codecs, audio, HDR, language, release group per FR-020)
+- [X] T079 [P] [US3] Implement keyword/regex matching in FilterEngine (filename pattern matching per FR-021)
+- [X] T080 [US3] Implement conditional filtering in FilterEngine (expression language support per FR-022, e.g., "exclude 720p if >5 results at 1080p")
+- [X] T081 [P] [US3] Implement SortEngine in src/TunnelFin/Discovery/SortEngine.cs (multi-criteria sorting per FR-023, <1s for 100+ results per SC-005)
 - [ ] T082 [US3] Implement filter profile management in FilterEngine (separate profiles for Movies, TV Shows, Anime per FR-024)
 - [ ] T083 [US3] Implement profile configuration UI integration (configure profile in <2 minutes per SC-006)
 
