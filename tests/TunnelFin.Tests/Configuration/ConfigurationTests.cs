@@ -1,5 +1,6 @@
 using FluentAssertions;
 using TunnelFin.Configuration;
+using TunnelFin.Models;
 using Xunit;
 
 namespace TunnelFin.Tests.Configuration;
@@ -146,8 +147,8 @@ public class ConfigurationTests
         // Assert
         settings.EnableAutoFiltering.Should().BeTrue();
         settings.DefaultFilterProfileId.Should().BeNull();
-        settings.DefaultSortAttribute.Should().Be(Models.SortAttribute.Seeders);
-        settings.DefaultSortDirection.Should().Be(Models.SortDirection.Descending);
+        settings.DefaultSortAttribute.Should().Be(SortAttribute.Seeders);
+        settings.DefaultSortDirection.Should().Be(SortDirection.Descending);
         settings.MinSeeders.Should().Be(1);
         settings.MinFileSize.Should().Be(104857600L, "Minimum file size should be 100MB");
         settings.MaxFileSize.Should().Be(0, "Maximum file size should be unlimited");
