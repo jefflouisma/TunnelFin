@@ -67,35 +67,35 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 > **CONSTITUTION REQUIREMENT: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T018 [P] [US1] Unit test for TorrentEngine.AddTorrentAsync in tests/TunnelFin.Tests/Unit/BitTorrent/TorrentEngineTests.cs - verify MonoTorrent manager creation
-- [ ] T019 [P] [US1] Unit test for TorrentEngine.CreateStreamAsync in tests/TunnelFin.Tests/Unit/BitTorrent/TorrentEngineTests.cs - verify StreamProvider.CreateStreamAsync call
-- [ ] T020 [P] [US1] Unit test for TorrentEngine.GetBufferStatus in tests/TunnelFin.Tests/Unit/BitTorrent/TorrentEngineTests.cs - verify buffer status tracking
-- [ ] T021 [P] [US1] Unit test for TorrentEngine.RemoveTorrentAsync in tests/TunnelFin.Tests/Unit/BitTorrent/TorrentEngineTests.cs - verify ephemeral deletion (FR-007a)
-- [ ] T022 [P] [US1] Unit test for StreamManager.CreateSessionAsync in tests/TunnelFin.Tests/Unit/Streaming/StreamManagerTests.cs - verify session creation
-- [ ] T023 [P] [US1] Unit test for StreamManager.HandleStreamRequestAsync in tests/TunnelFin.Tests/Unit/Streaming/StreamManagerTests.cs - verify HTTP range request handling (206 Partial Content)
-- [ ] T024 [P] [US1] Unit test for StreamManager.EndSessionAsync in tests/TunnelFin.Tests/Unit/Streaming/StreamManagerTests.cs - verify cleanup
-- [ ] T025 [P] [US1] Unit test for SequentialPiecePicker in tests/TunnelFin.Tests/Unit/BitTorrent/SequentialPiecePickerTests.cs - verify sequential piece selection
-- [ ] T026 [US1] Integration test for end-to-end streaming in tests/TunnelFin.Tests/Integration/EndToEndStreamingTests.cs - Big Buck Bunny magnet → HTTP stream → range requests
+- [X] T018 [P] [US1] Unit test for TorrentEngine.AddTorrentAsync in tests/TunnelFin.Tests/Unit/BitTorrent/TorrentEngineTests.cs - verify MonoTorrent manager creation
+- [X] T019 [P] [US1] Unit test for TorrentEngine.CreateStreamAsync in tests/TunnelFin.Tests/Unit/BitTorrent/TorrentEngineTests.cs - verify StreamProvider.CreateStreamAsync call
+- [X] T020 [P] [US1] Unit test for TorrentEngine.GetBufferStatus in tests/TunnelFin.Tests/Unit/BitTorrent/TorrentEngineTests.cs - verify buffer status tracking
+- [X] T021 [P] [US1] Unit test for TorrentEngine.RemoveTorrentAsync in tests/TunnelFin.Tests/Unit/BitTorrent/TorrentEngineTests.cs - verify ephemeral deletion (FR-007a)
+- [X] T022 [P] [US1] Unit test for StreamManager.CreateSessionAsync in tests/TunnelFin.Tests/Unit/Streaming/StreamManagerTests.cs - verify session creation
+- [X] T023 [P] [US1] Unit test for StreamManager.HandleStreamRequestAsync in tests/TunnelFin.Tests/Unit/Streaming/StreamManagerTests.cs - verify HTTP range request handling (206 Partial Content)
+- [X] T024 [P] [US1] Unit test for StreamManager.EndSessionAsync in tests/TunnelFin.Tests/Unit/Streaming/StreamManagerTests.cs - verify cleanup
+- [X] T025 [P] [US1] Unit test for SequentialPiecePicker in tests/TunnelFin.Tests/Unit/BitTorrent/SequentialPiecePickerTests.cs - verify sequential piece selection
+- [X] T026 [US1] Integration test for end-to-end streaming in tests/TunnelFin.Tests/Integration/EndToEndStreamingTests.cs - Big Buck Bunny magnet → HTTP stream → range requests
 
 ### Implementation for User Story 1
 
-- [ ] T027 [P] [US1] Implement ITorrentEngine interface in src/TunnelFin/BitTorrent/TorrentEngine.cs with MonoTorrent ClientEngine initialization
-- [ ] T028 [US1] Implement TorrentEngine.AddTorrentAsync in src/TunnelFin/BitTorrent/TorrentEngine.cs - add magnet link, wait for metadata (90s timeout)
-- [ ] T029 [US1] Implement TorrentEngine.CreateStreamAsync in src/TunnelFin/BitTorrent/TorrentEngine.cs - use StreamProvider.CreateStreamAsync with prebuffer support
-- [ ] T030 [US1] Implement TorrentEngine.GetBufferStatus in src/TunnelFin/BitTorrent/TorrentEngine.cs - track buffered ranges and download rate
-- [ ] T031 [US1] Implement TorrentEngine.RemoveTorrentAsync in src/TunnelFin/BitTorrent/TorrentEngine.cs - stop torrent and delete cached data (FR-007a)
-- [ ] T032 [US1] Implement TorrentEngine.SetSocketConnector in src/TunnelFin/BitTorrent/TorrentEngine.cs - configure custom ISocketConnector for circuit routing
-- [ ] T033 [P] [US1] Implement SequentialPiecePicker in src/TunnelFin/BitTorrent/SequentialPiecePicker.cs - custom piece selection for streaming (sliding window around read position)
-- [ ] T034 [P] [US1] Implement IStreamManager interface in src/TunnelFin/Streaming/StreamManager.cs with session management
-- [ ] T035 [US1] Implement StreamManager.CreateSessionAsync in src/TunnelFin/Streaming/StreamManager.cs - create StreamSession, call TorrentEngine.CreateStreamAsync
-- [ ] T036 [US1] Implement StreamManager.HandleStreamRequestAsync in src/TunnelFin/Streaming/StreamManager.cs - parse Range header, return 206 Partial Content with correct byte range
-- [ ] T037 [US1] Implement StreamManager.EndSessionAsync in src/TunnelFin/Streaming/StreamManager.cs - cleanup session, call TorrentEngine.RemoveTorrentAsync (FR-007a)
-- [ ] T038 [US1] Implement StreamManager.CleanupIdleSessionsAsync in src/TunnelFin/Streaming/StreamManager.cs - remove sessions idle > configured timeout
-- [ ] T039 [P] [US1] Implement AdaptivePrebuffer in src/TunnelFin/Streaming/AdaptivePrebuffer.cs - calculate buffer size based on video bitrate and target seconds
-- [ ] T040 [US1] Configure EngineSettings in TorrentEngine constructor - DiskCacheBytes=50MB, MaximumConnections=200, AllowPortForwarding=false
-- [ ] T041 [US1] Add validation for magnet link format in TorrentEngine.AddTorrentAsync - verify infohash is 40 hex chars
-- [ ] T042 [US1] Add error handling for metadata timeout in TorrentEngine.AddTorrentAsync - cancel operation after 90s
-- [ ] T043 [US1] Add logging for streaming operations in TorrentEngine and StreamManager - log AddTorrent, CreateStream, EndSession events
+- [X] T027 [P] [US1] Implement ITorrentEngine interface in src/TunnelFin/BitTorrent/TorrentEngine.cs with MonoTorrent ClientEngine initialization
+- [X] T028 [US1] Implement TorrentEngine.AddTorrentAsync in src/TunnelFin/BitTorrent/TorrentEngine.cs - add magnet link, wait for metadata (90s timeout)
+- [X] T029 [US1] Implement TorrentEngine.CreateStreamAsync in src/TunnelFin/BitTorrent/TorrentEngine.cs - use StreamProvider.CreateStreamAsync with prebuffer support
+- [X] T030 [US1] Implement TorrentEngine.GetBufferStatus in src/TunnelFin/BitTorrent/TorrentEngine.cs - track buffered ranges and download rate
+- [X] T031 [US1] Implement TorrentEngine.RemoveTorrentAsync in src/TunnelFin/BitTorrent/TorrentEngine.cs - stop torrent and delete cached data (FR-007a)
+- [X] T032 [US1] Implement TorrentEngine.SetSocketConnector in src/TunnelFin/BitTorrent/TorrentEngine.cs - configure custom ISocketConnector for circuit routing
+- [X] T033 [P] [US1] Implement SequentialPiecePicker in src/TunnelFin/BitTorrent/SequentialPiecePicker.cs - custom piece selection for streaming (sliding window around read position)
+- [X] T034 [P] [US1] Implement IStreamManager interface in src/TunnelFin/Streaming/StreamManager.cs with session management
+- [X] T035 [US1] Implement StreamManager.CreateSessionAsync in src/TunnelFin/Streaming/StreamManager.cs - create StreamSession, call TorrentEngine.CreateStreamAsync
+- [X] T036 [US1] Implement StreamManager.HandleStreamRequestAsync in src/TunnelFin/Streaming/StreamManager.cs - parse Range header, return 206 Partial Content with correct byte range
+- [X] T037 [US1] Implement StreamManager.EndSessionAsync in src/TunnelFin/Streaming/StreamManager.cs - cleanup session, call TorrentEngine.RemoveTorrentAsync (FR-007a)
+- [X] T038 [US1] Implement StreamManager.CleanupIdleSessionsAsync in src/TunnelFin/Streaming/StreamManager.cs - remove sessions idle > configured timeout
+- [X] T039 [P] [US1] Implement AdaptivePrebuffer in src/TunnelFin/Streaming/AdaptivePrebuffer.cs - calculate buffer size based on video bitrate and target seconds
+- [X] T040 [US1] Configure EngineSettings in TorrentEngine constructor - DiskCacheBytes=50MB, MaximumConnections=200, AllowPortForwarding=false
+- [X] T041 [US1] Add validation for magnet link format in TorrentEngine.AddTorrentAsync - verify infohash is 40 hex chars
+- [X] T042 [US1] Add error handling for metadata timeout in TorrentEngine.AddTorrentAsync - cancel operation after 90s
+- [X] T043 [US1] Add logging for streaming operations in TorrentEngine and StreamManager - log AddTorrent, CreateStream, EndSession events
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -109,40 +109,40 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 ### Tests for User Story 2 (MANDATORY - Test-First Development) ⚠️
 
-- [ ] T044 [P] [US2] Unit test for TorznabClient.SearchAsync in tests/TunnelFin.Tests/Unit/Indexers/TorznabClientTests.cs - verify XML parsing
-- [ ] T045 [P] [US2] Unit test for TorznabClient rate limiting in tests/TunnelFin.Tests/Unit/Indexers/TorznabClientTests.cs - verify 1 req/sec limit
-- [ ] T046 [P] [US2] Unit test for TorznabClient exponential backoff in tests/TunnelFin.Tests/Unit/Indexers/TorznabClientTests.cs - verify 429 handling (1s, 2s, 4s)
-- [ ] T047 [P] [US2] Unit test for Scraper1337x.SearchAsync in tests/TunnelFin.Tests/Unit/Indexers/HtmlScrapers/Scraper1337xTests.cs - verify HTML table parsing
-- [ ] T048 [P] [US2] Unit test for ScraperNyaa.SearchAsync in tests/TunnelFin.Tests/Unit/Indexers/HtmlScrapers/ScraperNyaaTests.cs - verify panel-based parsing
-- [ ] T049 [P] [US2] Unit test for IndexerManager.SearchAsync in tests/TunnelFin.Tests/Unit/Indexers/IndexerManagerTests.cs - verify parallel queries, deduplication, sorting
-- [ ] T050 [P] [US2] Unit test for IndexerManager.AddIndexerAsync in tests/TunnelFin.Tests/Unit/Indexers/IndexerManagerTests.cs - verify configuration persistence
-- [ ] T051 [US2] Integration test for Torznab indexer in tests/TunnelFin.Tests/Integration/IndexerIntegrationTests.cs - live Jackett query (Docker-based)
+- [X] T044 [P] [US2] Unit test for TorznabClient.SearchAsync in tests/TunnelFin.Tests/Unit/Indexers/TorznabClientTests.cs - verify XML parsing
+- [X] T045 [P] [US2] Unit test for TorznabClient rate limiting in tests/TunnelFin.Tests/Unit/Indexers/TorznabClientTests.cs - verify 1 req/sec limit
+- [X] T046 [P] [US2] Unit test for TorznabClient exponential backoff in tests/TunnelFin.Tests/Unit/Indexers/TorznabClientTests.cs - verify 429 handling (1s, 2s, 4s)
+- [X] T047 [P] [US2] Unit test for Scraper1337x.SearchAsync in tests/TunnelFin.Tests/Unit/Indexers/HtmlScrapers/Scraper1337xTests.cs - verify HTML table parsing
+- [X] T048 [P] [US2] Unit test for ScraperNyaa.SearchAsync in tests/TunnelFin.Tests/Unit/Indexers/HtmlScrapers/ScraperNyaaTests.cs - verify panel-based parsing
+- [X] T049 [P] [US2] Unit test for IndexerManager.SearchAsync in tests/TunnelFin.Tests/Unit/Indexers/IndexerManagerTests.cs - verify parallel queries, deduplication, sorting
+- [X] T050 [P] [US2] Unit test for IndexerManager.AddIndexerAsync in tests/TunnelFin.Tests/Unit/Indexers/IndexerManagerTests.cs - verify configuration persistence
+- [X] T051 [US2] Integration test for Torznab indexer in tests/TunnelFin.Tests/Integration/IndexerIntegrationTests.cs - live Jackett query (Docker-based)
 
 ### Implementation for User Story 2
 
-- [ ] T052 [P] [US2] Implement TorznabClient in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - HTTP client with rate limiting (SemaphoreSlim)
-- [ ] T053 [US2] Implement TorznabClient.SearchAsync in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - build query URL, fetch XML, parse torznab:attr elements
-- [ ] T054 [US2] Implement TorznabClient.ParseTorznabResponse in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - XDocument parsing with namespace handling
-- [ ] T055 [US2] Implement TorznabClient rate limiting in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - 1 request/second with Task.Delay release
-- [ ] T056 [US2] Implement TorznabClient exponential backoff in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - retry on 429/503 (1s, 2s, 4s, 8s, max 60s)
-- [ ] T057 [P] [US2] Implement Scraper1337x in src/TunnelFin/Indexers/HtmlScrapers/Scraper1337x.cs - HtmlAgilityPack table-based parsing
-- [ ] T058 [US2] Implement Scraper1337x.SearchAsync in src/TunnelFin/Indexers/HtmlScrapers/Scraper1337x.cs - fetch HTML, parse table rows (td.coll-1.name a for titles)
-- [ ] T059 [US2] Implement Scraper1337x.ParseSearchResults in src/TunnelFin/Indexers/HtmlScrapers/Scraper1337x.cs - extract title, seeders, leechers, size from table cells
-- [ ] T060 [P] [US2] Implement ScraperNyaa in src/TunnelFin/Indexers/HtmlScrapers/ScraperNyaa.cs - panel-based layout parsing
-- [ ] T061 [US2] Implement ScraperNyaa.SearchAsync in src/TunnelFin/Indexers/HtmlScrapers/ScraperNyaa.cs - fetch HTML or RSS feed, parse nyaa:seeders elements
-- [ ] T062 [P] [US2] Implement ScraperTorrentGalaxy in src/TunnelFin/Indexers/HtmlScrapers/ScraperTorrentGalaxy.cs - card-based div container parsing
-- [ ] T063 [P] [US2] Implement ScraperEZTV in src/TunnelFin/Indexers/HtmlScrapers/ScraperEZTV.cs - table-based parsing with episode information
-- [ ] T064 [P] [US2] Implement IIndexerManager interface in src/TunnelFin/Indexers/IndexerManager.cs with indexer aggregation
-- [ ] T065 [US2] Implement IndexerManager.SearchAsync in src/TunnelFin/Indexers/IndexerManager.cs - parallel queries to all enabled indexers, merge results
-- [ ] T066 [US2] Implement IndexerManager result deduplication in src/TunnelFin/Indexers/IndexerManager.cs - deduplicate by InfoHash, sort by seeders descending
-- [ ] T067 [US2] Implement IndexerManager.SearchIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - query single indexer by ID
-- [ ] T068 [US2] Implement IndexerManager.AddIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - persist to Jellyfin PluginConfiguration
-- [ ] T069 [US2] Implement IndexerManager.UpdateIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - update configuration
-- [ ] T070 [US2] Implement IndexerManager.RemoveIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - remove from configuration
-- [ ] T071 [US2] Implement IndexerManager.TestIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - validate connectivity before saving
-- [ ] T072 [US2] Add user-agent rotation in HTML scrapers - rotate between common browser user-agents to avoid detection
-- [ ] T073 [US2] Add error handling for unreachable indexers - mark as temporarily unavailable after 3 consecutive 5xx errors (5 min cooldown)
-- [ ] T074 [US2] Add logging for indexer operations - log search queries, result counts, rate limit hits, errors
+- [X] T052 [P] [US2] Implement TorznabClient in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - HTTP client with rate limiting (SemaphoreSlim)
+- [X] T053 [US2] Implement TorznabClient.SearchAsync in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - build query URL, fetch XML, parse torznab:attr elements
+- [X] T054 [US2] Implement TorznabClient.ParseTorznabResponse in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - XDocument parsing with namespace handling
+- [X] T055 [US2] Implement TorznabClient rate limiting in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - 1 request/second with Task.Delay release
+- [X] T056 [US2] Implement TorznabClient exponential backoff in src/TunnelFin/Indexers/Torznab/TorznabClient.cs - retry on 429/503 (1s, 2s, 4s, 8s, max 60s)
+- [X] T057 [P] [US2] Implement Scraper1337x in src/TunnelFin/Indexers/HtmlScrapers/Scraper1337x.cs - HtmlAgilityPack table-based parsing
+- [X] T058 [US2] Implement Scraper1337x.SearchAsync in src/TunnelFin/Indexers/HtmlScrapers/Scraper1337x.cs - fetch HTML, parse table rows (td.coll-1.name a for titles)
+- [X] T059 [US2] Implement Scraper1337x.ParseSearchResults in src/TunnelFin/Indexers/HtmlScrapers/Scraper1337x.cs - extract title, seeders, leechers, size from table cells
+- [X] T060 [P] [US2] Implement ScraperNyaa in src/TunnelFin/Indexers/HtmlScrapers/ScraperNyaa.cs - panel-based layout parsing
+- [X] T061 [US2] Implement ScraperNyaa.SearchAsync in src/TunnelFin/Indexers/HtmlScrapers/ScraperNyaa.cs - fetch HTML or RSS feed, parse nyaa:seeders elements
+- [X] T062 [P] [US2] Implement ScraperTorrentGalaxy in src/TunnelFin/Indexers/HtmlScrapers/ScraperTorrentGalaxy.cs - card-based div container parsing
+- [X] T063 [P] [US2] Implement ScraperEZTV in src/TunnelFin/Indexers/HtmlScrapers/ScraperEZTV.cs - table-based parsing with episode information
+- [X] T064 [P] [US2] Implement IIndexerManager interface in src/TunnelFin/Indexers/IndexerManager.cs with indexer aggregation
+- [X] T065 [US2] Implement IndexerManager.SearchAsync in src/TunnelFin/Indexers/IndexerManager.cs - parallel queries to all enabled indexers, merge results
+- [X] T066 [US2] Implement IndexerManager result deduplication in src/TunnelFin/Indexers/IndexerManager.cs - deduplicate by InfoHash, sort by seeders descending
+- [X] T067 [US2] Implement IndexerManager.SearchIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - query single indexer by ID
+- [X] T068 [US2] Implement IndexerManager.AddIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - persist to Jellyfin PluginConfiguration
+- [X] T069 [US2] Implement IndexerManager.UpdateIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - update configuration
+- [X] T070 [US2] Implement IndexerManager.RemoveIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - remove from configuration
+- [X] T071 [US2] Implement IndexerManager.TestIndexerAsync in src/TunnelFin/Indexers/IndexerManager.cs - validate connectivity before saving
+- [X] T072 [US2] Add user-agent rotation in HTML scrapers - rotate between common browser user-agents to avoid detection
+- [X] T073 [US2] Add error handling for unreachable indexers - mark as temporarily unavailable after 3 consecutive 5xx errors (5 min cooldown)
+- [X] T074 [US2] Add logging for indexer operations - log search queries, result counts, rate limit hits, errors
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -156,26 +156,26 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 ### Tests for User Story 3 (MANDATORY - Test-First Development) ⚠️
 
-- [ ] T075 [P] [US3] Unit test for TunnelFinChannel.GetChannelItems in tests/TunnelFin.Tests/Unit/Jellyfin/TunnelFinChannelTests.cs - verify ChannelItem conversion
-- [ ] T076 [P] [US3] Unit test for TunnelFinChannel.GetChannelItemMediaInfo in tests/TunnelFin.Tests/Unit/Jellyfin/TunnelFinChannelTests.cs - verify MediaSourceInfo creation
-- [ ] T077 [P] [US3] Unit test for TunnelFinSearchProvider.GetSearchResults in tests/TunnelFin.Tests/Unit/Jellyfin/TunnelFinSearchProviderTests.cs - verify SearchResult conversion
-- [ ] T078 [US3] Integration test for Jellyfin channel in tests/TunnelFin.Tests/Integration/JellyfinChannelTests.cs - verify channel registration and item browsing
+- [X] T075 [P] [US3] Unit test for TunnelFinChannel.GetChannelItems in tests/TunnelFin.Tests/Unit/Jellyfin/TunnelFinChannelTests.cs - verify ChannelItem conversion
+- [X] T076 [P] [US3] Unit test for TunnelFinChannel.GetChannelItemMediaInfo in tests/TunnelFin.Tests/Unit/Jellyfin/TunnelFinChannelTests.cs - verify MediaSourceInfo creation
+- [X] T077 [P] [US3] Unit test for TunnelFinSearchProvider.GetSearchResults in tests/TunnelFin.Tests/Unit/Jellyfin/TunnelFinSearchProviderTests.cs - verify SearchResult conversion
+- [X] T078 [US3] Integration test for Jellyfin channel in tests/TunnelFin.Tests/Integration/JellyfinChannelTests.cs - verify channel registration and item browsing
 
 ### Implementation for User Story 3
 
-- [ ] T079 [P] [US3] Implement ITunnelFinChannel interface in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - IChannel implementation
-- [ ] T080 [US3] Implement TunnelFinChannel.GetChannelItems in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - convert TorrentResult to ChannelItem
-- [ ] T081 [US3] Implement TunnelFinChannel.GetChannelFeatures in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - declare supported features (search, media info)
-- [ ] T082 [US3] Implement TunnelFinChannel.ToChannelItem in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - map TorrentResult to ChannelItem with MediaType
-- [ ] T083 [US3] Implement TunnelFinChannel.GetChannelItemMediaInfo in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - create MediaSourceInfo with stream URL
-- [ ] T084 [P] [US3] Implement ITunnelFinSearchProvider interface in src/TunnelFin/Jellyfin/TunnelFinSearchProvider.cs - ISearchProvider implementation
-- [ ] T085 [US3] Implement TunnelFinSearchProvider.GetSearchResults in src/TunnelFin/Jellyfin/TunnelFinSearchProvider.cs - call IndexerManager.SearchAsync, convert to SearchResult
-- [ ] T086 [US3] Implement TunnelFinSearchProvider.ToSearchResult in src/TunnelFin/Jellyfin/TunnelFinSearchProvider.cs - map TorrentResult to Jellyfin SearchResult
-- [ ] T087 [P] [US3] Implement TunnelFinMediaSource in src/TunnelFin/Jellyfin/TunnelFinMediaSource.cs - MediaSourceProvider for stream delivery
-- [ ] T088 [US3] Implement TunnelFinMediaSource.GetMediaSources in src/TunnelFin/Jellyfin/TunnelFinMediaSource.cs - return HTTP stream URL from StreamManager
-- [ ] T089 [US3] Add IMDB/TMDB ID extraction in TunnelFinChannel.ToChannelItem - parse from torrent title for metadata enrichment
-- [ ] T090 [US3] Add multi-file torrent support in TunnelFinChannel.GetChannelItems - present as playlist with file selection UI (FR-007b)
-- [ ] T091 [US3] Add logging for Jellyfin integration - log channel requests, search queries, media source requests
+- [X] T079 [P] [US3] Implement ITunnelFinChannel interface in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - IChannel implementation
+- [X] T080 [US3] Implement TunnelFinChannel.GetChannelItems in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - convert TorrentResult to ChannelItem
+- [X] T081 [US3] Implement TunnelFinChannel.GetChannelFeatures in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - declare supported features (search, media info)
+- [X] T082 [US3] Implement TunnelFinChannel.ToChannelItem in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - map TorrentResult to ChannelItem with MediaType
+- [X] T083 [US3] Implement TunnelFinChannel.GetChannelItemMediaInfo in src/TunnelFin/Jellyfin/TunnelFinChannel.cs - create MediaSourceInfo with stream URL
+- [X] T084 [P] [US3] Implement ITunnelFinSearchProvider interface in src/TunnelFin/Jellyfin/TunnelFinSearchProvider.cs - ISearchProvider implementation
+- [X] T085 [US3] Implement TunnelFinSearchProvider.GetSearchResults in src/TunnelFin/Jellyfin/TunnelFinSearchProvider.cs - call IndexerManager.SearchAsync, convert to SearchResult
+- [X] T086 [US3] Implement TunnelFinSearchProvider.ToSearchResult in src/TunnelFin/Jellyfin/TunnelFinSearchProvider.cs - map TorrentResult to Jellyfin SearchResult
+- [X] T087 [P] [US3] Implement TunnelFinMediaSource in src/TunnelFin/Jellyfin/TunnelFinMediaSource.cs - MediaSourceProvider for stream delivery
+- [X] T088 [US3] Implement TunnelFinMediaSource.GetMediaSources in src/TunnelFin/Jellyfin/TunnelFinMediaSource.cs - return HTTP stream URL from StreamManager
+- [X] T089 [US3] Add IMDB/TMDB ID extraction in TunnelFinChannel.ToChannelItem - parse from torrent title for metadata enrichment
+- [X] T090 [US3] Add multi-file torrent support in TunnelFinChannel.GetChannelItems - present as playlist with file selection UI (FR-007b)
+- [X] T091 [US3] Add logging for Jellyfin integration - log channel requests, search queries, media source requests
 
 **Checkpoint**: All P1 and P2 user stories should now be independently functional
 
@@ -189,28 +189,28 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 ### Tests for User Story 4 (MANDATORY - Test-First Development) ⚠️
 
-- [ ] T092 [P] [US4] Unit test for TunnelSocketConnector.ConnectAsync in tests/TunnelFin.Tests/Unit/Networking/TunnelSocketConnectorTests.cs - verify circuit routing
-- [ ] T093 [P] [US4] Unit test for TunnelSocketConnector.GetHealthyCircuitAsync in tests/TunnelFin.Tests/Unit/Networking/TunnelSocketConnectorTests.cs - verify circuit selection
-- [ ] T094 [P] [US4] Unit test for CircuitHealthMonitor in tests/TunnelFin.Tests/Unit/Networking/CircuitHealthMonitorTests.cs - verify PING/PONG health checks
-- [ ] T095 [P] [US4] Unit test for CircuitConnectionPool in tests/TunnelFin.Tests/Unit/Networking/CircuitConnectionPoolTests.cs - verify connection reuse
-- [ ] T096 [US4] Integration test for circuit routing in tests/TunnelFin.Tests/Integration/CircuitRoutingTests.cs - verify peer connections through circuits
+- [X] T092 [P] [US4] Unit test for TunnelSocketConnector.ConnectAsync in tests/TunnelFin.Tests/Unit/Networking/TunnelSocketConnectorTests.cs - verify circuit routing
+- [X] T093 [P] [US4] Unit test for TunnelSocketConnector.GetHealthyCircuitAsync in tests/TunnelFin.Tests/Unit/Networking/TunnelSocketConnectorTests.cs - verify circuit selection
+- [X] T094 [P] [US4] Unit test for CircuitHealthMonitor in tests/TunnelFin.Tests/Unit/Networking/CircuitHealthMonitorTests.cs - verify PING/PONG health checks
+- [X] T095 [P] [US4] Unit test for CircuitConnectionPool in tests/TunnelFin.Tests/Unit/Networking/CircuitConnectionPoolTests.cs - verify connection reuse
+- [X] T096 [US4] Integration test for circuit routing in tests/TunnelFin.Tests/Integration/CircuitRoutingTests.cs - verify peer connections through circuits
 
 ### Implementation for User Story 4
 
-- [ ] T097 [P] [US4] Implement ITunnelSocketConnector interface in src/TunnelFin/Networking/TunnelSocketConnector.cs - ISocketConnector wrapper
-- [ ] T098 [US4] Implement TunnelSocketConnector.ConnectAsync in src/TunnelFin/Networking/TunnelSocketConnector.cs - route through SOCKS5 proxy (Tribler circuit)
-- [ ] T099 [US4] Implement TunnelSocketConnector.GetHealthyCircuitAsync in src/TunnelFin/Networking/TunnelSocketConnector.cs - select circuit based on RTT, throughput, reliability
-- [ ] T100 [US4] Implement TunnelSocketConnector.ReturnCircuit in src/TunnelFin/Networking/TunnelSocketConnector.cs - mark circuit healthy/unhealthy for pool
-- [ ] T101 [US4] Implement TunnelSocketConnector.SetCircuitRoutingEnabled in src/TunnelFin/Networking/TunnelSocketConnector.cs - toggle circuit routing on/off
-- [ ] T102 [P] [US4] Implement CircuitHealthMonitor in src/TunnelFin/Networking/CircuitHealthMonitor.cs - PING/PONG health checks
-- [ ] T103 [US4] Implement CircuitHealthMonitor health check loop in src/TunnelFin/Networking/CircuitHealthMonitor.cs - periodic PING with exponential backoff on failure
-- [ ] T104 [P] [US4] Implement CircuitConnectionPool in src/TunnelFin/Networking/CircuitConnectionPool.cs - ObjectPool pattern for circuit reuse
-- [ ] T105 [US4] Implement CircuitConnectionPool.GetConnectionAsync in src/TunnelFin/Networking/CircuitConnectionPool.cs - acquire from pool or create new
-- [ ] T106 [US4] Implement CircuitConnectionPool.ReturnConnection in src/TunnelFin/Networking/CircuitConnectionPool.cs - return to pool or dispose if unhealthy
-- [ ] T107 [US4] Integrate TunnelSocketConnector with TorrentEngine - call TorrentEngine.SetSocketConnector in plugin initialization
-- [ ] T108 [US4] Add circuit failover logic in TunnelSocketConnector.ConnectAsync - retry with different circuit on failure (exponential backoff with jitter)
-- [ ] T109 [US4] Add fallback behavior when circuits unavailable - configurable: wait, fail, or prompt user (AllowNonAnonymousFallback setting)
-- [ ] T110 [US4] Add logging for circuit operations - log circuit selection, health checks, failover events, connection pool stats
+- [X] T097 [P] [US4] Implement ITunnelSocketConnector interface in src/TunnelFin/Networking/TunnelSocketConnector.cs - ISocketConnector wrapper
+- [X] T098 [US4] Implement TunnelSocketConnector.ConnectAsync in src/TunnelFin/Networking/TunnelSocketConnector.cs - route through SOCKS5 proxy (Tribler circuit)
+- [X] T099 [US4] Implement TunnelSocketConnector.GetHealthyCircuitAsync in src/TunnelFin/Networking/TunnelSocketConnector.cs - select circuit based on RTT, throughput, reliability
+- [X] T100 [US4] Implement TunnelSocketConnector.ReturnCircuit in src/TunnelFin/Networking/TunnelSocketConnector.cs - mark circuit healthy/unhealthy for pool
+- [X] T101 [US4] Implement TunnelSocketConnector.SetCircuitRoutingEnabled in src/TunnelFin/Networking/TunnelSocketConnector.cs - toggle circuit routing on/off
+- [X] T102 [P] [US4] Implement CircuitHealthMonitor in src/TunnelFin/Networking/CircuitHealthMonitor.cs - PING/PONG health checks
+- [X] T103 [US4] Implement CircuitHealthMonitor health check loop in src/TunnelFin/Networking/CircuitHealthMonitor.cs - periodic PING with exponential backoff on failure
+- [X] T104 [P] [US4] Implement CircuitConnectionPool in src/TunnelFin/Networking/CircuitConnectionPool.cs - ObjectPool pattern for circuit reuse
+- [X] T105 [US4] Implement CircuitConnectionPool.GetConnectionAsync in src/TunnelFin/Networking/CircuitConnectionPool.cs - acquire from pool or create new
+- [X] T106 [US4] Implement CircuitConnectionPool.ReturnConnection in src/TunnelFin/Networking/CircuitConnectionPool.cs - return to pool or dispose if unhealthy
+- [X] T107 [US4] Integrate TunnelSocketConnector with TorrentEngine - call TorrentEngine.SetSocketConnector in plugin initialization
+- [X] T108 [US4] Add circuit failover logic in TunnelSocketConnector.ConnectAsync - retry with different circuit on failure (exponential backoff with jitter)
+- [X] T109 [US4] Add fallback behavior when circuits unavailable - configurable: wait, fail, or prompt user (AllowNonAnonymousFallback setting)
+- [X] T110 [US4] Add logging for circuit operations - log circuit selection, health checks, failover events, connection pool stats
 
 **Checkpoint**: All P1 and P2 user stories should work with anonymous peer connections
 
@@ -224,17 +224,17 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 ### Tests for User Story 5 (MANDATORY - Test-First Development) ⚠️
 
-- [ ] T111 [P] [US5] Unit test for NetworkAvailabilityService.CheckNetworkAvailabilityAsync in tests/TunnelFin.Tests/Unit/Networking/NetworkAvailabilityServiceTests.cs - verify circuit availability check
-- [ ] T112 [P] [US5] Unit test for NetworkAvailabilityService status events in tests/TunnelFin.Tests/Unit/Networking/NetworkAvailabilityServiceTests.cs - verify event firing on status change
+- [X] T111 [P] [US5] Unit test for NetworkAvailabilityService.CheckNetworkAvailabilityAsync in tests/TunnelFin.Tests/Unit/Networking/NetworkAvailabilityServiceTests.cs - verify circuit availability check
+- [X] T112 [P] [US5] Unit test for NetworkAvailabilityService status events in tests/TunnelFin.Tests/Unit/Networking/NetworkAvailabilityServiceTests.cs - verify event firing on status change
 
 ### Implementation for User Story 5
 
-- [ ] T113 [P] [US5] Implement NetworkAvailabilityService in src/TunnelFin/Networking/NetworkAvailabilityService.cs - check circuit availability
-- [ ] T114 [US5] Implement NetworkAvailabilityService.CheckNetworkAvailabilityAsync in src/TunnelFin/Networking/NetworkAvailabilityService.cs - query CircuitManager for active circuits
-- [ ] T115 [US5] Implement NetworkAvailabilityService status change events in src/TunnelFin/Networking/NetworkAvailabilityService.cs - fire event when availability changes
-- [ ] T116 [US5] Add UI indicator logic in Jellyfin plugin - green play button when circuits available, orange when unavailable
-- [ ] T117 [US5] Add periodic availability checks in NetworkAvailabilityService - check every 30 seconds, update UI within 5 seconds of change
-- [ ] T118 [US5] Add logging for network availability - log status changes, circuit counts
+- [X] T113 [P] [US5] Implement NetworkAvailabilityService in src/TunnelFin/Networking/NetworkAvailabilityService.cs - check circuit availability
+- [X] T114 [US5] Implement NetworkAvailabilityService.CheckNetworkAvailabilityAsync in src/TunnelFin/Networking/NetworkAvailabilityService.cs - query CircuitManager for active circuits
+- [X] T115 [US5] Implement NetworkAvailabilityService status change events in src/TunnelFin/Networking/NetworkAvailabilityService.cs - fire event when availability changes
+- [X] T116 [US5] Add UI indicator logic in Jellyfin plugin - green play button when circuits available, orange when unavailable
+- [X] T117 [US5] Add periodic availability checks in NetworkAvailabilityService - check every 30 seconds, update UI within 5 seconds of change
+- [X] T118 [US5] Add logging for network availability - log status changes, circuit counts
 
 **Checkpoint**: All user stories (P1, P2, P3) should now be independently functional
 
@@ -244,17 +244,17 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T119 [P] Add comprehensive error handling across all components - standardize error messages, add user-friendly descriptions
-- [ ] T120 [P] Add performance optimization for concurrent streams - verify 10 concurrent streams without degradation
-- [ ] T121 [P] Add disk space check before starting download - warn if < 2x torrent size available
-- [ ] T122 [P] Add zero seeders warning indicator - display warning for torrents with 0 seeders
-- [ ] T123 [P] Add circuit exhaustion handling - queue connection requests with 30s timeout when all circuits in use
-- [ ] T124 [P] Add comprehensive input validation - validate all user inputs (URLs, API keys, file paths, configuration values)
-- [ ] T125 [P] Implement PluginConfiguration UI in src/TunnelFin/Jellyfin/PluginConfiguration.cs - settings page for indexers, circuits, streaming
-- [ ] T126 [P] Add configuration validation in PluginConfiguration - validate URLs, API keys, rate limits before saving
-- [ ] T127 [P] Add comprehensive logging across all components - structured logging with correlation IDs
-- [ ] T128 [P] Add metrics collection for monitoring - track stream count, indexer response times, circuit latency, buffer status
-- [ ] T129 [P] Update quickstart.md with final build/test/configuration instructions
+- [X] T119 [P] Add comprehensive error handling across all components - standardize error messages, add user-friendly descriptions
+- [X] T120 [P] Add performance optimization for concurrent streams - verify 10 concurrent streams without degradation
+- [X] T121 [P] Add disk space check before starting download - warn if < 2x torrent size available
+- [X] T122 [P] Add zero seeders warning indicator - display warning for torrents with 0 seeders
+- [X] T123 [P] Add circuit exhaustion handling - queue connection requests with 30s timeout when all circuits in use
+- [X] T124 [P] Add comprehensive input validation - validate all user inputs (URLs, API keys, file paths, configuration values)
+- [X] T125 [P] Implement PluginConfiguration UI in src/TunnelFin/Jellyfin/PluginConfiguration.cs - settings page for indexers, circuits, streaming
+- [X] T126 [P] Add configuration validation in PluginConfiguration - validate URLs, API keys, rate limits before saving
+- [X] T127 [P] Add comprehensive logging across all components - structured logging with correlation IDs
+- [X] T128 [P] Add metrics collection for monitoring - track stream count, indexer response times, circuit latency, buffer status
+- [X] T129 [P] Update quickstart.md with final build/test/configuration instructions
 - [ ] T130 Run quickstart.md validation - verify all commands work, tests pass, coverage meets 80% target
 - [ ] T131 Run end-to-end integration tests - verify all user stories work together
 - [ ] T132 Performance testing - verify SC-001 (playback <30s), SC-002 (seeking <5s), SC-003 (search <10s), SC-004 (10 concurrent streams), SC-005 (100% IP anonymity), SC-006 (channel metadata), SC-007 (rate limiting), SC-008 (circuit failover <10s)
