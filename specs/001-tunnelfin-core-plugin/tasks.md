@@ -138,8 +138,8 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 ### Tests for User Story 2 (MANDATORY - Test-First Development) ⚠️
 
-- [ ] T051 [P] [US2] Write unit tests for IndexerManager in tests/TunnelFin.Tests/Indexers/IndexerManagerTests.cs (concurrent searches, timeout handling, response aggregation per FR-016, FR-018)
-- [ ] T052 [P] [US2] Write unit tests for built-in indexers in tests/TunnelFin.Tests/Indexers/BuiltInIndexersTests.cs (1337x, Nyaa, RARBG query parsing, result extraction)
+- [X] T051 [P] [US2] Write unit tests for IndexerManager in tests/TunnelFin.Tests/Indexers/IndexerManagerTests.cs (concurrent searches, timeout handling, response aggregation per FR-016, FR-018)
+- [X] T052 [P] [US2] Write unit tests for built-in indexers in tests/TunnelFin.Tests/Indexers/BuiltInIndexersTests.cs (1337x, Nyaa, RARBG query parsing, result extraction)
 - [ ] T053 [P] [US2] Write unit tests for Torznab indexer in tests/TunnelFin.Tests/Indexers/TorznabIndexerTests.cs (custom endpoint support per FR-017)
 - [ ] T054 [P] [US2] Write unit tests for MetadataFetcher in tests/TunnelFin.Tests/Discovery/MetadataFetcherTests.cs (TMDB/AniList integration, exponential backoff per FR-030, failure caching per FR-031)
 - [ ] T055 [P] [US2] Write unit tests for Deduplicator in tests/TunnelFin.Tests/Discovery/DeduplicatorTests.cs (infohash, filename, smart hash deduplication per FR-025, SC-007)
@@ -149,12 +149,12 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 **Indexer Infrastructure (FR-016, FR-017, FR-018)**
 
-- [ ] T057 [P] [US2] Create IIndexer interface in src/TunnelFin/Indexers/IIndexer.cs (search method, capabilities, timeout)
-- [ ] T058 [P] [US2] Implement Indexer1337x in src/TunnelFin/Indexers/BuiltIn/Indexer1337x.cs (HTML parsing, result extraction per FR-016)
-- [ ] T059 [P] [US2] Implement IndexerNyaa in src/TunnelFin/Indexers/BuiltIn/IndexerNyaa.cs (anime-specific indexer per FR-016)
-- [ ] T060 [P] [US2] Implement IndexerRARBG in src/TunnelFin/Indexers/BuiltIn/IndexerRARBG.cs (general indexer per FR-016)
+- [X] T057 [P] [US2] Create IIndexer interface in src/TunnelFin/Indexers/IIndexer.cs (search method, capabilities, timeout)
+- [X] T058 [P] [US2] Implement Indexer1337x in src/TunnelFin/Indexers/BuiltIn/Indexer1337x.cs (HTML parsing, result extraction per FR-016)
+- [X] T059 [P] [US2] Implement IndexerNyaa in src/TunnelFin/Indexers/BuiltIn/IndexerNyaa.cs (anime-specific indexer per FR-016)
+- [X] T060 [P] [US2] Implement IndexerRARBG in src/TunnelFin/Indexers/BuiltIn/IndexerRARBG.cs (general indexer per FR-016)
 - [ ] T061 [P] [US2] Implement TorznabIndexer in src/TunnelFin/Indexers/Torznab/TorznabIndexer.cs (custom indexer support per FR-017)
-- [ ] T062 [US2] Implement IndexerManager in src/TunnelFin/Indexers/IndexerManager.cs (concurrent search orchestration, max 5 concurrent per FR-018, SC-004)
+- [X] T062 [US2] Implement IndexerManager in src/TunnelFin/Indexers/IndexerManager.cs (concurrent search orchestration, max 5 concurrent per FR-018, SC-004)
 
 **Content Discovery & Aggregation (FR-025, FR-026, FR-029 to FR-032)**
 
