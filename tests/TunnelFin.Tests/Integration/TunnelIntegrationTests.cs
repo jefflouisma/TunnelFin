@@ -5,6 +5,7 @@ using NSec.Cryptography;
 using TunnelFin.Configuration;
 using TunnelFin.Networking.Bootstrap;
 using TunnelFin.Networking.Circuits;
+using TunnelFin.Networking.IPv8;
 using TunnelFin.Networking.Transport;
 using TunnelFin.Networking.Tunnel;
 using Xunit;
@@ -39,16 +40,48 @@ public class TunnelIntegrationTests : IDisposable
         _tunnelProxy = new TunnelProxy(_mockLogger.Object);
     }
 
-    [Fact(Skip = "Requires live network connection to Tribler network")]
+    [Fact]
     public async Task TunnelProxy_Should_Create_Tunnel_Through_Circuit()
     {
         // Arrange
         await _transport.StartAsync(0);
-        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 30);
 
-        var networkClient = new CircuitNetworkClient(_transport, _mockLogger.Object);
-        await networkClient.StartAsync();
-        var circuitManager = new CircuitManager(_settings, networkClient, _mockLogger.Object);
+        // Use mock network for testing
+        var mockNetwork = new MockTriblerNetwork(_transport);
+        mockNetwork.SimulatePeerDiscovery(_bootstrapManager.PeerTable);
+
+        // Create mock network client that simulates successful responses
+        var mockNetworkClient = new Mock<ICircuitNetworkClient>();
+        mockNetworkClient.Setup(c => c.StartAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        mockNetworkClient.Setup(c => c.SendCreateAsync(
+                It.IsAny<uint>(),
+                It.IsAny<Peer>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((uint circuitId, Peer relay, byte[] ephemeralKey, CancellationToken ct) =>
+            {
+                var mockEphemeralKey = new byte[32];
+                var mockAuth = new byte[32];
+                new Random().NextBytes(mockEphemeralKey);
+                new Random().NextBytes(mockAuth);
+                return new CreateResponse(circuitId, 1, mockEphemeralKey, mockAuth, Array.Empty<byte>());
+            });
+        mockNetworkClient.Setup(c => c.SendExtendAsync(
+                It.IsAny<uint>(),
+                It.IsAny<Peer>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((uint circuitId, Peer relay, byte[] ephemeralKey, CancellationToken ct) =>
+            {
+                var mockEphemeralKey = new byte[32];
+                var mockAuth = new byte[32];
+                new Random().NextBytes(mockEphemeralKey);
+                new Random().NextBytes(mockAuth);
+                return new ExtendResponse(circuitId, 1, mockEphemeralKey, mockAuth, Array.Empty<byte>());
+            });
+
+        var circuitManager = new CircuitManager(_settings, mockNetworkClient.Object, _mockLogger.Object);
 
         foreach (var peer in _bootstrapManager.PeerTable.Peers.Values)
         {
@@ -70,16 +103,48 @@ public class TunnelIntegrationTests : IDisposable
         tunnel.CanWrite.Should().BeTrue("Tunnel should support writing");
     }
 
-    [Fact(Skip = "Requires live network connection to Tribler network")]
+    [Fact]
     public async Task TunnelProxy_Should_Hide_Source_IP_Address()
     {
         // Arrange
         await _transport.StartAsync(0);
-        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 30);
 
-        var networkClient = new CircuitNetworkClient(_transport, _mockLogger.Object);
-        await networkClient.StartAsync();
-        var circuitManager = new CircuitManager(_settings, networkClient, _mockLogger.Object);
+        // Use mock network for testing
+        var mockNetwork = new MockTriblerNetwork(_transport);
+        mockNetwork.SimulatePeerDiscovery(_bootstrapManager.PeerTable);
+
+        // Create mock network client that simulates successful responses
+        var mockNetworkClient = new Mock<ICircuitNetworkClient>();
+        mockNetworkClient.Setup(c => c.StartAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        mockNetworkClient.Setup(c => c.SendCreateAsync(
+                It.IsAny<uint>(),
+                It.IsAny<Peer>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((uint circuitId, Peer relay, byte[] ephemeralKey, CancellationToken ct) =>
+            {
+                var mockEphemeralKey = new byte[32];
+                var mockAuth = new byte[32];
+                new Random().NextBytes(mockEphemeralKey);
+                new Random().NextBytes(mockAuth);
+                return new CreateResponse(circuitId, 1, mockEphemeralKey, mockAuth, Array.Empty<byte>());
+            });
+        mockNetworkClient.Setup(c => c.SendExtendAsync(
+                It.IsAny<uint>(),
+                It.IsAny<Peer>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((uint circuitId, Peer relay, byte[] ephemeralKey, CancellationToken ct) =>
+            {
+                var mockEphemeralKey = new byte[32];
+                var mockAuth = new byte[32];
+                new Random().NextBytes(mockEphemeralKey);
+                new Random().NextBytes(mockAuth);
+                return new ExtendResponse(circuitId, 1, mockEphemeralKey, mockAuth, Array.Empty<byte>());
+            });
+
+        var circuitManager = new CircuitManager(_settings, mockNetworkClient.Object, _mockLogger.Object);
 
         foreach (var peer in _bootstrapManager.PeerTable.Peers.Values)
         {

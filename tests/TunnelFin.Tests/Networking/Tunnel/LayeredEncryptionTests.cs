@@ -20,9 +20,10 @@ public class LayeredEncryptionTests
 
         // Assert
         encrypted.Should().NotBeNull();
-        // Note: HopNode.Encrypt() is currently a placeholder that returns plaintext unchanged
-        // This test verifies the layering logic works, actual encryption will be implemented later
-        encrypted.Should().BeEquivalentTo(plaintext);
+        encrypted.Should().NotBeEquivalentTo(plaintext,
+            "Encrypted data should differ from plaintext after layered encryption");
+        encrypted.Length.Should().BeGreaterThan(plaintext.Length,
+            "Encrypted data should be larger due to nonces and auth tags");
     }
 
     [Fact]
@@ -119,8 +120,10 @@ public class LayeredEncryptionTests
 
         // Assert
         encrypted.Should().NotBeNull();
-        // Note: HopNode.Encrypt() is currently a placeholder that returns plaintext unchanged
-        encrypted.Should().BeEquivalentTo(plaintext);
+        encrypted.Should().NotBeEquivalentTo(plaintext,
+            "Encrypted data should differ from plaintext");
+        encrypted.Length.Should().BeGreaterThan(plaintext.Length,
+            "Encrypted data should include nonce and auth tag");
     }
 
     [Fact]

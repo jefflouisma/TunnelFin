@@ -1,0 +1,199 @@
+# Internal API Contract: UDP Transport Layer
+# Feature: 002-network-transport
+# Type: Internal C# interface (not REST API)
+
+interfaces:
+  ITransport:
+    description: "Abstraction for network transport layer"
+    methods:
+      - name: StartAsync
+        description: "Bind to port and start receiving packets"
+        parameters:
+          - name: port
+            type: ushort
+            default: 0  # Random available port per py-ipv8 behavior
+            description: "Port to bind (0 = random available port)"
+          - name: cancellationToken
+            type: CancellationToken
+        returns: Task
+        throws:
+          - SocketException: "Port in use or bind failed"
+
+      - name: StopAsync
+        description: "Close socket and stop transport"
+        parameters:
+          - name: cancellationToken
+            type: CancellationToken
+        returns: Task
+
+      - name: SendAsync
+        description: "Send datagram to endpoint"
+        parameters:
+          - name: data
+            type: "ReadOnlyMemory<byte>"
+          - name: endpoint
+            type: IPEndPoint
+          - name: cancellationToken
+            type: CancellationToken
+        returns: Task<int>
+        throws:
+          - SocketException: "Network error"
+
+      - name: ReceiveAsync
+        description: "Receive next datagram"
+        parameters:
+          - name: cancellationToken
+            type: CancellationToken
+        returns: "Task<UdpReceiveResult>"
+        throws:
+          - OperationCanceledException: "Cancelled"
+
+    properties:
+      - name: LocalEndPoint
+        type: IPEndPoint?
+        access: get
+      - name: IsRunning
+        type: bool
+        access: get
+
+    events:
+      - name: DatagramReceived
+        type: "EventHandler<DatagramReceivedEventArgs>"
+        description: "Fired when datagram received (alternative to ReceiveAsync polling)"
+
+  IBootstrapManager:
+    description: "Manages bootstrap peer discovery"
+    methods:
+      - name: DiscoverPeersAsync
+        description: "Contact bootstrap nodes and populate peer table"
+        parameters:
+          - name: cancellationToken
+            type: CancellationToken
+        returns: "Task<int>"
+        returns_description: "Number of peers discovered"
+
+      - name: RefreshPeersAsync
+        description: "Request new introductions from known peers"
+        parameters:
+          - name: cancellationToken
+            type: CancellationToken
+        returns: Task
+
+    properties:
+      - name: PeerTable
+        type: IPeerTable
+        access: get
+      - name: BootstrapStatus
+        type: BootstrapStatus
+        access: get
+
+  IPeerTable:
+    description: "Stores and manages discovered peers"
+    methods:
+      - name: AddPeer
+        parameters:
+          - name: peer
+            type: Peer
+        returns: bool
+        returns_description: "True if added, false if duplicate"
+
+      - name: GetRelayCandiates
+        parameters:
+          - name: count
+            type: int
+          - name: excludeKeys
+            type: "IEnumerable<byte[]>"
+        returns: "IReadOnlyList<Peer>"
+
+      - name: UpdateReliability
+        parameters:
+          - name: publicKey
+            type: "byte[]"
+          - name: success
+            type: bool
+          - name: rttMs
+            type: double?
+
+    properties:
+      - name: Count
+        type: int
+        access: get
+      - name: MinimumCount
+        type: int
+        access: get
+
+  ICircuitNetworkClient:
+    description: "Network layer for circuit operations"
+    methods:
+      - name: SendCreateAsync
+        parameters:
+          - name: circuitId
+            type: uint
+          - name: relay
+            type: Peer
+          - name: ephemeralPublicKey
+            type: "byte[]"
+          - name: cancellationToken
+            type: CancellationToken
+        returns: "Task<CreateResponse>"
+        throws:
+          - TimeoutException: "No CREATED response within timeout"
+
+      - name: SendExtendAsync
+        parameters:
+          - name: circuitId
+            type: uint
+          - name: nextRelay
+            type: Peer
+          - name: ephemeralPublicKey
+            type: "byte[]"
+          - name: cancellationToken
+            type: CancellationToken
+        returns: "Task<ExtendResponse>"
+
+      - name: SendDestroyAsync
+        parameters:
+          - name: circuitId
+            type: uint
+          - name: cancellationToken
+            type: CancellationToken
+        returns: Task
+
+      - name: StartHeartbeatAsync
+        parameters:
+          - name: circuitId
+            type: uint
+          - name: cancellationToken
+            type: CancellationToken
+        returns: Task
+
+  ITunnelProxy:
+    description: "Routes TCP connections through circuits"
+    methods:
+      - name: CreateTunnelAsync
+        parameters:
+          - name: circuit
+            type: Circuit
+          - name: remoteEndpoint
+            type: IPEndPoint
+          - name: cancellationToken
+            type: CancellationToken
+        returns: "Task<TunnelStream>"
+
+      - name: CloseTunnelAsync
+        parameters:
+          - name: streamId
+            type: ushort
+          - name: cancellationToken
+            type: CancellationToken
+        returns: Task
+
+enums:
+  BootstrapStatus:
+    values:
+      - NotStarted
+      - Contacting
+      - Discovering
+      - Ready
+      - Failed
+

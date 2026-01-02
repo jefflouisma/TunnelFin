@@ -75,6 +75,8 @@ public class BootstrapManagerTests : IDisposable
     [Fact]
     public async Task DiscoverPeersAsync_Should_Update_Status()
     {
+        _mockTransport.Setup(t => t.IsRunning).Returns(true);
+        _mockTransport.Setup(t => t.LocalEndPoint).Returns(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 12345));
         var manager = CreateManager();
 
         await manager.DiscoverPeersAsync(timeoutSeconds: 1);
@@ -85,6 +87,8 @@ public class BootstrapManagerTests : IDisposable
     [Fact]
     public async Task DiscoverPeersAsync_Should_Mark_Peer_Table_Refreshed()
     {
+        _mockTransport.Setup(t => t.IsRunning).Returns(true);
+        _mockTransport.Setup(t => t.LocalEndPoint).Returns(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 12345));
         var manager = CreateManager();
 
         await manager.DiscoverPeersAsync(timeoutSeconds: 1);
@@ -105,6 +109,8 @@ public class BootstrapManagerTests : IDisposable
     [Fact]
     public async Task DiscoverPeersAsync_Should_Respect_Cancellation()
     {
+        _mockTransport.Setup(t => t.IsRunning).Returns(true);
+        _mockTransport.Setup(t => t.LocalEndPoint).Returns(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 12345));
         var manager = CreateManager();
         var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -130,6 +136,8 @@ public class BootstrapManagerTests : IDisposable
     [Fact]
     public async Task RefreshPeersAsync_Should_Update_If_Needed()
     {
+        _mockTransport.Setup(t => t.IsRunning).Returns(true);
+        _mockTransport.Setup(t => t.LocalEndPoint).Returns(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 12345));
         var table = new PeerTable(refreshIntervalSeconds: 1);
         var manager = CreateManager(peerTable: table);
 

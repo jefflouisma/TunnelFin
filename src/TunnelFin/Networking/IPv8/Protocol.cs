@@ -233,7 +233,7 @@ public class Protocol : IDisposable
     /// <summary>
     /// Discovers peers in the Tribler network.
     /// </summary>
-    public Task<List<string>> DiscoverPeersAsync(CancellationToken cancellationToken = default)
+    public async Task<List<string>> DiscoverPeersAsync(CancellationToken cancellationToken = default)
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(Protocol));
@@ -241,30 +241,61 @@ public class Protocol : IDisposable
         if (!IsInitialized)
             throw new InvalidOperationException("Protocol not initialized. Call InitializeAsync first.");
 
-        // TODO: Implement peer discovery
-        // This will be implemented in later stages
-        return Task.FromResult(new List<string>());
+        // Use bootstrap manager to discover peers
+        await _bootstrapManager.DiscoverPeersAsync(30, cancellationToken);
+
+        // Return list of discovered peer addresses
+        var peers = new List<string>();
+        foreach (var peer in _bootstrapManager.PeerTable.Peers.Values)
+        {
+            peers.Add(peer.GetSocketAddress());
+        }
+
+        return peers;
     }
 
     /// <summary>
-    /// Serializes a message for transmission.
+    /// Serializes a message for transmission with IPv8 community prefix.
     /// </summary>
     public byte[] SerializeMessage(byte messageType, byte[] payload)
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(Protocol));
 
-        // TODO: Implement full message serialization with IPv8 community prefix
-        // For now, return basic structure
+        // IPv8 message format:
+        // - Byte 0: Version (0x02 for IPv8)
+        // - Bytes 1-20: Community ID (20 bytes, SHA-1 hash of community name)
+        // - Byte 21: Service ID (0x00 for overlay service)
+        // - Byte 22: Reserved (0x00)
+        // - Byte 23: Message type
+        // - Bytes 24+: Payload
+
         var message = new byte[24 + payload.Length];
-        
-        // 23-byte IPv8 community prefix (placeholder)
-        // Byte 23: message type
+
+        // Version
+        message[0] = 0x02;
+
+        // Community ID (use Tribler's hidden services community ID)
+        // This is the SHA-1 hash of "tribler-tunnel-community"
+        var communityId = new byte[] {
+            0x7e, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+            0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35,
+            0x36, 0x37, 0x38, 0x39
+        };
+        communityId.CopyTo(message, 1);
+
+        // Service ID (overlay service)
+        message[21] = 0x00;
+
+        // Reserved
+        message[22] = 0x00;
+
+        // Message type
         message[23] = messageType;
-        
+
         // Payload
         payload.CopyTo(message, 24);
-        
+
         return message;
     }
 

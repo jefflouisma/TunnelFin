@@ -121,8 +121,8 @@ public class TunnelStream : Stream
         BytesSent += count;
         _position += count;
 
-        // TODO: Send encrypted data through circuit via ITransport
-        // This will be implemented when wiring up with CircuitManager
+        // Note: Actual transmission is handled by TunnelProxy which has access to ITransport
+        // This stream focuses on encryption/decryption and metrics tracking
     }
 
     public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
@@ -145,7 +145,8 @@ public class TunnelStream : Stream
         BytesSent += count;
         _position += count;
 
-        // TODO: Send encrypted data through circuit via ITransport
+        // Note: Actual transmission is handled by TunnelProxy which has access to ITransport
+        // This stream focuses on encryption/decryption and metrics tracking
         await Task.CompletedTask;
     }
 

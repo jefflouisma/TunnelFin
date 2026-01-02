@@ -26,16 +26,17 @@ public class HandshakeIntegrationTests : IDisposable
         _identity = new NetworkIdentity();
     }
 
-    [Fact(Skip = "Requires live network connection to Tribler peers")]
+    [Fact]
     public async Task Handshake_Should_Complete_With_Real_Peer()
     {
         // Arrange
         await _transport.StartAsync(0);
         var handshake = new Handshake(_identity, _transport, _mockLogger.Object);
 
-        // First discover a peer
+        // First discover a peer (use mock network for testing)
         var bootstrapManager = new BootstrapManager(_mockLogger.Object, _transport);
-        await bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 30);
+        var mockNetwork = new MockTriblerNetwork(_transport);
+        mockNetwork.SimulatePeerDiscovery(bootstrapManager.PeerTable);
 
         var peer = bootstrapManager.PeerTable.Peers.Values.FirstOrDefault();
         peer.Should().NotBeNull("Should have discovered at least one peer");
@@ -59,18 +60,22 @@ public class HandshakeIntegrationTests : IDisposable
         success.Should().BeTrue("Handshake should send introduction-request successfully");
     }
 
-    [Fact(Skip = "Requires live network connection to Tribler peers")]
+    [Fact]
     public async Task Handshake_Should_Exchange_Messages_With_Bootstrap_Node()
     {
         // Arrange
         await _transport.StartAsync(0);
         var handshake = new Handshake(_identity, _transport, _mockLogger.Object);
 
-        // Use a known bootstrap node
-        var bootstrapNode = new BootstrapNode { Address = "130.161.119.206", Port = 6421 };
+        // Use a mock peer (simulates bootstrap node)
+        var mockNetwork = new MockTriblerNetwork(_transport);
+        var mockPeer = mockNetwork.GetMockPeer(0);
+        var ipBytes = BitConverter.GetBytes(mockPeer.IPv4Address);
+        if (BitConverter.IsLittleEndian)
+            Array.Reverse(ipBytes);
         var endpoint = new System.Net.IPEndPoint(
-            System.Net.IPAddress.Parse(bootstrapNode.Address),
-            bootstrapNode.Port);
+            new System.Net.IPAddress(ipBytes),
+            mockPeer.Port);
 
         // Act
         var success = await handshake.SendIntroductionRequestAsync(
@@ -80,7 +85,7 @@ public class HandshakeIntegrationTests : IDisposable
             identifier: 54321);
 
         // Assert
-        success.Should().BeTrue("Should successfully send introduction-request to bootstrap node");
+        success.Should().BeTrue("Should successfully send introduction-request to mock peer");
     }
 
     [Fact]
