@@ -46,9 +46,8 @@ public class TunnelIntegrationTests : IDisposable
         // Arrange
         await _transport.StartAsync(0);
 
-        // Use mock network for testing
-        var mockNetwork = new MockTriblerNetwork(_transport);
-        mockNetwork.SimulatePeerDiscovery(_bootstrapManager.PeerTable);
+        // Discover real peers from bootstrap nodes
+        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 5);
 
         // Create mock network client that simulates successful responses
         var mockNetworkClient = new Mock<ICircuitNetworkClient>();
@@ -109,9 +108,8 @@ public class TunnelIntegrationTests : IDisposable
         // Arrange
         await _transport.StartAsync(0);
 
-        // Use mock network for testing
-        var mockNetwork = new MockTriblerNetwork(_transport);
-        mockNetwork.SimulatePeerDiscovery(_bootstrapManager.PeerTable);
+        // Discover real peers from bootstrap nodes
+        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 5);
 
         // Create mock network client that simulates successful responses
         var mockNetworkClient = new Mock<ICircuitNetworkClient>();

@@ -31,13 +31,13 @@ public class BootstrapIntegrationTests : IDisposable
         await _transport.StartAsync(0); // Random port
 
         // Act
-        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 30);
+        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 5);
 
         // Assert
         _bootstrapManager.Status.Should().Be(BootstrapStatus.Ready,
             "Bootstrap should complete successfully");
-        // Note: We don't assert peer count > 0 because we're not actually receiving responses
-        // This test verifies that we can send introduction-requests without errors
+        _bootstrapManager.PeerTable.Count.Should().BeGreaterThan(0,
+            "Should discover at least one peer from bootstrap nodes");
     }
 
     [Fact]
@@ -48,11 +48,11 @@ public class BootstrapIntegrationTests : IDisposable
         var startTime = DateTime.UtcNow;
 
         // Act
-        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 30);
+        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 5);
         var elapsed = DateTime.UtcNow - startTime;
 
         // Assert
-        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(35),
+        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(7),
             "Bootstrap discovery should complete within timeout + buffer");
         _bootstrapManager.Status.Should().Be(BootstrapStatus.Ready);
     }
@@ -62,7 +62,7 @@ public class BootstrapIntegrationTests : IDisposable
     {
         // Arrange
         await _transport.StartAsync(0);
-        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 30);
+        await _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 5);
         var initialCount = _bootstrapManager.PeerTable.Count;
 
         // Act
@@ -106,7 +106,7 @@ public class BootstrapIntegrationTests : IDisposable
         await _transport.StartAsync(0);
 
         // Act
-        var discoveryTask = _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 30);
+        var discoveryTask = _bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 5);
         await Task.Delay(100); // Give it time to start
 
         // Assert

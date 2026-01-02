@@ -33,10 +33,9 @@ public class HandshakeIntegrationTests : IDisposable
         await _transport.StartAsync(0);
         var handshake = new Handshake(_identity, _transport, _mockLogger.Object);
 
-        // First discover a peer (use mock network for testing)
+        // Discover real peers from bootstrap nodes
         var bootstrapManager = new BootstrapManager(_mockLogger.Object, _transport);
-        var mockNetwork = new MockTriblerNetwork(_transport);
-        mockNetwork.SimulatePeerDiscovery(bootstrapManager.PeerTable);
+        await bootstrapManager.DiscoverPeersAsync(timeoutSeconds: 5);
 
         var peer = bootstrapManager.PeerTable.Peers.Values.FirstOrDefault();
         peer.Should().NotBeNull("Should have discovered at least one peer");
@@ -67,15 +66,10 @@ public class HandshakeIntegrationTests : IDisposable
         await _transport.StartAsync(0);
         var handshake = new Handshake(_identity, _transport, _mockLogger.Object);
 
-        // Use a mock peer (simulates bootstrap node)
-        var mockNetwork = new MockTriblerNetwork(_transport);
-        var mockPeer = mockNetwork.GetMockPeer(0);
-        var ipBytes = BitConverter.GetBytes(mockPeer.IPv4Address);
-        if (BitConverter.IsLittleEndian)
-            Array.Reverse(ipBytes);
-        var endpoint = new System.Net.IPEndPoint(
-            new System.Net.IPAddress(ipBytes),
-            mockPeer.Port);
+        // Use a real bootstrap node
+        var bootstrapNodes = BootstrapNode.GetDefaultNodes();
+        var bootstrapNode = bootstrapNodes.First();
+        var endpoint = bootstrapNode.GetEndPoint();
 
         // Act
         var success = await handshake.SendIntroductionRequestAsync(
@@ -85,7 +79,7 @@ public class HandshakeIntegrationTests : IDisposable
             identifier: 54321);
 
         // Assert
-        success.Should().BeTrue("Should successfully send introduction-request to mock peer");
+        success.Should().BeTrue("Should successfully send introduction-request to bootstrap node");
     }
 
     [Fact]
@@ -107,7 +101,7 @@ public class HandshakeIntegrationTests : IDisposable
 
         // Assert
         message.Should().NotBeNull();
-        message.Length.Should().Be(20, "Introduction-request payload should be 20 bytes");
+        message.Length.Should().Be(21, "Introduction-request payload should be 21 bytes (3 addresses + bits + identifier)");
     }
 
     [Fact]

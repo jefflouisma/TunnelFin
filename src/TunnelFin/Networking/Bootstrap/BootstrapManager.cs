@@ -20,6 +20,10 @@ public class BootstrapManager : IBootstrapManager
     private readonly object _lock = new();
     private readonly Handshake _handshake;
     private readonly NetworkIdentity _identity;
+    private bool _isListening = false;
+
+    // Message type for introduction-response
+    private const byte MSG_INTRODUCTION_RESPONSE = 245;
 
     /// <inheritdoc/>
     public BootstrapStatus Status
@@ -62,6 +66,9 @@ public class BootstrapManager : IBootstrapManager
             if (!node.IsValid())
                 throw new ArgumentException($"Invalid bootstrap node: {node.Address}:{node.Port}");
         }
+
+        // Subscribe to incoming messages
+        _transport.DatagramReceived += OnDatagramReceived;
     }
 
     /// <inheritdoc/>
@@ -79,9 +86,6 @@ public class BootstrapManager : IBootstrapManager
 
         try
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-
             // Get local endpoint for source addresses
             var localEndpoint = _transport.LocalEndPoint!;
             var sourceLan = (localEndpoint.Address.ToString(), localEndpoint.Port);
@@ -101,7 +105,7 @@ public class BootstrapManager : IBootstrapManager
                     sourceLan,
                     sourceWan,
                     identifier++,
-                    cts.Token);
+                    cancellationToken);
 
                 tasks.Add(task);
             }
@@ -125,9 +129,14 @@ public class BootstrapManager : IBootstrapManager
 
             Status = BootstrapStatus.Discovering;
 
-            // Wait a bit for responses (introduction-response messages would be handled by Protocol layer)
-            // For now, we just mark as ready since we successfully contacted bootstrap nodes
-            await Task.Delay(100, cts.Token);
+            // Enable message listening
+            _isListening = true;
+
+            // Wait for responses (introduction-response messages handled by OnDatagramReceived)
+            await Task.Delay(timeoutSeconds * 1000, cancellationToken);
+
+            // Disable message listening
+            _isListening = false;
 
             Status = BootstrapStatus.Ready;
             PeerTable.MarkRefreshed();
@@ -135,8 +144,10 @@ public class BootstrapManager : IBootstrapManager
         }
         catch (OperationCanceledException)
         {
+            // Disable message listening on cancellation
+            _isListening = false;
             Status = BootstrapStatus.Failed;
-            _logger.LogWarning("Bootstrap discovery timed out after {Timeout}s", timeoutSeconds);
+            _logger.LogWarning("Bootstrap discovery cancelled");
             throw;
         }
         catch (Exception ex)
@@ -232,6 +243,89 @@ public class BootstrapManager : IBootstrapManager
                 _logger.LogError("Periodic refresh error", ex);
                 // Continue running despite errors
             }
+        }
+    }
+
+    /// <summary>
+    /// Handles incoming datagrams to process introduction-response messages.
+    /// </summary>
+    private void OnDatagramReceived(object? sender, DatagramReceivedEventArgs e)
+    {
+        if (!_isListening)
+            return;
+
+        try
+        {
+            var data = e.Data.ToArray(); // Convert ReadOnlyMemory to byte[]
+
+            _logger.LogDebug("Received {Length} bytes from {Endpoint}", data.Length, e.RemoteEndPoint);
+
+            // Check minimum message length (IPv8 prefix + message type + minimal payload)
+            if (data.Length < 24)
+            {
+                _logger.LogDebug("Message too short: {Length} bytes", data.Length);
+                return;
+            }
+
+            // Check for IPv8 community prefix (first byte is version 0x02)
+            if (data[0] != 0x02)
+            {
+                _logger.LogDebug("Invalid IPv8 version: 0x{Version:X2}", data[0]);
+                return;
+            }
+
+            // Extract message type (at offset 23)
+            var messageType = data[23];
+
+            _logger.LogDebug("Received message type: {Type}", messageType);
+
+            // Only process introduction-response messages
+            if (messageType != MSG_INTRODUCTION_RESPONSE)
+            {
+                _logger.LogDebug("Ignoring message type {Type}, expected {Expected}", messageType, MSG_INTRODUCTION_RESPONSE);
+                return;
+            }
+
+            _logger.LogInformation("Received introduction-response from {Endpoint}", e.RemoteEndPoint);
+
+            // Parse introduction-response payload (after IPv8 header at offset 24)
+            // Format: destination(6) + source_lan(6) + source_wan(6) + lan_intro(6) + wan_intro(6) + identifier(2) + ...
+            if (data.Length < 24 + 32) // Minimum payload size
+                return;
+
+            var payload = new byte[data.Length - 24];
+            Array.Copy(data, 24, payload, 0, payload.Length);
+
+            // Extract source WAN address (offset 12-17 in payload)
+            var ipBytes = new byte[4];
+            Array.Copy(payload, 12, ipBytes, 0, 4);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(ipBytes);
+            var ipv4Address = BitConverter.ToUInt32(ipBytes, 0);
+
+            var portBytes = new byte[2];
+            Array.Copy(payload, 16, portBytes, 0, 2);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(portBytes);
+            var port = BitConverter.ToUInt16(portBytes, 0);
+
+            // For now, we don't have the public key from the response, so we'll create a placeholder
+            // In a full implementation, we would extract the public key from the message signature
+            var publicKey = new byte[32];
+            Array.Copy(payload, 0, publicKey, 0, Math.Min(32, payload.Length));
+
+            // Create peer and add to table
+            var peer = new Peer(publicKey, ipv4Address, port);
+            peer.IsHandshakeComplete = false; // Needs full handshake
+            peer.IsRelayCandidate = true; // Bootstrap responses are potential relays
+
+            PeerTable.AddPeer(peer);
+            _logger.LogInformation("Added peer from introduction-response: {IP}:{Port}",
+                new IPAddress(ipBytes), port);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error processing introduction-response", ex);
         }
     }
 }

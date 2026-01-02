@@ -27,6 +27,15 @@ public class Handshake
     // Signature algorithm
     private static readonly SignatureAlgorithm Ed25519 = SignatureAlgorithm.Ed25519;
 
+    // IPv8 community ID for Tribler discovery community (from py-ipv8 DiscoveryCommunity)
+    // unhexlify("7e313685c1912a141279f8248fc8db5899c5df5a")
+    // Note: Bootstrap nodes use DiscoveryCommunity for peer discovery, not TunnelCommunity
+    private static readonly byte[] TriblerCommunityId = new byte[] {
+        0x7e, 0x31, 0x36, 0x85, 0xc1, 0x91, 0x2a, 0x14,
+        0x12, 0x79, 0xf8, 0x24, 0x8f, 0xc8, 0xdb, 0x58,
+        0x99, 0xc5, 0xdf, 0x5a
+    };
+
     /// <summary>
     /// Initializes a new instance of the Handshake class.
     /// </summary>
@@ -63,8 +72,9 @@ public class Handshake
         (string ip, int port) sourceWanAddress,
         ushort identifier)
     {
-        // Format: destination_address (6 bytes) + source_lan_address (6 bytes) + source_wan_address (6 bytes) + identifier (2 bytes)
-        var buffer = new byte[20];
+        // Format: destination_address (6 bytes) + source_lan_address (6 bytes) + source_wan_address (6 bytes) + bits (1 byte) + identifier (2 bytes)
+        // bits field: connection_type_0, connection_type_1, supports_new_style, dflag1, dflag2, tunnel, sync, advice
+        var buffer = new byte[21];
         int offset = 0;
 
         // Destination address (4-byte IPv4 + 2-byte port, big-endian)
@@ -75,6 +85,14 @@ public class Handshake
 
         // Source WAN address
         WriteAddress(buffer, ref offset, sourceWanAddress);
+
+        // Bits field (1 byte):
+        // bit 0-1: connection_type (00 = unknown, 10 = public, 11 = symmetric-NAT)
+        // bit 2: supports_new_style (1 = yes)
+        // bit 3-6: reserved (0)
+        // bit 7: advice (1 = request introduction to another peer)
+        byte bits = 0b00000101; // connection_type=unknown(00), supports_new_style=1, advice=1
+        buffer[offset++] = bits;
 
         // Identifier (2-byte big-endian)
         BinaryPrimitives.WriteUInt16BigEndian(buffer.AsSpan(offset), identifier);
@@ -176,6 +194,45 @@ public class Handshake
     }
 
     /// <summary>
+    /// Wraps a signed message with IPv8 community prefix for network transmission.
+    /// </summary>
+    /// <param name="messageType">Message type byte.</param>
+    /// <param name="signedPayload">Signed payload (payload + signature).</param>
+    /// <returns>Full IPv8 message with 23-byte prefix + type + signed payload.</returns>
+    private byte[] WrapWithIPv8Prefix(byte messageType, byte[] signedPayload)
+    {
+        // IPv8 message format:
+        // - Byte 0: Version (0x02 for IPv8)
+        // - Bytes 1-20: Community ID (20 bytes)
+        // - Byte 21: Service ID (0x00 for overlay service)
+        // - Byte 22: Reserved (0x00)
+        // - Byte 23: Message type
+        // - Bytes 24+: Signed payload
+
+        var message = new byte[24 + signedPayload.Length];
+
+        // Version
+        message[0] = 0x02;
+
+        // Community ID
+        TriblerCommunityId.CopyTo(message, 1);
+
+        // Service ID (overlay service)
+        message[21] = 0x00;
+
+        // Reserved
+        message[22] = 0x00;
+
+        // Message type
+        message[23] = messageType;
+
+        // Signed payload
+        signedPayload.CopyTo(message, 24);
+
+        return message;
+    }
+
+    /// <summary>
     /// Verifies a signed message (FR-011).
     /// </summary>
     /// <param name="message">Signed message.</param>
@@ -229,11 +286,12 @@ public class Handshake
             sourceWanAddress,
             identifier);
 
-        var signedMessage = SignMessage(MSG_INTRODUCTION_REQUEST, payload);
+        var signedPayload = SignMessage(MSG_INTRODUCTION_REQUEST, payload);
+        var fullMessage = WrapWithIPv8Prefix(MSG_INTRODUCTION_REQUEST, signedPayload);
 
         try
         {
-            await _transport.SendAsync(signedMessage, destination, cancellationToken);
+            await _transport.SendAsync(fullMessage, destination, cancellationToken);
             _logger?.LogDebug("Sent introduction-request to {Destination}, identifier={Identifier}",
                 destination, identifier);
             return true;
@@ -266,11 +324,12 @@ public class Handshake
             throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
 
         var payload = CreatePunctureRequest(targetLanAddress, targetWanAddress, identifier);
-        var signedMessage = SignMessage(MSG_PUNCTURE_REQUEST, payload);
+        var signedPayload = SignMessage(MSG_PUNCTURE_REQUEST, payload);
+        var fullMessage = WrapWithIPv8Prefix(MSG_PUNCTURE_REQUEST, signedPayload);
 
         try
         {
-            await _transport.SendAsync(signedMessage, intermediary, cancellationToken);
+            await _transport.SendAsync(fullMessage, intermediary, cancellationToken);
             _logger?.LogDebug("Sent puncture-request via {Intermediary}, identifier={Identifier}",
                 intermediary, identifier);
             return true;
@@ -303,11 +362,12 @@ public class Handshake
             throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
 
         var payload = CreatePuncture(sourceLanAddress, sourceWanAddress, identifier);
-        var signedMessage = SignMessage(MSG_PUNCTURE, payload);
+        var signedPayload = SignMessage(MSG_PUNCTURE, payload);
+        var fullMessage = WrapWithIPv8Prefix(MSG_PUNCTURE, signedPayload);
 
         try
         {
-            await _transport.SendAsync(signedMessage, destination, cancellationToken);
+            await _transport.SendAsync(fullMessage, destination, cancellationToken);
             _logger?.LogDebug("Sent puncture to {Destination}, identifier={Identifier}",
                 destination, identifier);
             return true;
@@ -324,13 +384,17 @@ public class Handshake
     /// </summary>
     public IntroductionRequestPayload ParseIntroductionRequest(byte[] message)
     {
-        if (message.Length < 20)
+        if (message.Length < 21)
             throw new ArgumentException("Invalid introduction-request message length");
 
         int offset = 0;
         var destinationAddress = ReadAddress(message, ref offset);
         var sourceLanAddress = ReadAddress(message, ref offset);
         var sourceWanAddress = ReadAddress(message, ref offset);
+
+        // Skip bits field (1 byte)
+        offset++;
+
         var identifier = BinaryPrimitives.ReadUInt16BigEndian(message.AsSpan(offset));
 
         return new IntroductionRequestPayload(destinationAddress, sourceLanAddress, sourceWanAddress, identifier);
