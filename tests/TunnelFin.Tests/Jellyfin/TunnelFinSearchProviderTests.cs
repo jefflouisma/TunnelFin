@@ -82,7 +82,7 @@ public class TunnelFinSearchProviderTests
     }
 
     [Fact]
-    public void GetPlayButtonColor_Should_Return_Green_When_Network_Available()
+    public async Task GetPlayButtonColor_Should_Return_Green_When_Network_Available()
     {
         // Arrange
         var result = new SearchResult
@@ -93,7 +93,7 @@ public class TunnelFinSearchProviderTests
         };
 
         // Network is available after check
-        _provider.CheckNetworkAvailabilityAsync().Wait();
+        await _provider.CheckNetworkAvailabilityAsync();
 
         // Act
         var color = _provider.GetPlayButtonColor(result);
@@ -103,7 +103,7 @@ public class TunnelFinSearchProviderTests
     }
 
     [Fact]
-    public void GetPlayButtonColor_Should_Return_Orange_When_No_Seeders()
+    public async Task GetPlayButtonColor_Should_Return_Orange_When_No_Seeders()
     {
         // Arrange
         var result = new SearchResult
@@ -113,7 +113,7 @@ public class TunnelFinSearchProviderTests
             Seeders = 0
         };
 
-        _provider.CheckNetworkAvailabilityAsync().Wait();
+        await _provider.CheckNetworkAvailabilityAsync();
 
         // Act
         var color = _provider.GetPlayButtonColor(result);
@@ -469,11 +469,11 @@ public class TunnelFinSearchProviderTests
     }
 
     [Fact]
-    public void GetPlayButtonColor_Should_Return_Green_When_Network_Available_And_Has_Seeders()
+    public async Task GetPlayButtonColor_Should_Return_Green_When_Network_Available_And_Has_Seeders()
     {
         // Arrange
         var provider = new TunnelFinSearchProvider(NullLogger.Instance);
-        provider.CheckNetworkAvailabilityAsync().Wait(); // Set network available
+        await provider.CheckNetworkAvailabilityAsync(); // Set network available
 
         var result = new SearchResult
         {
@@ -517,11 +517,11 @@ public class TunnelFinSearchProviderTests
     }
 
     [Fact]
-    public void GetPlayButtonColor_Should_Return_Orange_When_Torrent_Has_Zero_Seeders()
+    public async Task GetPlayButtonColor_Should_Return_Orange_When_Torrent_Has_Zero_Seeders()
     {
         // Arrange
         var provider = new TunnelFinSearchProvider(NullLogger.Instance);
-        provider.CheckNetworkAvailabilityAsync().Wait(); // Set network available
+        await provider.CheckNetworkAvailabilityAsync(); // Set network available
 
         var result = new SearchResult
         {

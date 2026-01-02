@@ -768,12 +768,19 @@ public class SearchEngineTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData(null)]
     public async Task SearchAsync_Should_Throw_ArgumentException_For_Invalid_Query(string invalidQuery)
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
             async () => await _searchEngine.SearchAsync(invalidQuery, ContentType.Movie));
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Throw_ArgumentException_For_Null_Query()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _searchEngine.SearchAsync(null!, ContentType.Movie));
     }
 
     [Fact]

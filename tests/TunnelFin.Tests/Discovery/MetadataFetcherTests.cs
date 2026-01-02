@@ -153,7 +153,8 @@ public class MetadataFetcherTests
 
         // Assert
         metadata.Should().NotBeNull();
-        // Placeholder implementation - will be enhanced in actual implementation
+        metadata.Title.Should().Contain(expectedTitle, "title should be extracted from filename");
+        metadata.Year.Should().Be(expectedYear, "year should be extracted from filename");
     }
 
     [Fact]
@@ -698,7 +699,7 @@ public class MetadataFetcherTests
     }
 
     [Fact]
-    public void ClearCache_Should_Log_Information()
+    public async Task ClearCache_Should_Log_Information()
     {
         // Arrange
         var result = new SearchResult
@@ -706,7 +707,7 @@ public class MetadataFetcherTests
             Title = "Test Movie 2020",
             ContentType = ContentType.Movie
         };
-        _fetcher.FetchMetadataAsync(result).Wait();
+        await _fetcher.FetchMetadataAsync(result);
 
         // Act
         _fetcher.ClearCache();

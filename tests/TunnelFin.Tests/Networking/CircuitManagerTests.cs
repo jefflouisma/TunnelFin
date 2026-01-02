@@ -468,7 +468,7 @@ public class CircuitManagerTests
     }
 
     [Fact]
-    public void GetCircuit_Should_Return_Circuit_By_Id()
+    public async Task GetCircuit_Should_Return_Circuit_By_Id()
     {
         // Arrange
         var settings = new AnonymitySettings { DefaultHopCount = 1 };
@@ -479,7 +479,7 @@ public class CircuitManagerTests
         manager.AddPeer(peer);
 
         // Act
-        var circuit = manager.CreateCircuitAsync(1).Result;
+        var circuit = await manager.CreateCircuitAsync(1);
         var retrieved = manager.GetCircuit(circuit.IPv8CircuitId);
 
         // Assert

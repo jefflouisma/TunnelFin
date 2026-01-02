@@ -311,7 +311,7 @@ public class BandwidthTrackerTests
     }
 
     [Fact]
-    public void RecordDownload_Should_Be_Thread_Safe()
+    public async Task RecordDownload_Should_Be_Thread_Safe()
     {
         // Arrange
         var tracker = new BandwidthTracker();
@@ -322,7 +322,7 @@ public class BandwidthTrackerTests
         {
             tasks.Add(Task.Run(() => tracker.RecordDownload(10)));
         }
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks);
 
         // Assert
         tracker.TotalDownloadedBytes.Should().Be(1000, "100 tasks * 10 bytes each");
