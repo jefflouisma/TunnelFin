@@ -137,14 +137,14 @@ Wire Protocol.cs to use network transport for real communication.
 Live network tests against Tribler network.
 
 ### T063-T066 - Integration Test Suite
-- [ ] T063 [SC-001] Create `tests/TunnelFin.Tests/Integration/BootstrapIntegrationTests.cs` - real bootstrap node contact
-- [ ] T064 [SC-002] [SC-003] Create `tests/TunnelFin.Tests/Integration/HandshakeIntegrationTests.cs` - real peer handshake
-- [ ] T065 [SC-004] [SC-007] Create `tests/TunnelFin.Tests/Integration/CircuitIntegrationTests.cs` - real circuit establishment
-- [ ] T066 [SC-005] Create `tests/TunnelFin.Tests/Integration/TunnelIntegrationTests.cs` - IP hiding verification
+- [X] T063 [SC-001] Create `tests/TunnelFin.Tests/Integration/BootstrapIntegrationTests.cs` - real bootstrap node contact
+- [X] T064 [SC-002] [SC-003] Create `tests/TunnelFin.Tests/Integration/HandshakeIntegrationTests.cs` - real peer handshake
+- [X] T065 [SC-004] [SC-007] Create `tests/TunnelFin.Tests/Integration/CircuitIntegrationTests.cs` - real circuit establishment
+- [X] T066 [SC-005] Create `tests/TunnelFin.Tests/Integration/TunnelIntegrationTests.cs` - IP hiding verification
 
 ### T067-T068 - End-to-End Verification
-- [ ] T067 [SC-009] Audit all files for TODO comments and placeholder implementations
-- [ ] T068 Run full test suite, verify all success criteria pass
+- [X] T067 [SC-009] Audit all files for TODO comments and placeholder implementations
+- [X] T068 Run full test suite, verify all success criteria pass
 
 ## Task Dependencies
 
