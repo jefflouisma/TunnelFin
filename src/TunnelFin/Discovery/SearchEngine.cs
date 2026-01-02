@@ -12,13 +12,13 @@ public class SearchEngine
     private readonly ILogger _logger;
     private readonly IndexerManager _indexerManager;
     private readonly Deduplicator _deduplicator;
-    private readonly MetadataFetcher _metadataFetcher;
+    private readonly IMetadataFetcher _metadataFetcher;
 
     public SearchEngine(
         ILogger logger,
         IndexerManager indexerManager,
         Deduplicator deduplicator,
-        MetadataFetcher metadataFetcher)
+        IMetadataFetcher metadataFetcher)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _indexerManager = indexerManager ?? throw new ArgumentNullException(nameof(indexerManager));

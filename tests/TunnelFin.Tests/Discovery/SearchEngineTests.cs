@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using TunnelFin.Discovery;
 using TunnelFin.Indexers;
 using TunnelFin.Models;
@@ -1138,6 +1139,228 @@ public class SearchEngineTests
                 TimeoutSeconds = 10
             };
         }
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Log_Cancellation_Message()
+    {
+        // Arrange
+        var query = "Test";
+        var cts = new CancellationTokenSource();
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 10,
+            Leechers = 1,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
+
+        cts.Cancel(); // Cancel immediately
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await _searchEngine.SearchAsync(query, ContentType.Movie, cts.Token));
+        // Should log "Search cancelled: Query={Query}" (line 110)
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Log_Timeout_Warning_When_Exceeding_5_Seconds()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Create a very slow indexer that takes longer than 5 seconds
+        var slowIndexer = new SlowTestIndexer("VerySlowIndexer", TimeSpan.FromSeconds(6));
+        _indexerManager.AddIndexer(slowIndexer);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        // Should log "Search exceeded 5-second timeout" (line 103)
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Metadata_Fetch_Exception_And_Continue()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Create a mock MetadataFetcher that throws exceptions
+        var mockMetadataFetcher = new Mock<IMetadataFetcher>();
+        mockMetadataFetcher
+            .Setup(m => m.FetchMetadataAsync(It.IsAny<SearchResult>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Metadata fetch failed"));
+
+        var searchEngine = new SearchEngine(
+            NullLogger.Instance,
+            _indexerManager,
+            _deduplicator,
+            mockMetadataFetcher.Object);
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 10,
+            Leechers = 1,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var results = await searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().HaveCount(1, "search should continue even if metadata fetch fails");
+        // Should log warning about metadata fetch failure (line 90)
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Rethrow_OperationCanceledException_From_Metadata_Fetch()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Create a mock MetadataFetcher that throws OperationCanceledException
+        var mockMetadataFetcher = new Mock<IMetadataFetcher>();
+        mockMetadataFetcher
+            .Setup(m => m.FetchMetadataAsync(It.IsAny<SearchResult>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException("Metadata fetch cancelled"));
+
+        var searchEngine = new SearchEngine(
+            NullLogger.Instance,
+            _indexerManager,
+            _deduplicator,
+            mockMetadataFetcher.Object);
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 10,
+            Leechers = 1,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await searchEngine.SearchAsync(query, ContentType.Movie));
+        // Should rethrow OperationCanceledException (line 86)
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Mixed_Metadata_Fetch_Results()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Create a mock MetadataFetcher that succeeds for some results and fails for others
+        var mockMetadataFetcher = new Mock<IMetadataFetcher>();
+        var callCount = 0;
+        mockMetadataFetcher
+            .Setup(m => m.FetchMetadataAsync(It.IsAny<SearchResult>(), It.IsAny<CancellationToken>()))
+            .Returns<SearchResult, CancellationToken>((result, ct) =>
+            {
+                callCount++;
+                if (callCount % 2 == 0)
+                {
+                    // Fail every other call
+                    throw new InvalidOperationException("Metadata fetch failed");
+                }
+                return Task.FromResult(new MediaMetadata
+                {
+                    Title = result.Title,
+                    MatchConfidence = 0.8,
+                    Source = MetadataSource.Filename
+                });
+            });
+
+        var searchEngine = new SearchEngine(
+            NullLogger.Instance,
+            _indexerManager,
+            _deduplicator,
+            mockMetadataFetcher.Object);
+
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie 1", InfoHash = "hash1", Size = 1024L, Seeders = 10, Leechers = 1, ContentType = ContentType.Movie },
+            new SearchResult { Title = "Movie 2", InfoHash = "hash2", Size = 1024L, Seeders = 10, Leechers = 1, ContentType = ContentType.Movie },
+            new SearchResult { Title = "Movie 3", InfoHash = "hash3", Size = 1024L, Seeders = 10, Leechers = 1, ContentType = ContentType.Movie },
+            new SearchResult { Title = "Movie 4", InfoHash = "hash4", Size = 1024L, Seeders = 10, Leechers = 1, ContentType = ContentType.Movie }
+        };
+
+        var indexer = new TestIndexer("TestIndexer", results);
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var searchResults = await searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        searchResults.Should().HaveCount(4, "search should continue even if some metadata fetches fail");
+        // Should log warnings for failed metadata fetches (line 90)
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Attach_Metadata_IDs_To_Results()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Create a mock MetadataFetcher that returns metadata with IDs
+        var mockMetadataFetcher = new Mock<IMetadataFetcher>();
+        mockMetadataFetcher
+            .Setup(m => m.FetchMetadataAsync(It.IsAny<SearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MediaMetadata
+            {
+                Title = "Test Movie",
+                TmdbId = 12345,
+                AniListId = 67890,
+                MatchConfidence = 0.95,
+                Source = MetadataSource.TMDB
+            });
+
+        var searchEngine = new SearchEngine(
+            NullLogger.Instance,
+            _indexerManager,
+            _deduplicator,
+            mockMetadataFetcher.Object);
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 10,
+            Leechers = 1,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var results = await searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().HaveCount(1);
+        results[0].TmdbId.Should().Be(12345, "metadata should be attached to result");
+        results[0].AniListId.Should().Be(67890, "metadata should be attached to result");
+        // Should log debug message with metadata info (line 81-82)
     }
 
 }
