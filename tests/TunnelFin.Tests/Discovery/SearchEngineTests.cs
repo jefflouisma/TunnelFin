@@ -1365,5 +1365,48 @@ public class SearchEngineTests
         // Should log debug message with metadata info (line 81-82)
     }
 
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Deduplicator_Exception_And_Rethrow()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Create a mock Deduplicator that throws an exception
+        var mockDeduplicator = new Mock<IDeduplicator>();
+        mockDeduplicator
+            .Setup(d => d.Deduplicate(It.IsAny<List<SearchResult>>()))
+            .Throws(new InvalidOperationException("Deduplication failed"));
+
+        var searchEngine = new SearchEngine(
+            NullLogger.Instance,
+            _indexerManager,
+            mockDeduplicator.Object,
+            _metadataFetcher);
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 10,
+            Leechers = 1,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await searchEngine.SearchAsync(query, ContentType.Movie);
+        });
+
+        exception.Message.Should().Be("Deduplication failed");
+
+        // This test verifies that exceptions from Deduplicator are caught by the outer catch block (lines 113-116)
+        // and rethrown, which tests the general exception handling path
+    }
+
 }
 

@@ -164,7 +164,7 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [X] T066 [US2] Implement exponential backoff retry in MetadataFetcher (1s, 2s, 4s per FR-030)
 - [X] T067 [US2] Implement failure caching in MetadataFetcher (5-minute cache per FR-031)
 - [X] T068 [US2] Implement filename parsing fallback in MetadataFetcher (basic metadata extraction per FR-032)
-- [ ] T069 [US2] Implement title/year/episode matching in MetadataFetcher (verification against TMDB/AniList per FR-026, 95% success rate per SC-008)
+- [X] T069 [US2] Implement title/year/episode matching in MetadataFetcher (verification against TMDB/AniList per FR-026, 95% success rate per SC-008)
 
 **Jellyfin Integration for Discovery (FR-027, FR-028)**
 

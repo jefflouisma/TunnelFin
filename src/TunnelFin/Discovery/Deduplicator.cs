@@ -9,7 +9,7 @@ namespace TunnelFin.Discovery;
 /// Deduplicates search results using infohash, filename, and smart hash (FR-025, SC-007).
 /// Achieves 90% deduplication success rate.
 /// </summary>
-public class Deduplicator
+public class Deduplicator : IDeduplicator
 {
     /// <summary>
     /// Deduplicates a list of search results (FR-025).
