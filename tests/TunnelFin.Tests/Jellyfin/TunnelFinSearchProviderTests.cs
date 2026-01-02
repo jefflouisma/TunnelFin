@@ -268,5 +268,172 @@ public class TunnelFinSearchProviderTests
         isAvailable.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task SearchAsync_With_SearchEngine_Should_Return_Results()
+    {
+        // Arrange
+        var indexerManager = new TunnelFin.Indexers.IndexerManager(NullLogger.Instance);
+        var deduplicator = new TunnelFin.Discovery.Deduplicator();
+        var metadataFetcher = new TunnelFin.Discovery.MetadataFetcher(NullLogger.Instance);
+        var searchEngine = new TunnelFin.Discovery.SearchEngine(
+            NullLogger.Instance,
+            indexerManager,
+            deduplicator,
+            metadataFetcher);
+
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance, searchEngine);
+
+        // Add a test indexer
+        var testIndexer = new TestIndexer("TestIndexer", new List<SearchResult>
+        {
+            new SearchResult
+            {
+                Title = "Test Movie 2020",
+                InfoHash = "hash1",
+                Size = 1024L * 1024 * 1024,
+                Seeders = 50,
+                Leechers = 5,
+                ContentType = ContentType.Movie
+            }
+        });
+        indexerManager.AddIndexer(testIndexer);
+
+        // Act
+        var response = await provider.SearchAsync("Test", ContentType.Movie, limit: 10);
+
+        // Assert
+        response.Should().NotBeNull();
+        response.Results.Should().HaveCount(1);
+        response.TotalResults.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SearchAsync_With_SearchEngine_Should_Apply_Limit()
+    {
+        // Arrange
+        var indexerManager = new TunnelFin.Indexers.IndexerManager(NullLogger.Instance);
+        var deduplicator = new TunnelFin.Discovery.Deduplicator();
+        var metadataFetcher = new TunnelFin.Discovery.MetadataFetcher(NullLogger.Instance);
+        var searchEngine = new TunnelFin.Discovery.SearchEngine(
+            NullLogger.Instance,
+            indexerManager,
+            deduplicator,
+            metadataFetcher);
+
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance, searchEngine);
+
+        // Add a test indexer with multiple results
+        var results = Enumerable.Range(1, 50).Select(i => new SearchResult
+        {
+            Title = $"Movie {i}",
+            InfoHash = $"hash{i}",
+            Size = 1024L * 1024 * 1024,
+            Seeders = i,
+            Leechers = i / 10,
+            ContentType = ContentType.Movie
+        }).ToList();
+
+        var testIndexer = new TestIndexer("TestIndexer", results);
+        indexerManager.AddIndexer(testIndexer);
+
+        // Act
+        var response = await provider.SearchAsync("Movie", ContentType.Movie, limit: 10);
+
+        // Assert
+        response.Should().NotBeNull();
+        response.Results.Should().HaveCount(10, "limit should be applied");
+    }
+
+    [Fact]
+    public async Task SearchAsync_With_SearchEngine_Should_Handle_Indexer_Failures_Gracefully()
+    {
+        // Arrange
+        var indexerManager = new TunnelFin.Indexers.IndexerManager(NullLogger.Instance);
+        var deduplicator = new TunnelFin.Discovery.Deduplicator();
+        var metadataFetcher = new TunnelFin.Discovery.MetadataFetcher(NullLogger.Instance);
+        var searchEngine = new TunnelFin.Discovery.SearchEngine(
+            NullLogger.Instance,
+            indexerManager,
+            deduplicator,
+            metadataFetcher);
+
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance, searchEngine);
+
+        // Add a failing indexer - IndexerManager handles failures gracefully
+        var failingIndexer = new FailingTestIndexer("FailingIndexer");
+        indexerManager.AddIndexer(failingIndexer);
+
+        // Act
+        var response = await provider.SearchAsync("Test", ContentType.Movie);
+
+        // Assert
+        // Should return empty results rather than throwing
+        response.Should().NotBeNull();
+        response.Results.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Simple test indexer that returns predefined results.
+    /// </summary>
+    private class TestIndexer : TunnelFin.Indexers.IIndexer
+    {
+        private readonly List<SearchResult> _results;
+
+        public string Name { get; }
+        public bool IsEnabled { get; set; } = true;
+
+        public TestIndexer(string name, List<SearchResult> results)
+        {
+            Name = name;
+            _results = results;
+        }
+
+        public Task<List<SearchResult>> SearchAsync(string query, ContentType contentType, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_results);
+        }
+
+        public TunnelFin.Indexers.IndexerCapabilities GetCapabilities()
+        {
+            return new TunnelFin.Indexers.IndexerCapabilities
+            {
+                SupportedContentTypes = new List<ContentType> { ContentType.Movie, ContentType.TVShow, ContentType.Anime },
+                SupportsAdvancedSearch = false,
+                MaxResults = 100,
+                TimeoutSeconds = 10
+            };
+        }
+    }
+
+    /// <summary>
+    /// Test indexer that always throws an exception.
+    /// </summary>
+    private class FailingTestIndexer : TunnelFin.Indexers.IIndexer
+    {
+        public string Name { get; }
+        public bool IsEnabled { get; set; } = true;
+
+        public FailingTestIndexer(string name)
+        {
+            Name = name;
+        }
+
+        public Task<List<SearchResult>> SearchAsync(string query, ContentType contentType, CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("Indexer failed");
+        }
+
+        public TunnelFin.Indexers.IndexerCapabilities GetCapabilities()
+        {
+            return new TunnelFin.Indexers.IndexerCapabilities
+            {
+                SupportedContentTypes = new List<ContentType> { ContentType.Movie, ContentType.TVShow, ContentType.Anime },
+                SupportsAdvancedSearch = false,
+                MaxResults = 100,
+                TimeoutSeconds = 10
+            };
+        }
+    }
+
 }
 

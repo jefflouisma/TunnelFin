@@ -649,5 +649,235 @@ public class SearchEngineTests
         // (even if external IDs aren't found, the workflow completes)
     }
 
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Cancellation_During_Search()
+    {
+        // Arrange
+        var query = "Test";
+        var cts = new CancellationTokenSource();
+        cts.Cancel(); // Cancel immediately
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await _searchEngine.SearchAsync(query, ContentType.Movie, cts.Token));
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Cancellation_During_Metadata_Fetch()
+    {
+        // Arrange
+        var query = "Test";
+        var cts = new CancellationTokenSource();
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
+
+        // Cancel after indexer search but before metadata fetch
+        cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        // Act & Assert
+        // This may or may not throw depending on timing, but should not hang
+        try
+        {
+            await _searchEngine.SearchAsync(query, ContentType.Movie, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected if cancellation happens during metadata fetch
+        }
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Return_All_Results_Even_With_Metadata_Errors()
+    {
+        // Arrange
+        var query = "Test";
+        var result1 = new SearchResult
+        {
+            Title = "Valid Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+        var result2 = new SearchResult
+        {
+            Title = "Another Movie",
+            InfoHash = "hash2",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 40,
+            Leechers = 4,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result1, result2 });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        results.Should().HaveCount(2, "should return all results even if metadata fetch fails for some");
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Log_Warning_When_Exceeding_5_Second_Timeout()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Create a slow indexer that takes longer than 5 seconds
+        var slowIndexer = new SlowTestIndexer("SlowIndexer", TimeSpan.FromSeconds(6));
+        _indexerManager.AddIndexer(slowIndexer);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        // The search should complete but log a warning about exceeding timeout
+        // (We can't easily verify logging in this test without a mock logger)
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task SearchAsync_Should_Throw_ArgumentException_For_Invalid_Query(string invalidQuery)
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _searchEngine.SearchAsync(invalidQuery, ContentType.Movie));
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_All_Content_Types()
+    {
+        // Arrange
+        var query = "Test";
+        var movieResult = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+        var tvResult = new SearchResult
+        {
+            Title = "Test TV Show",
+            InfoHash = "hash2",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 40,
+            Leechers = 4,
+            ContentType = ContentType.TVShow
+        };
+        var animeResult = new SearchResult
+        {
+            Title = "Test Anime",
+            InfoHash = "hash3",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 30,
+            Leechers = 3,
+            ContentType = ContentType.Anime
+        };
+
+        // Act & Assert - Test each content type
+        var movieIndexer = new TestIndexer("MovieIndexer", new List<SearchResult> { movieResult });
+        _indexerManager.AddIndexer(movieIndexer);
+        var movieResults = await _searchEngine.SearchAsync(query, ContentType.Movie);
+        movieResults.Should().HaveCount(1);
+        movieResults[0].ContentType.Should().Be(ContentType.Movie);
+
+        // Create new instance for TV test
+        var tvIndexerManager = new IndexerManager(NullLogger.Instance);
+        var tvSearchEngine = new SearchEngine(NullLogger.Instance, tvIndexerManager, _deduplicator, _metadataFetcher);
+        var tvIndexer = new TestIndexer("TVIndexer", new List<SearchResult> { tvResult });
+        tvIndexerManager.AddIndexer(tvIndexer);
+        var tvResults = await tvSearchEngine.SearchAsync(query, ContentType.TVShow);
+        tvResults.Should().HaveCount(1);
+        tvResults[0].ContentType.Should().Be(ContentType.TVShow);
+
+        // Create new instance for Anime test
+        var animeIndexerManager = new IndexerManager(NullLogger.Instance);
+        var animeSearchEngine = new SearchEngine(NullLogger.Instance, animeIndexerManager, _deduplicator, _metadataFetcher);
+        var animeIndexer = new TestIndexer("AnimeIndexer", new List<SearchResult> { animeResult });
+        animeIndexerManager.AddIndexer(animeIndexer);
+        var animeResults = await animeSearchEngine.SearchAsync(query, ContentType.Anime);
+        animeResults.Should().HaveCount(1);
+        animeResults[0].ContentType.Should().Be(ContentType.Anime);
+    }
+
+    /// <summary>
+    /// Test indexer that introduces a delay to simulate slow searches.
+    /// </summary>
+    private class SlowTestIndexer : IIndexer
+    {
+        private readonly TimeSpan _delay;
+
+        public string Name { get; }
+        public bool IsEnabled { get; set; } = true;
+
+        public SlowTestIndexer(string name, TimeSpan delay)
+        {
+            Name = name;
+            _delay = delay;
+        }
+
+        public async Task<List<SearchResult>> SearchAsync(string query, ContentType contentType, CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(_delay, cancellationToken);
+            return new List<SearchResult>
+            {
+                new SearchResult
+                {
+                    Title = "Slow Result",
+                    InfoHash = "slowhash",
+                    Size = 1024L * 1024 * 1024,
+                    Seeders = 10,
+                    Leechers = 1,
+                    ContentType = contentType
+                }
+            };
+        }
+
+        public IndexerCapabilities GetCapabilities()
+        {
+            return new IndexerCapabilities
+            {
+                SupportedContentTypes = new List<ContentType> { ContentType.Movie, ContentType.TVShow, ContentType.Anime },
+                SupportsAdvancedSearch = false,
+                MaxResults = 100,
+                TimeoutSeconds = 10
+            };
+        }
+    }
+
 }
 

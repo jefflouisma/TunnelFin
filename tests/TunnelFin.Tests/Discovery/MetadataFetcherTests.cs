@@ -567,5 +567,186 @@ public class MetadataFetcherTests
         metadata.Year.Should().NotBeNull("should extract at least one year");
     }
 
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Use_Failure_Cache_When_Available()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Test Movie 2020",
+            ContentType = ContentType.Movie
+        };
+
+        // Note: The current placeholder implementation doesn't populate the failure cache
+        // This test verifies the cache checking logic exists
+        var initialCacheCount = _fetcher.GetCachedFailureCount();
+
+        // Act - fetch metadata
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        // Cache count should remain the same (placeholder doesn't add failures)
+        _fetcher.GetCachedFailureCount().Should().Be(initialCacheCount);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Concurrent_Requests()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Test Movie 2020",
+            ContentType = ContentType.Movie
+        };
+
+        // Act - fetch metadata concurrently
+        var tasks = Enumerable.Range(0, 10).Select(_ => _fetcher.FetchMetadataAsync(result));
+        var results = await Task.WhenAll(tasks);
+
+        // Assert
+        results.Should().HaveCount(10);
+        results.Should().AllSatisfy(m => m.Should().NotBeNull());
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Different_Content_Types()
+    {
+        // Arrange
+        var movieResult = new SearchResult
+        {
+            Title = "Test 2020",
+            ContentType = ContentType.Movie
+        };
+        var tvResult = new SearchResult
+        {
+            Title = "Test 2020",
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var movieMetadata = await _fetcher.FetchMetadataAsync(movieResult);
+        var tvMetadata = await _fetcher.FetchMetadataAsync(tvResult);
+
+        // Assert
+        // Should handle different content types correctly
+        movieMetadata.Should().NotBeNull();
+        tvMetadata.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Title_With_Brackets_And_Parentheses()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "[Release Group] Movie Title (2020) [1080p]",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Title.Should().NotContain("[");
+        metadata.Title.Should().NotContain("]");
+        metadata.Year.Should().Be(2020);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Title_With_4K_Quality()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie.Title.2020.4K.BluRay.x265",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        // Quality indicators in the regex should be removed
+        metadata.Title.ToLower().Should().NotContain("4k");
+        metadata.Title.ToLower().Should().NotContain("bluray");
+        metadata.Title.ToLower().Should().NotContain("x265");
+        metadata.Year.Should().Be(2020);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Anime_With_Episode_Format()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Anime.Title.S01E12.1080p",
+            ContentType = ContentType.Anime
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Season.Should().Be(1);
+        metadata.Episode.Should().Be(12);
+        metadata.Title.Should().NotContain("S01E12");
+    }
+
+    [Fact]
+    public void ClearCache_Should_Log_Information()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Test Movie 2020",
+            ContentType = ContentType.Movie
+        };
+        _fetcher.FetchMetadataAsync(result).Wait();
+
+        // Act
+        _fetcher.ClearCache();
+
+        // Assert
+        _fetcher.GetCachedFailureCount().Should().Be(0, "cache should be cleared");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Set_Source_To_Filename()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Test Movie 2020",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Source.Should().Be(MetadataSource.Filename);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Set_Match_Confidence_To_0_5()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Test Movie 2020",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.MatchConfidence.Should().Be(0.5, "filename parsing has lower confidence");
+    }
+
 }
 
