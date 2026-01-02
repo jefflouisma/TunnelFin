@@ -198,7 +198,7 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [X] T079 [P] [US3] Implement keyword/regex matching in FilterEngine (filename pattern matching per FR-021)
 - [X] T080 [US3] Implement conditional filtering in FilterEngine (expression language support per FR-022, e.g., "exclude 720p if >5 results at 1080p")
 - [X] T081 [P] [US3] Implement SortEngine in src/TunnelFin/Discovery/SortEngine.cs (multi-criteria sorting per FR-023, <1s for 100+ results per SC-005)
-- [ ] T082 [US3] Implement filter profile management in FilterEngine (separate profiles for Movies, TV Shows, Anime per FR-024)
+- [X] T082 [US3] Implement filter profile management in FilterProfileManager (separate profiles for Movies, TV Shows, Anime per FR-024)
 - [ ] T083 [US3] Implement profile configuration UI integration (configure profile in <2 minutes per SC-006)
 
 **Checkpoint**: All three user stories should now be independently functional - search, discovery, filtering all work
