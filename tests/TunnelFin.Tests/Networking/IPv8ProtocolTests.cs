@@ -69,9 +69,8 @@ public class IPv8ProtocolTests
         var result = await protocol.PerformHandshakeAsync("127.0.0.1", 8080);
 
         // Assert
-        // Note: Actual handshake will be implemented in later stages
-        // For now, just verify it doesn't throw
-        result.Should().BeFalse("Handshake not yet fully implemented");
+        // Handshake sends introduction-request and returns true if successful (T058)
+        result.Should().BeTrue("Handshake should send introduction-request successfully");
     }
 
     [Fact]

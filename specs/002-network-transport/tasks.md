@@ -122,15 +122,15 @@ BitTorrent traffic tunneling through circuits.
 Wire Protocol.cs to use network transport for real communication.
 
 ### T056-T059 - Protocol Extension
-- [ ] T056 [US1] Extend `src/TunnelFin/Networking/IPv8/Protocol.cs` - inject ITransport dependency
-- [ ] T057 [US1] Implement InitializeAsync: start transport, trigger bootstrap discovery
-- [ ] T058 [US3] Implement PerformHandshakeAsync: use HandshakeStateMachine over real network
-- [ ] T059 [US1] [FR-024] Implement configurable logging without IP exposure in default mode
+- [X] T056 [US1] Extend `src/TunnelFin/Networking/IPv8/Protocol.cs` - inject ITransport dependency
+- [X] T057 [US1] Implement InitializeAsync: start transport, trigger bootstrap discovery
+- [X] T058 [US3] Implement PerformHandshakeAsync: use HandshakeStateMachine over real network
+- [X] T059 [US1] [FR-024] Implement configurable logging without IP exposure in default mode
 
 ### T060-T062 - Configuration Extension
-- [ ] T060 [P] Extend `src/TunnelFin/Configuration/AnonymitySettings.cs` - add UdpPort, BootstrapTimeout, HeartbeatInterval
-- [ ] T061 Create `src/TunnelFin/Networking/Transport/TransportConfiguration.cs` - transport-specific settings
-- [ ] T062 [SC-008] Implement circuit recovery: detect failure, re-establish within 30s
+- [X] T060 [P] Extend `src/TunnelFin/Configuration/AnonymitySettings.cs` - add UdpPort, BootstrapTimeout, HeartbeatInterval
+- [X] T061 Create `src/TunnelFin/Networking/Transport/TransportConfiguration.cs` - transport-specific settings
+- [X] T062 [SC-008] Implement circuit recovery: detect failure, re-establish within 30s
 
 ## Phase 7: Integration Tests
 
