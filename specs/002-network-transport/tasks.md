@@ -96,26 +96,26 @@ Circuit establishment over real network connections.
 - [x] T043 [US4] Create `tests/TunnelFin.Tests/Networking/Circuits/CircuitHeartbeatTests.cs` - keepalive, timeout detection
 - [x] T044 [US4] [SC-004] [SC-007] Extend `tests/TunnelFin.Tests/Networking/CircuitManagerTests.cs` - network establishment
 
-## Phase 5: Traffic Routing (US5)
+## Phase 5: Traffic Routing (US5) ✅
 
 BitTorrent traffic tunneling through circuits.
 
-### T045-T048 - Tunnel Infrastructure
-- [ ] T045 [P] [US5] Create `src/TunnelFin/Networking/Tunnel/ITunnelProxy.cs` interface per contracts/transport-api.yaml
-- [ ] T046 [US5] [FR-019] Create `src/TunnelFin/Networking/Tunnel/TunnelProxy.cs` - TCP-over-circuit proxy
-- [ ] T047 [US5] [FR-020] Create `src/TunnelFin/Networking/Tunnel/LayeredEncryption.cs` - per-hop encryption/decryption
-- [ ] T048 [US5] Create `src/TunnelFin/Networking/Tunnel/TunnelStream.cs` - multiplexed stream over circuit
+### T045-T048 - Tunnel Infrastructure ✅
+- [x] T045 [P] [US5] Create `src/TunnelFin/Networking/Tunnel/ITunnelProxy.cs` interface per contracts/transport-api.yaml
+- [x] T046 [US5] [FR-019] Create `src/TunnelFin/Networking/Tunnel/TunnelProxy.cs` - TCP-over-circuit proxy
+- [x] T047 [US5] [FR-020] Create `src/TunnelFin/Networking/Tunnel/LayeredEncryption.cs` - per-hop encryption/decryption
+- [x] T048 [US5] Create `src/TunnelFin/Networking/Tunnel/TunnelStream.cs` - multiplexed stream over circuit
 
-### T049-T052 - MonoTorrent Integration
-- [ ] T049 [US5] [FR-021] Create `src/TunnelFin/Networking/Tunnel/TunnelSocketConnector.cs` implementing ISocketConnector
-- [ ] T050 [US5] Create `src/TunnelFin/Networking/Tunnel/TunnelSocket.cs` - Socket wrapper for circuit I/O
-- [ ] T051 [US5] [FR-022] Implement direct connection fallback with consent tracking
-- [ ] T052 [US5] Wire TunnelSocketConnector into MonoTorrent engine configuration
+### T049-T052 - MonoTorrent Integration ✅
+- [x] T049 [US5] [FR-021] Create `src/TunnelFin/Networking/Tunnel/TunnelSocketConnector.cs` implementing ISocketConnector
+- [x] T050 [US5] Create `src/TunnelFin/Networking/Tunnel/TunnelSocket.cs` - Socket wrapper for circuit I/O
+- [x] T051 [US5] [FR-022] Implement direct connection fallback with consent tracking (AllowNonAnonymousFallback setting)
+- [x] T052 [US5] Wire TunnelSocketConnector into MonoTorrent engine configuration (via Factories.WithSocketConnectorCreator)
 
-### T053-T055 - Traffic Routing Tests
-- [ ] T053 [US5] Create `tests/TunnelFin.Tests/Networking/Tunnel/TunnelProxyTests.cs` - tunnel creation, data routing
-- [ ] T054 [US5] Create `tests/TunnelFin.Tests/Networking/Tunnel/LayeredEncryptionTests.cs` - encrypt/decrypt per hop
-- [ ] T055 [US5] [SC-005] [SC-006] Create `tests/TunnelFin.Tests/Networking/Tunnel/TunnelStreamTests.cs` - throughput, packet loss
+### T053-T055 - Traffic Routing Tests ✅
+- [x] T053 [US5] Create `tests/TunnelFin.Tests/Networking/Tunnel/TunnelProxyTests.cs` - tunnel creation, data routing (10 tests)
+- [x] T054 [US5] Create `tests/TunnelFin.Tests/Networking/Tunnel/LayeredEncryptionTests.cs` - encrypt/decrypt per hop (10 tests)
+- [x] T055 [US5] [SC-005] [SC-006] Create `tests/TunnelFin.Tests/Networking/Tunnel/TunnelStreamTests.cs` - throughput, packet loss (10 tests)
 
 ## Phase 6: Protocol Integration (US1-US5)
 
