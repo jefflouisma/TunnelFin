@@ -20,7 +20,7 @@ public class FilterProfileTests
         _mockLogger = new Mock<ILogger>();
     }
 
-    [Fact(Skip = "Integration test - requires filter profile implementation")]
+    [Fact]
     public void FilterProfile_Should_Apply_Movie_Profile_To_Search_Results()
     {
         // Arrange
@@ -38,10 +38,10 @@ public class FilterProfileTests
 
         var results = new List<SearchResult>
         {
-            new SearchResult { Title = "Movie.1080p.BluRay.x265" },
-            new SearchResult { Title = "Movie.1080p.WEBRip.x265" },
-            new SearchResult { Title = "Movie.720p.BluRay.x265" },
-            new SearchResult { Title = "Movie.1080p.BluRay.x264" }
+            new SearchResult { Title = "Movie.1080p.BluRay.x265", InfoHash = "hash1" },
+            new SearchResult { Title = "Movie.1080p.WEBRip.x265", InfoHash = "hash2" },
+            new SearchResult { Title = "Movie.720p.BluRay.x265", InfoHash = "hash3" },
+            new SearchResult { Title = "Movie.1080p.BluRay.x264", InfoHash = "hash4" }
         };
 
         // Act
@@ -54,7 +54,7 @@ public class FilterProfileTests
         filtered[0].Title.Should().Contain("x265");
     }
 
-    [Fact(Skip = "Integration test - requires filter profile implementation")]
+    [Fact]
     public void FilterProfile_Should_Apply_Anime_Profile_To_Search_Results()
     {
         // Arrange
@@ -71,20 +71,22 @@ public class FilterProfileTests
 
         var results = new List<SearchResult>
         {
-            new SearchResult { Title = "[SubsPlease] Anime - 01 (1080p)" },
-            new SearchResult { Title = "[HorribleSubs] Anime - 01 (1080p)" },
-            new SearchResult { Title = "[SubsPlease] Anime - 01 (720p)" }
+            new SearchResult { Title = "[SubsPlease] Anime - 01 (1080p)", InfoHash = "hash1" },
+            new SearchResult { Title = "[HorribleSubs] Anime - 01 (1080p)", InfoHash = "hash2" },
+            new SearchResult { Title = "[SubsPlease] Anime - 01 (720p)", InfoHash = "hash3" }
         };
 
         // Act
         var filtered = filterEngine.ApplyFilters(results);
 
         // Assert
-        // Note: Current implementation doesn't filter by release group yet
-        filtered.Should().HaveCountGreaterThan(0);
+        // Should filter to only 1080p results with SubsPlease release group
+        filtered.Should().HaveCount(1);
+        filtered[0].Title.Should().Contain("SubsPlease");
+        filtered[0].Title.Should().Contain("1080p");
     }
 
-    [Fact(Skip = "Integration test - requires filter profile implementation")]
+    [Fact]
     public void FilterProfile_Should_Support_Profile_Switching()
     {
         // Arrange
@@ -106,8 +108,8 @@ public class FilterProfileTests
 
         var results = new List<SearchResult>
         {
-            new SearchResult { Title = "Content.1080p" },
-            new SearchResult { Title = "Content.720p" }
+            new SearchResult { Title = "Content.1080p", InfoHash = "hash1" },
+            new SearchResult { Title = "Content.720p", InfoHash = "hash2" }
         };
 
         // Act - Apply movie profile
@@ -126,7 +128,7 @@ public class FilterProfileTests
         tvResults[0].Title.Should().Contain("720p");
     }
 
-    [Fact(Skip = "Integration test - requires filter profile implementation")]
+    [Fact]
     public void FilterProfile_Should_Be_Configurable_In_Under_2_Minutes()
     {
         // Arrange

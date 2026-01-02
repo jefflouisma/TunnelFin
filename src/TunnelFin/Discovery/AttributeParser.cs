@@ -14,7 +14,8 @@ public class AttributeParser
     private static readonly Regex AudioRegex = new(@"\b(AAC|DTS|AC3|EAC3|TrueHD|FLAC|MP3|Atmos)\b", RegexOptions.IgnoreCase);
     private static readonly Regex HDRRegex = new(@"\b(HDR|HDR10|HDR10\+|Dolby Vision)\b", RegexOptions.IgnoreCase);
     private static readonly Regex LanguageRegex = new(@"\b(MULTI|FRENCH|ENGLISH|SPANISH|GERMAN|ITALIAN|JAPANESE|KOREAN)\b", RegexOptions.IgnoreCase);
-    private static readonly Regex ReleaseGroupRegex = new(@"-([A-Z0-9]+)(?:\[.*\])?$", RegexOptions.IgnoreCase);
+    // Matches release groups in brackets at start (e.g., [SubsPlease]) or after dash at end (e.g., -RARBG)
+    private static readonly Regex ReleaseGroupRegex = new(@"^\[([^\]]+)\]|-([A-Z0-9]+)(?:\[.*\])?$", RegexOptions.IgnoreCase);
 
     /// <summary>
     /// Parses resolution from title (e.g., "1080p", "720p", "2160p").
@@ -94,12 +95,17 @@ public class AttributeParser
     }
 
     /// <summary>
-    /// Parses release group from title (e.g., "RARBG", "YTS", "ETRG").
+    /// Parses release group from title (e.g., "RARBG", "YTS", "ETRG", "SubsPlease").
+    /// Supports both bracket format [Group] and dash format -Group.
     /// </summary>
     public string? ParseReleaseGroup(string title)
     {
         var match = ReleaseGroupRegex.Match(title);
-        return match.Success ? match.Groups[1].Value : null;
+        if (!match.Success)
+            return null;
+
+        // Group 1 is for bracket format [Group], Group 2 is for dash format -Group
+        return match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
     }
 
     /// <summary>

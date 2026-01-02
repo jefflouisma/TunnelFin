@@ -144,6 +144,14 @@ public class FilterEngine
                 AddExcludedFilter("title", keyword);
             }
         }
+
+        if (profile.AllowedReleaseGroups?.Count > 0)
+        {
+            foreach (var group in profile.AllowedReleaseGroups)
+            {
+                AddIncludeFilter("releasegroup", group);
+            }
+        }
     }
 
     /// <summary>

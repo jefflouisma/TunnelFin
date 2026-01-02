@@ -1,6 +1,7 @@
 using FluentAssertions;
 using TunnelFin.Configuration;
 using TunnelFin.Networking.Circuits;
+using TunnelFin.Networking.IPv8;
 using Xunit;
 
 namespace TunnelFin.Integration;
@@ -11,12 +12,37 @@ namespace TunnelFin.Integration;
 /// </summary>
 public class PrivacySettingsTests
 {
-    [Fact(Skip = "Integration test - requires peers to be added for circuit creation")]
+    private Peer CreateTestPeer(string ip, ushort port)
+    {
+        var publicKey = new byte[32];
+        new Random().NextBytes(publicKey);
+
+        // Convert IP to big-endian uint32
+        var ipParts = ip.Split('.');
+        uint ipv4Address = ((uint)byte.Parse(ipParts[0]) << 24) |
+                          ((uint)byte.Parse(ipParts[1]) << 16) |
+                          ((uint)byte.Parse(ipParts[2]) << 8) |
+                          (uint)byte.Parse(ipParts[3]);
+
+        var peer = new Peer(publicKey, ipv4Address, port);
+        peer.IsHandshakeComplete = true; // Mark as ready for circuit creation
+        peer.IsRelayCandidate = true;
+        return peer;
+    }
+
+    [Fact]
     public async Task ChangeHopCount_Should_Affect_New_Circuits()
     {
         // Arrange
         var settings = new AnonymitySettings { DefaultHopCount = 2 };
         var circuitManager = new CircuitManager(settings);
+
+        // Add peers for circuit creation
+        for (int i = 1; i <= 3; i++)
+        {
+            var peer = CreateTestPeer($"192.168.1.{i}", 6881);
+            circuitManager.AddPeer(peer);
+        }
 
         // Act
         var circuit = await circuitManager.CreateCircuitAsync();
@@ -26,12 +52,20 @@ public class PrivacySettingsTests
         circuit.TargetHopCount.Should().Be(2, "circuit should use configured hop count");
     }
 
-    [Fact(Skip = "Integration test - requires peers to be added for circuit creation")]
+    [Fact]
     public async Task ChangeHopCount_From_1_To_3_Should_Create_Longer_Circuit()
     {
         // Arrange - Start with 1 hop
         var settings = new AnonymitySettings { DefaultHopCount = 1 };
         var circuitManager = new CircuitManager(settings);
+
+        // Add peers for circuit creation
+        for (int i = 1; i <= 5; i++)
+        {
+            var peer = CreateTestPeer($"192.168.1.{i}", 6881);
+            circuitManager.AddPeer(peer);
+        }
+
         var circuit1 = await circuitManager.CreateCircuitAsync();
 
         // Act - Change to 3 hops
@@ -43,7 +77,7 @@ public class PrivacySettingsTests
         circuit2.TargetHopCount.Should().Be(3);
     }
 
-    [Fact(Skip = "Integration test - requires bandwidth relay implementation")]
+    [Fact]
     public void DisableBandwidthContribution_Should_Stop_Relay()
     {
         // Arrange
