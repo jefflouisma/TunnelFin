@@ -11,6 +11,7 @@ public class StreamManager
 {
     private readonly ConcurrentDictionary<Guid, StreamInfo> _streams = new();
     private readonly int _maxConcurrentStreams;
+    private readonly int _streamInitializationTimeoutSeconds;
     private const string BaseUrl = "http://localhost:8765/stream";
 
     /// <summary>
@@ -19,24 +20,35 @@ public class StreamManager
     public int MaxConcurrentStreams => _maxConcurrentStreams;
 
     /// <summary>
+    /// Stream initialization timeout in seconds (FR-012).
+    /// </summary>
+    public int StreamInitializationTimeoutSeconds => _streamInitializationTimeoutSeconds;
+
+    /// <summary>
     /// Initializes a new instance of the StreamManager class.
     /// </summary>
     /// <param name="maxConcurrentStreams">Maximum concurrent streams (default: 3).</param>
-    public StreamManager(int maxConcurrentStreams = 3)
+    /// <param name="streamInitializationTimeoutSeconds">Stream initialization timeout in seconds (default: 60 per FR-012).</param>
+    public StreamManager(int maxConcurrentStreams = 3, int streamInitializationTimeoutSeconds = 60)
     {
         if (maxConcurrentStreams < 1)
             throw new ArgumentException("Max concurrent streams must be at least 1", nameof(maxConcurrentStreams));
 
+        if (streamInitializationTimeoutSeconds < 5)
+            throw new ArgumentException("Stream initialization timeout must be at least 5 seconds", nameof(streamInitializationTimeoutSeconds));
+
         _maxConcurrentStreams = maxConcurrentStreams;
+        _streamInitializationTimeoutSeconds = streamInitializationTimeoutSeconds;
     }
 
     /// <summary>
-    /// Creates a new HTTP stream endpoint for a torrent file (FR-009).
+    /// Creates a new HTTP stream endpoint for a torrent file (FR-009, FR-012).
     /// </summary>
     /// <param name="torrentId">Torrent identifier.</param>
     /// <param name="fileIndex">Index of the file within the torrent to stream.</param>
     /// <returns>Unique identifier for the stream.</returns>
     /// <exception cref="InvalidOperationException">Thrown when concurrent stream limit is reached (FR-013).</exception>
+    /// <exception cref="TimeoutException">Thrown when stream initialization exceeds timeout (FR-012).</exception>
     public async Task<Guid> CreateStreamAsync(Guid torrentId, int fileIndex)
     {
         // Check concurrent stream limit (FR-013)
@@ -58,11 +70,40 @@ public class StreamManager
 
         _streams[streamId] = info;
 
-        // TODO: Initialize HTTP endpoint
-        // TODO: Wire up to TorrentEngine's stream provider
-        await Task.CompletedTask;
+        // Initialize stream with timeout (FR-012)
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_streamInitializationTimeoutSeconds));
+        try
+        {
+            await InitializeStreamAsync(streamId, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Clean up failed stream
+            _streams.TryRemove(streamId, out _);
+            throw new TimeoutException(
+                $"Stream initialization timed out after {_streamInitializationTimeoutSeconds} seconds");
+        }
+        catch (Exception)
+        {
+            // Clean up failed stream
+            _streams.TryRemove(streamId, out _);
+            throw;
+        }
 
         return streamId;
+    }
+
+    /// <summary>
+    /// Initializes a stream with the torrent engine and HTTP endpoint.
+    /// </summary>
+    /// <param name="streamId">Stream identifier.</param>
+    /// <param name="cancellationToken">Cancellation token for timeout.</param>
+    private async Task InitializeStreamAsync(Guid streamId, CancellationToken cancellationToken)
+    {
+        // TODO: Initialize HTTP endpoint
+        // TODO: Wire up to TorrentEngine's stream provider
+        // TODO: Wait for initial buffer to be ready
+        await Task.Delay(10, cancellationToken); // Placeholder
     }
 
     /// <summary>

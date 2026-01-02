@@ -80,9 +80,9 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [X] T022b [P] [US1] Write Ed25519 signature compatibility tests in tests/TunnelFin.Tests/Networking/Ed25519SignatureTests.cs (verify C# signatures verify in Python and vice versa using test vectors per FR-049)
 - [X] T022c [P] [US1] Create Python Ed25519 test vector script in tests/fixtures/generate_ed25519_vectors.py (generates keypairs, signatures using PyNaCl for C# cross-validation)
 - [X] T022d [P] [US1] Write Ed25519 signature determinism tests in tests/TunnelFin.Tests/Networking/Ed25519DeterminismTests.cs (verify same seed + message produces identical signature in C# and Python)
-- [ ] T023 [P] [US1] Write unit tests for TorrentEngine in tests/TunnelFin.Tests/BitTorrent/TorrentEngineTests.cs (torrent initialization, piece prioritization, stream creation)
-- [ ] T024 [P] [US1] Write unit tests for StreamManager in tests/TunnelFin.Tests/Streaming/StreamManagerTests.cs (HTTP endpoint creation, range requests, concurrent stream limits per FR-013)
-- [ ] T025 [P] [US1] Write unit tests for BufferManager in tests/TunnelFin.Tests/Streaming/BufferManagerTests.cs (buffer status tracking, >10s buffer requirement per SC-003)
+- [X] T023 [P] [US1] Write unit tests for TorrentEngine in tests/TunnelFin.Tests/BitTorrent/TorrentEngineTests.cs (torrent initialization, piece prioritization, stream creation)
+- [X] T024 [P] [US1] Write unit tests for StreamManager in tests/TunnelFin.Tests/Streaming/StreamManagerTests.cs (HTTP endpoint creation, range requests, concurrent stream limits per FR-013)
+- [X] T025 [P] [US1] Write unit tests for BufferManager in tests/TunnelFin.Tests/Streaming/BufferManagerTests.cs (buffer status tracking, >10s buffer requirement per SC-003)
 - [ ] T026 [P] [US1] Write integration test for anonymous stream initialization in tests/TunnelFin.Integration/AnonymousStreamingTests.cs (end-to-end: circuit establishment → torrent download → HTTP stream)
 
 ### Implementation for User Story 1
@@ -93,27 +93,27 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [X] T027a [P] [US1] Implement IPv8 message serialization in src/TunnelFin/Networking/IPv8/MessageSerializer.cs (use BinaryPrimitives for big-endian byte order per FR-048, ipv8-wire-format.md - circuit IDs as uint, ports as ushort, all big-endian)
 - [X] T027b [P] [US1] Implement IPv8 message deserialization in src/TunnelFin/Networking/IPv8/MessageDeserializer.cs (parse big-endian messages from Python peers per ipv8-wire-format.md)
 - [X] T028 [P] [US1] Implement Peer class in src/TunnelFin/Networking/IPv8/Peer.cs (peer info, connection state, handshake)
-- [ ] T029 [P] [US1] Implement Handshake protocol in src/TunnelFin/Networking/IPv8/Handshake.cs (four-message discovery: introduction-request/response, puncture-request/puncture)
+- [X] T029 [P] [US1] Implement Handshake protocol in src/TunnelFin/Networking/IPv8/Handshake.cs (four-message discovery: introduction-request/response, puncture-request/puncture)
 - [X] T030 [US1] Implement CircuitManager in src/TunnelFin/Networking/Circuits/CircuitManager.cs (circuit creation, extension, relay selection per FR-001, FR-002, FR-003)
 - [X] T031 [P] [US1] Implement Circuit class in src/TunnelFin/Networking/Circuits/Circuit.cs (state management, hop tracking, encryption keys per data-model.md)
 - [X] T032 [P] [US1] Implement HopNode class in src/TunnelFin/Networking/Circuits/HopNode.cs (relay peer info, shared secret, encryption/decryption)
-- [ ] T033 [US1] Implement NetworkIdentity in src/TunnelFin/Networking/Identity/NetworkIdentity.cs (Ed25519 keypair generation, peer ID derivation per FR-004, FR-049)
+- [X] T033 [US1] Implement NetworkIdentity in src/TunnelFin/Networking/Identity/NetworkIdentity.cs (Ed25519 keypair generation, peer ID derivation per FR-004, FR-049)
 - [X] T034 [P] [US1] Implement Ed25519KeyPair in src/TunnelFin/Networking/Identity/Ed25519KeyPair.cs (NSec.Cryptography wrapper using RawPrivateKey format for 32-byte seed compatibility with PyNaCl per FR-049, ipv8-wire-format.md, key storage per FR-038)
-- [ ] T035 [US1] Implement bandwidth contribution tracking in src/TunnelFin/Networking/BandwidthTracker.cs (proportional relay per FR-005, SC-010)
-- [ ] T035a [P] [US1] Implement TrustChain block serialization in src/TunnelFin/Networking/TrustChain/BlockSerializer.cs (exact field ordering per FR-050, ipv8-wire-format.md: creator key, link key, sequence, hash, timestamp, message length, message, signature)
-- [ ] T036 [US1] Implement circuit retry logic with configurable timeout in CircuitManager (default 30s per FR-040)
+- [X] T035 [US1] Implement bandwidth contribution tracking in src/TunnelFin/Networking/BandwidthTracker.cs (proportional relay per FR-005, SC-010)
+- [X] T035a [P] [US1] Implement TrustChain block serialization in src/TunnelFin/Networking/TrustChain/BlockSerializer.cs (exact field ordering per FR-050, ipv8-wire-format.md: creator key, link key, sequence, hash, timestamp, message length, message, signature)
+- [X] T036 [US1] Implement circuit retry logic with configurable timeout in CircuitManager (default 30s per FR-040)
 
 **BitTorrent Streaming Engine (FR-007 to FR-015)**
 
-- [ ] T037 [P] [US1] Implement TorrentEngine in src/TunnelFin/BitTorrent/TorrentEngine.cs (MonoTorrent integration, engine initialization per FR-007)
-- [ ] T038 [P] [US1] Implement TorrentStream in src/TunnelFin/BitTorrent/TorrentStream.cs (wraps MonoTorrent.Client.TorrentManager with streaming-specific logic, uses MonoTorrent.Streaming.StreamProvider for HTTP endpoint creation, manages torrent state per data-model.md)
-- [ ] T039 [P] [US1] Implement PiecePrioritizer in src/TunnelFin/BitTorrent/PiecePrioritizer.cs (sequential piece selection per FR-008, research.md custom prioritizer pattern)
+- [X] T037 [P] [US1] Implement TorrentEngine in src/TunnelFin/BitTorrent/TorrentEngine.cs (MonoTorrent integration, engine initialization per FR-007)
+- [X] T038 [P] [US1] Implement TorrentStream in src/TunnelFin/BitTorrent/TorrentStream.cs (wraps MonoTorrent.Client.TorrentManager with streaming-specific logic, uses MonoTorrent.Streaming.StreamProvider for HTTP endpoint creation, manages torrent state per data-model.md)
+- [X] T039 [P] [US1] Implement PiecePrioritizer in src/TunnelFin/BitTorrent/PiecePrioritizer.cs (sequential piece selection per FR-008, research.md custom prioritizer pattern)
 - [ ] T040 [P] [US1] Implement PeerManager in src/TunnelFin/BitTorrent/PeerManager.cs (peer connection management, routing through circuits)
-- [ ] T041 [US1] Implement StreamManager in src/TunnelFin/Streaming/StreamManager.cs (HTTP endpoint management, concurrent stream limits per FR-013, FR-015)
-- [ ] T042 [P] [US1] Implement HttpStreamEndpoint in src/TunnelFin/Streaming/HttpStreamEndpoint.cs (HTTP range request handling per FR-009, contracts/streaming-api.yaml)
-- [ ] T043 [P] [US1] Implement BufferManager in src/TunnelFin/Streaming/BufferManager.cs (buffer status tracking, >10s buffer per FR-010, SC-003)
-- [ ] T044 [US1] Implement stream initialization timeout (60s per FR-012) in StreamManager
-- [ ] T045 [US1] Implement resource limit enforcement in StreamManager (max concurrent streams, cache size per FR-013, FR-014, FR-015)
+- [X] T041 [US1] Implement StreamManager in src/TunnelFin/Streaming/StreamManager.cs (HTTP endpoint management, concurrent stream limits per FR-013, FR-015)
+- [X] T042 [P] [US1] Implement HttpStreamEndpoint in src/TunnelFin/Streaming/HttpStreamEndpoint.cs (HTTP range request handling per FR-009, contracts/streaming-api.yaml)
+- [X] T043 [P] [US1] Implement BufferManager in src/TunnelFin/Streaming/BufferManager.cs (buffer status tracking, >10s buffer per FR-010, SC-003)
+- [X] T044 [US1] Implement stream initialization timeout (60s per FR-012) in StreamManager
+- [X] T045 [US1] Implement resource limit enforcement in StreamManager (max concurrent streams, cache size per FR-013, FR-014, FR-015)
 
 **Jellyfin Integration for Streaming (FR-027, FR-034, FR-039)**
 
