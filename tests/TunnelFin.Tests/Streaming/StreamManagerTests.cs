@@ -6,8 +6,9 @@ using Xunit;
 namespace TunnelFin.Tests.Streaming;
 
 /// <summary>
-/// Unit tests for StreamManager (FR-009, FR-011, FR-012, FR-013).
-/// Tests HTTP endpoint creation, range requests, concurrent stream limits, and health metrics.
+/// Unit tests for StreamManager (FR-009, FR-011, FR-012, FR-013, FR-035, FR-036).
+/// Tests HTTP endpoint creation, range requests, concurrent stream limits, health metrics,
+/// anonymous-first routing, and non-anonymous consent workflow.
 /// </summary>
 public class StreamManagerTests
 {
@@ -162,6 +163,153 @@ public class StreamManagerTests
         // Assert
         stream3.Should().NotBeEmpty("should allow new stream after stopping one");
         manager.GetActiveStreamCount().Should().Be(2, "should have 2 active streams");
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Use_Anonymous_First_By_Default()
+    {
+        // Arrange - FR-035
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+
+        // Act
+        var streamId = await manager.CreateStreamAsync(torrentId, 0);
+
+        // Assert
+        streamId.Should().NotBeEmpty("stream should be created with anonymous-first routing by default");
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Allow_Explicit_Anonymous_Routing()
+    {
+        // Arrange - FR-035
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+
+        // Act
+        var streamId = await manager.CreateStreamAsync(torrentId, 0, RoutingMode.AnonymousFirst);
+
+        // Assert
+        streamId.Should().NotBeEmpty("stream should be created with explicit anonymous routing");
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Reject_NonAnonymous_Without_Consent()
+    {
+        // Arrange - FR-036
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+        var userId = "user123";
+
+        // Act
+        var act = async () => await manager.CreateStreamAsync(torrentId, 0, RoutingMode.NonAnonymous, userId);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*explicit user consent*", "non-anonymous routing requires consent");
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Allow_NonAnonymous_With_Consent()
+    {
+        // Arrange - FR-036
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+        var userId = "user123";
+
+        // Grant consent
+        manager.GrantNonAnonymousConsent(userId);
+
+        // Act
+        var streamId = await manager.CreateStreamAsync(torrentId, 0, RoutingMode.NonAnonymous, userId);
+
+        // Assert
+        streamId.Should().NotBeEmpty("stream should be created after consent is granted");
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Reject_NonAnonymous_Without_UserId()
+    {
+        // Arrange - FR-036
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+
+        // Act
+        var act = async () => await manager.CreateStreamAsync(torrentId, 0, RoutingMode.NonAnonymous, userId: null);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*User ID is required*", "non-anonymous routing requires user ID");
+    }
+
+    [Fact]
+    public void GrantNonAnonymousConsent_Should_Record_Consent()
+    {
+        // Arrange - FR-036
+        var manager = new StreamManager();
+        var userId = "user123";
+
+        // Act
+        manager.GrantNonAnonymousConsent(userId);
+
+        // Assert
+        manager.HasNonAnonymousConsent(userId).Should().BeTrue("consent should be recorded");
+    }
+
+    [Fact]
+    public void RevokeNonAnonymousConsent_Should_Remove_Consent()
+    {
+        // Arrange - FR-036
+        var manager = new StreamManager();
+        var userId = "user123";
+        manager.GrantNonAnonymousConsent(userId);
+
+        // Act
+        manager.RevokeNonAnonymousConsent(userId);
+
+        // Assert
+        manager.HasNonAnonymousConsent(userId).Should().BeFalse("consent should be revoked");
+    }
+
+    [Fact]
+    public void HasNonAnonymousConsent_Should_Return_False_For_Empty_UserId()
+    {
+        // Arrange - FR-036
+        var manager = new StreamManager();
+
+        // Act & Assert
+        manager.HasNonAnonymousConsent("").Should().BeFalse();
+        manager.HasNonAnonymousConsent(null!).Should().BeFalse();
+    }
+
+    [Fact]
+    public void GrantNonAnonymousConsent_Should_Reject_Empty_UserId()
+    {
+        // Arrange - FR-036
+        var manager = new StreamManager();
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => manager.GrantNonAnonymousConsent(""));
+        Assert.Throws<ArgumentException>(() => manager.GrantNonAnonymousConsent(null!));
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Reject_NonAnonymous_After_Consent_Revoked()
+    {
+        // Arrange - FR-036
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+        var userId = "user123";
+
+        manager.GrantNonAnonymousConsent(userId);
+        manager.RevokeNonAnonymousConsent(userId);
+
+        // Act
+        var act = async () => await manager.CreateStreamAsync(torrentId, 0, RoutingMode.NonAnonymous, userId);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*explicit user consent*", "should reject after consent is revoked");
     }
 }
 

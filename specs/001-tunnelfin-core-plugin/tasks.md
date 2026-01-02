@@ -123,8 +123,8 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 **Privacy & Consent (FR-035, FR-036)**
 
-- [ ] T049 [US1] Implement anonymous-first routing logic in StreamManager (attempt Tribler first per FR-035)
-- [ ] T050 [US1] Implement non-anonymous consent workflow in StreamManager (warning dialog, explicit consent per FR-036, contracts/search-provider.yaml ConsentRequired)
+- [X] T049 [US1] Implement anonymous-first routing logic in StreamManager (attempt Tribler first per FR-035)
+- [X] T050 [US1] Implement non-anonymous consent workflow in StreamManager (warning dialog, explicit consent per FR-036, contracts/search-provider.yaml ConsentRequired)
 
 **Checkpoint**: At this point, User Story 1 should be fully functional - users can search, select torrents, and stream anonymously through Tribler network
 

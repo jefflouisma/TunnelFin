@@ -4,7 +4,23 @@ using TunnelFin.Models;
 namespace TunnelFin.Streaming;
 
 /// <summary>
-/// Manages HTTP streaming endpoints for active torrents (FR-009, FR-011, FR-012, FR-013).
+/// Routing mode for stream creation (FR-035, FR-036).
+/// </summary>
+public enum RoutingMode
+{
+    /// <summary>
+    /// Attempt anonymous routing through Tribler network first (FR-035).
+    /// </summary>
+    AnonymousFirst,
+
+    /// <summary>
+    /// Use standard BitTorrent network (requires explicit consent per FR-036).
+    /// </summary>
+    NonAnonymous
+}
+
+/// <summary>
+/// Manages HTTP streaming endpoints for active torrents (FR-009, FR-011, FR-012, FR-013, FR-035, FR-036).
 /// Creates and manages HTTP endpoints for Jellyfin player consumption.
 /// </summary>
 public class StreamManager
@@ -12,6 +28,7 @@ public class StreamManager
     private readonly ConcurrentDictionary<Guid, StreamInfo> _streams = new();
     private readonly int _maxConcurrentStreams;
     private readonly int _streamInitializationTimeoutSeconds;
+    private readonly HashSet<string> _nonAnonymousConsents = new();
     private const string BaseUrl = "http://localhost:8765/stream";
 
     /// <summary>
@@ -43,6 +60,7 @@ public class StreamManager
 
     /// <summary>
     /// Creates a new HTTP stream endpoint for a torrent file (FR-009, FR-012).
+    /// Uses anonymous-first routing by default (FR-035).
     /// </summary>
     /// <param name="torrentId">Torrent identifier.</param>
     /// <param name="fileIndex">Index of the file within the torrent to stream.</param>
@@ -51,11 +69,44 @@ public class StreamManager
     /// <exception cref="TimeoutException">Thrown when stream initialization exceeds timeout (FR-012).</exception>
     public async Task<Guid> CreateStreamAsync(Guid torrentId, int fileIndex)
     {
+        return await CreateStreamAsync(torrentId, fileIndex, RoutingMode.AnonymousFirst, userId: null);
+    }
+
+    /// <summary>
+    /// Creates a new HTTP stream endpoint for a torrent file with explicit routing mode (FR-035, FR-036).
+    /// </summary>
+    /// <param name="torrentId">Torrent identifier.</param>
+    /// <param name="fileIndex">Index of the file within the torrent to stream.</param>
+    /// <param name="routingMode">Routing mode (anonymous-first or non-anonymous).</param>
+    /// <param name="userId">User identifier for consent tracking (required for non-anonymous mode).</param>
+    /// <returns>Unique identifier for the stream.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when concurrent stream limit is reached or consent is missing.</exception>
+    /// <exception cref="TimeoutException">Thrown when stream initialization exceeds timeout.</exception>
+    public async Task<Guid> CreateStreamAsync(
+        Guid torrentId,
+        int fileIndex,
+        RoutingMode routingMode,
+        string? userId = null)
+    {
         // Check concurrent stream limit (FR-013)
         if (_streams.Count >= _maxConcurrentStreams)
         {
             throw new InvalidOperationException(
                 $"Cannot create stream: maximum concurrent streams ({_maxConcurrentStreams}) reached");
+        }
+
+        // Non-anonymous mode requires explicit consent (FR-036)
+        if (routingMode == RoutingMode.NonAnonymous)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("User ID is required for non-anonymous routing", nameof(userId));
+
+            if (!HasNonAnonymousConsent(userId))
+            {
+                throw new InvalidOperationException(
+                    "Non-anonymous routing requires explicit user consent. " +
+                    "User must acknowledge that their IP address will be exposed to BitTorrent peers.");
+            }
         }
 
         var streamId = Guid.NewGuid();
@@ -65,7 +116,8 @@ public class StreamManager
             TorrentId = torrentId,
             FileIndex = fileIndex,
             Endpoint = $"{BaseUrl}/{streamId}",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            RoutingMode = routingMode
         };
 
         _streams[streamId] = info;
@@ -172,6 +224,42 @@ public class StreamManager
     }
 
     /// <summary>
+    /// Records user consent for non-anonymous streaming (FR-036).
+    /// </summary>
+    /// <param name="userId">User identifier.</param>
+    /// <exception cref="ArgumentException">Thrown when userId is null or empty.</exception>
+    public void GrantNonAnonymousConsent(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+        _nonAnonymousConsents.Add(userId);
+    }
+
+    /// <summary>
+    /// Revokes user consent for non-anonymous streaming (FR-036).
+    /// </summary>
+    /// <param name="userId">User identifier.</param>
+    public void RevokeNonAnonymousConsent(string userId)
+    {
+        if (!string.IsNullOrWhiteSpace(userId))
+            _nonAnonymousConsents.Remove(userId);
+    }
+
+    /// <summary>
+    /// Checks if a user has granted consent for non-anonymous streaming (FR-036).
+    /// </summary>
+    /// <param name="userId">User identifier.</param>
+    /// <returns>True if consent has been granted.</returns>
+    public bool HasNonAnonymousConsent(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return false;
+
+        return _nonAnonymousConsents.Contains(userId);
+    }
+
+    /// <summary>
     /// Internal class for tracking stream information.
     /// </summary>
     private class StreamInfo
@@ -181,6 +269,7 @@ public class StreamManager
         public int FileIndex { get; set; }
         public string Endpoint { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+        public RoutingMode RoutingMode { get; set; } = RoutingMode.AnonymousFirst;
         public int PeerCount { get; set; }
         public long DownloadSpeedBytesPerSecond { get; set; }
         public double BufferSeconds { get; set; }
