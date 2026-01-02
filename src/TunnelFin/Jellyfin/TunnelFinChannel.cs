@@ -268,6 +268,13 @@ public class TunnelFinChannel : IChannel
         if (!string.IsNullOrEmpty(tmdbId))
             providerIds["Tmdb"] = tmdbId;
 
+        // Build overview with zero seeders warning (T122)
+        var overview = $"Size: {FormatBytes(result.Size)} | Seeders: {result.Seeders ?? 0} | Leechers: {result.Leechers ?? 0}";
+        if (result.Seeders == 0)
+        {
+            overview += " | ⚠️ WARNING: No seeders available - download may not start";
+        }
+
         // Use magnet link as Id for multi-file navigation support (T090)
         // Format: "magnet:?xt=urn:btih:..." allows GetChannelItems to detect multi-file torrents
         return new ChannelItemInfo
@@ -277,7 +284,7 @@ public class TunnelFinChannel : IChannel
             Type = ChannelItemType.Media,
             MediaType = ChannelMediaType.Video,
             ContentType = contentType,
-            Overview = $"Size: {FormatBytes(result.Size)} | Seeders: {result.Seeders ?? 0} | Leechers: {result.Leechers ?? 0}",
+            Overview = overview,
             CommunityRating = CalculateCommunityRating(result.Seeders, result.Leechers),
             DateCreated = result.DiscoveredAt,
             ImageUrl = null, // No poster URL in TorrentResult

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using MonoTorrent;
 using MonoTorrent.Client;
 using MonoTorrent.Connections;
+using TunnelFin.Core;
 using TunnelFin.Models;
 
 namespace TunnelFin.BitTorrent;
@@ -25,6 +26,7 @@ public class TorrentEngine : ITorrentEngine
     private readonly ConcurrentDictionary<string, TorrentManager> _managers;
     private readonly ConcurrentDictionary<string, TorrentMetadata> _metadata;
     private readonly ILogger<TorrentEngine>? _logger;
+    private readonly DiskSpaceChecker _diskSpaceChecker;
     private ISocketConnector? _socketConnector;
 
     /// <summary>
@@ -42,6 +44,7 @@ public class TorrentEngine : ITorrentEngine
         _managers = new ConcurrentDictionary<string, TorrentManager>();
         _metadata = new ConcurrentDictionary<string, TorrentMetadata>();
         _logger = logger;
+        _diskSpaceChecker = new DiskSpaceChecker(logger);
         _socketConnector = socketConnector;
 
         // Create download directory if it doesn't exist
@@ -106,6 +109,16 @@ public class TorrentEngine : ITorrentEngine
         var torrent = Torrent.Load(torrentData.ToArray());
         _logger?.LogInformation("Downloaded metadata for {InfoHash}: {Name}, {Size} bytes, {FileCount} files",
             infoHash, torrent.Name, torrent.Size, torrent.Files.Count);
+
+        // Check disk space before starting download (T121)
+        if (!_diskSpaceChecker.HasSufficientSpace(_downloadPath, torrent.Size))
+        {
+            var availableSpace = _diskSpaceChecker.GetAvailableSpace(_downloadPath);
+            var requiredSpace = torrent.Size * 2;
+            var message = DiskSpaceChecker.GetInsufficientSpaceMessage(availableSpace, requiredSpace);
+            _logger?.LogWarning("{Message} for torrent {InfoHash}", message, infoHash);
+            throw new InvalidOperationException(message);
+        }
 
         // Create TorrentManager for streaming
         var torrentSettings = new TorrentSettingsBuilder

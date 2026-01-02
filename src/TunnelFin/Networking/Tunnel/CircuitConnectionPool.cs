@@ -40,13 +40,30 @@ public class CircuitConnectionPool
 
     /// <summary>
     /// Gets a circuit from the pool or creates a new one.
+    /// Queues connection requests with 30s timeout when all circuits are in use (T123).
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A healthy circuit.</returns>
+    /// <exception cref="TimeoutException">Thrown when circuit exhaustion timeout (30s) is exceeded.</exception>
     public async Task<Circuit> GetConnectionAsync(CancellationToken cancellationToken)
     {
-        // Wait for available slot in pool
-        await _poolSemaphore.WaitAsync(cancellationToken);
+        // Wait for available slot in pool with 30s timeout (T123)
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        try
+        {
+            await _poolSemaphore.WaitAsync(cts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Timeout occurred (not user cancellation)
+            _logger.LogWarning("Circuit exhaustion: All {MaxCircuits} circuits in use, timeout after 30s",
+                _settings.MaxConcurrentCircuits);
+            throw new TimeoutException(
+                $"Circuit exhaustion: All {_settings.MaxConcurrentCircuits} circuits in use. " +
+                "Please wait for an existing connection to complete or increase MaxConcurrentCircuits.");
+        }
 
         try
         {
