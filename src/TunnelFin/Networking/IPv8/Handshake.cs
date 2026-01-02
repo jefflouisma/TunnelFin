@@ -1,5 +1,10 @@
 using System.Buffers.Binary;
+using System.Net;
+using Microsoft.Extensions.Logging;
+using NSec.Cryptography;
+using TunnelFin.Core;
 using TunnelFin.Networking.Identity;
+using TunnelFin.Networking.Transport;
 
 namespace TunnelFin.Networking.IPv8;
 
@@ -10,12 +15,26 @@ namespace TunnelFin.Networking.IPv8;
 public class Handshake
 {
     private readonly NetworkIdentity _identity;
+    private readonly ITransport? _transport;
+    private readonly PrivacyAwareLogger? _logger;
 
     // Message type IDs from py-ipv8
     private const byte MSG_INTRODUCTION_REQUEST = 246;
     private const byte MSG_INTRODUCTION_RESPONSE = 245;
     private const byte MSG_PUNCTURE_REQUEST = 250;
     private const byte MSG_PUNCTURE = 249;
+
+    // Signature algorithm
+    private static readonly SignatureAlgorithm Ed25519 = SignatureAlgorithm.Ed25519;
+
+    // IPv8 community ID for Tribler discovery community (from py-ipv8 DiscoveryCommunity)
+    // unhexlify("7e313685c1912a141279f8248fc8db5899c5df5a")
+    // Note: Bootstrap nodes use DiscoveryCommunity for peer discovery, not TunnelCommunity
+    private static readonly byte[] TriblerCommunityId = new byte[] {
+        0x7e, 0x31, 0x36, 0x85, 0xc1, 0x91, 0x2a, 0x14,
+        0x12, 0x79, 0xf8, 0x24, 0x8f, 0xc8, 0xdb, 0x58,
+        0x99, 0xc5, 0xdf, 0x5a
+    };
 
     /// <summary>
     /// Initializes a new instance of the Handshake class.
@@ -24,6 +43,19 @@ public class Handshake
     public Handshake(NetworkIdentity identity)
     {
         _identity = identity ?? throw new ArgumentNullException(nameof(identity));
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the Handshake class with transport.
+    /// </summary>
+    /// <param name="identity">Network identity for signing messages.</param>
+    /// <param name="transport">Transport layer for sending/receiving messages.</param>
+    /// <param name="logger">Logger for privacy-aware logging.</param>
+    public Handshake(NetworkIdentity identity, ITransport transport, ILogger logger)
+    {
+        _identity = identity ?? throw new ArgumentNullException(nameof(identity));
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _logger = new PrivacyAwareLogger(logger ?? throw new ArgumentNullException(nameof(logger)));
     }
 
     /// <summary>
@@ -40,8 +72,9 @@ public class Handshake
         (string ip, int port) sourceWanAddress,
         ushort identifier)
     {
-        // Format: destination_address (6 bytes) + source_lan_address (6 bytes) + source_wan_address (6 bytes) + identifier (2 bytes)
-        var buffer = new byte[20];
+        // Format: destination_address (6 bytes) + source_lan_address (6 bytes) + source_wan_address (6 bytes) + bits (1 byte) + identifier (2 bytes)
+        // bits field: connection_type_0, connection_type_1, supports_new_style, dflag1, dflag2, tunnel, sync, advice
+        var buffer = new byte[21];
         int offset = 0;
 
         // Destination address (4-byte IPv4 + 2-byte port, big-endian)
@@ -52,6 +85,14 @@ public class Handshake
 
         // Source WAN address
         WriteAddress(buffer, ref offset, sourceWanAddress);
+
+        // Bits field (1 byte):
+        // bit 0-1: connection_type (00 = unknown, 10 = public, 11 = symmetric-NAT)
+        // bit 2: supports_new_style (1 = yes)
+        // bit 3-6: reserved (0)
+        // bit 7: advice (1 = request introduction to another peer)
+        byte bits = 0b00000101; // connection_type=unknown(00), supports_new_style=1, advice=1
+        buffer[offset++] = bits;
 
         // Identifier (2-byte big-endian)
         BinaryPrimitives.WriteUInt16BigEndian(buffer.AsSpan(offset), identifier);
@@ -126,17 +167,234 @@ public class Handshake
     }
 
     /// <summary>
+    /// Signs a message with Ed25519 signature (FR-010, FR-011).
+    /// </summary>
+    /// <param name="messageType">Message type byte.</param>
+    /// <param name="payload">Message payload.</param>
+    /// <returns>Signed message: [type(1) + payload + signature(64)].</returns>
+    public byte[] SignMessage(byte messageType, byte[] payload)
+    {
+        if (payload == null)
+            throw new ArgumentNullException(nameof(payload));
+
+        // Message format: [type(1) + payload + signature(64)]
+        var message = new byte[1 + payload.Length + 64];
+        message[0] = messageType;
+        Array.Copy(payload, 0, message, 1, payload.Length);
+
+        // Sign: type + payload
+        var dataToSign = new byte[1 + payload.Length];
+        dataToSign[0] = messageType;
+        Array.Copy(payload, 0, dataToSign, 1, payload.Length);
+
+        var signature = _identity.Sign(dataToSign);
+        Array.Copy(signature, 0, message, 1 + payload.Length, 64);
+
+        return message;
+    }
+
+    /// <summary>
+    /// Wraps a signed message with IPv8 community prefix for network transmission.
+    /// </summary>
+    /// <param name="messageType">Message type byte.</param>
+    /// <param name="signedPayload">Signed payload (payload + signature).</param>
+    /// <returns>Full IPv8 message with 23-byte prefix + type + signed payload.</returns>
+    private byte[] WrapWithIPv8Prefix(byte messageType, byte[] signedPayload)
+    {
+        // IPv8 message format:
+        // - Byte 0: Version (0x02 for IPv8)
+        // - Bytes 1-20: Community ID (20 bytes)
+        // - Byte 21: Service ID (0x00 for overlay service)
+        // - Byte 22: Reserved (0x00)
+        // - Byte 23: Message type
+        // - Bytes 24+: Signed payload
+
+        var message = new byte[24 + signedPayload.Length];
+
+        // Version
+        message[0] = 0x02;
+
+        // Community ID
+        TriblerCommunityId.CopyTo(message, 1);
+
+        // Service ID (overlay service)
+        message[21] = 0x00;
+
+        // Reserved
+        message[22] = 0x00;
+
+        // Message type
+        message[23] = messageType;
+
+        // Signed payload
+        signedPayload.CopyTo(message, 24);
+
+        return message;
+    }
+
+    /// <summary>
+    /// Verifies a signed message (FR-011).
+    /// </summary>
+    /// <param name="message">Signed message.</param>
+    /// <param name="publicKey">Public key to verify against.</param>
+    /// <returns>True if signature is valid, false otherwise.</returns>
+    public bool VerifyMessage(byte[] message, byte[] publicKey)
+    {
+        if (message == null)
+            throw new ArgumentNullException(nameof(message));
+        if (publicKey == null)
+            throw new ArgumentNullException(nameof(publicKey));
+        if (message.Length < 65) // At least: type(1) + signature(64)
+            return false;
+
+        try
+        {
+            // Extract signature (last 64 bytes)
+            var signature = new byte[64];
+            Array.Copy(message, message.Length - 64, signature, 0, 64);
+
+            // Data to verify: everything except signature
+            var dataToVerify = new byte[message.Length - 64];
+            Array.Copy(message, 0, dataToVerify, 0, message.Length - 64);
+
+            // Import public key and verify
+            var key = PublicKey.Import(Ed25519, publicKey, KeyBlobFormat.RawPublicKey);
+            return Ed25519.Verify(key, dataToVerify, signature);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sends an introduction-request message over the transport (FR-009).
+    /// </summary>
+    public async Task<bool> SendIntroductionRequestAsync(
+        IPEndPoint destination,
+        (string ip, int port) sourceLanAddress,
+        (string ip, int port) sourceWanAddress,
+        ushort identifier,
+        CancellationToken cancellationToken = default)
+    {
+        if (_transport == null)
+            throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
+
+        var payload = CreateIntroductionRequest(
+            (destination.Address.ToString(), destination.Port),
+            sourceLanAddress,
+            sourceWanAddress,
+            identifier);
+
+        var signedPayload = SignMessage(MSG_INTRODUCTION_REQUEST, payload);
+        var fullMessage = WrapWithIPv8Prefix(MSG_INTRODUCTION_REQUEST, signedPayload);
+
+        try
+        {
+            await _transport.SendAsync(fullMessage, destination, cancellationToken);
+            _logger?.LogDebug("Sent introduction-request to {Destination}, identifier={Identifier}",
+                destination, identifier);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Failed to send introduction-request", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sends a puncture-request message via an intermediary peer (FR-013).
+    /// Used for NAT traversal when direct connection is not possible.
+    /// </summary>
+    /// <param name="intermediary">Intermediary peer to relay the puncture request.</param>
+    /// <param name="targetLanAddress">Target peer's LAN address.</param>
+    /// <param name="targetWanAddress">Target peer's WAN address.</param>
+    /// <param name="identifier">Request identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if sent successfully, false otherwise.</returns>
+    public async Task<bool> SendPunctureRequestAsync(
+        IPEndPoint intermediary,
+        (string ip, int port) targetLanAddress,
+        (string ip, int port) targetWanAddress,
+        ushort identifier,
+        CancellationToken cancellationToken = default)
+    {
+        if (_transport == null)
+            throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
+
+        var payload = CreatePunctureRequest(targetLanAddress, targetWanAddress, identifier);
+        var signedPayload = SignMessage(MSG_PUNCTURE_REQUEST, payload);
+        var fullMessage = WrapWithIPv8Prefix(MSG_PUNCTURE_REQUEST, signedPayload);
+
+        try
+        {
+            await _transport.SendAsync(fullMessage, intermediary, cancellationToken);
+            _logger?.LogDebug("Sent puncture-request via {Intermediary}, identifier={Identifier}",
+                intermediary, identifier);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Failed to send puncture-request", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sends a puncture message directly to a peer (FR-013).
+    /// Sent in response to receiving a puncture-request.
+    /// </summary>
+    /// <param name="destination">Destination peer endpoint.</param>
+    /// <param name="sourceLanAddress">Source LAN address.</param>
+    /// <param name="sourceWanAddress">Source WAN address.</param>
+    /// <param name="identifier">Request identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if sent successfully, false otherwise.</returns>
+    public async Task<bool> SendPunctureAsync(
+        IPEndPoint destination,
+        (string ip, int port) sourceLanAddress,
+        (string ip, int port) sourceWanAddress,
+        ushort identifier,
+        CancellationToken cancellationToken = default)
+    {
+        if (_transport == null)
+            throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
+
+        var payload = CreatePuncture(sourceLanAddress, sourceWanAddress, identifier);
+        var signedPayload = SignMessage(MSG_PUNCTURE, payload);
+        var fullMessage = WrapWithIPv8Prefix(MSG_PUNCTURE, signedPayload);
+
+        try
+        {
+            await _transport.SendAsync(fullMessage, destination, cancellationToken);
+            _logger?.LogDebug("Sent puncture to {Destination}, identifier={Identifier}",
+                destination, identifier);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Failed to send puncture", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Parses an introduction-request message.
     /// </summary>
     public IntroductionRequestPayload ParseIntroductionRequest(byte[] message)
     {
-        if (message.Length < 20)
+        if (message.Length < 21)
             throw new ArgumentException("Invalid introduction-request message length");
 
         int offset = 0;
         var destinationAddress = ReadAddress(message, ref offset);
         var sourceLanAddress = ReadAddress(message, ref offset);
         var sourceWanAddress = ReadAddress(message, ref offset);
+
+        // Skip bits field (1 byte)
+        offset++;
+
         var identifier = BinaryPrimitives.ReadUInt16BigEndian(message.AsSpan(offset));
 
         return new IntroductionRequestPayload(destinationAddress, sourceLanAddress, sourceWanAddress, identifier);

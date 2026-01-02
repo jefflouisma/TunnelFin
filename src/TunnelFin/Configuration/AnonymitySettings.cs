@@ -93,6 +93,35 @@ public class AnonymitySettings
     public bool EnableCircuitLogging { get; set; } = true;
 
     /// <summary>
+    /// UDP port to bind for IPv8 protocol (T060).
+    /// 0 = random available port (default, per py-ipv8 behavior).
+    /// </summary>
+    public ushort UdpPort { get; set; } = 0;
+
+    /// <summary>
+    /// Bootstrap discovery timeout in seconds (T060).
+    /// Maximum time to wait for bootstrap nodes to respond.
+    /// </summary>
+    public int BootstrapTimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Circuit heartbeat interval in seconds (T060).
+    /// How often to send keepalive messages to maintain circuits.
+    /// </summary>
+    public int HeartbeatIntervalSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Minimum number of concurrent circuits to maintain (T040).
+    /// </summary>
+    public int MinConcurrentCircuits { get; set; } = 2;
+
+    /// <summary>
+    /// Minimum relay reliability score (0.0-1.0) for circuit selection (T040).
+    /// Relays with lower reliability will not be used.
+    /// </summary>
+    public double MinRelayReliability { get; set; } = 0.7;
+
+    /// <summary>
     /// Sets the default hop count with validation (T087).
     /// </summary>
     /// <param name="hopCount">Hop count (1-3)</param>
@@ -163,6 +192,18 @@ public class AnonymitySettings
 
         if (CircuitHealthCheckIntervalSeconds < 10)
             errors.Add("CircuitHealthCheckIntervalSeconds must be at least 10");
+
+        if (BootstrapTimeoutSeconds < 5)
+            errors.Add("BootstrapTimeoutSeconds must be at least 5");
+
+        if (HeartbeatIntervalSeconds < 10)
+            errors.Add("HeartbeatIntervalSeconds must be at least 10");
+
+        if (MinConcurrentCircuits < 1)
+            errors.Add("MinConcurrentCircuits must be at least 1");
+
+        if (MinRelayReliability < 0.0 || MinRelayReliability > 1.0)
+            errors.Add("MinRelayReliability must be between 0.0 and 1.0");
 
         return errors.Count == 0;
     }

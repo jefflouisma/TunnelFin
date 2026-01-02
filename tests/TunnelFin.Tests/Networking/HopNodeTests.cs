@@ -196,8 +196,9 @@ public class HopNodeTests
 
         // Assert
         ciphertext.Should().NotBeNull();
-        // Note: Current implementation is placeholder, returns plaintext
-        ciphertext.Should().BeEquivalentTo(plaintext);
+        ciphertext.Should().NotBeEquivalentTo(plaintext, "Encrypted data should differ from plaintext");
+        ciphertext.Length.Should().Be(plaintext.Length + 12 + 16,
+            "Ciphertext should include nonce (12 bytes) and auth tag (16 bytes)");
     }
 
     [Fact]
@@ -242,15 +243,18 @@ public class HopNodeTests
         new Random().NextBytes(ephemeralPublicKey);
         var ourEphemeralKey = CreateX25519Key();
         hopNode.CompleteKeyExchange(ephemeralPublicKey, ourEphemeralKey);
-        var ciphertext = new byte[] { 1, 2, 3, 4, 5 };
+        var originalPlaintext = new byte[] { 1, 2, 3, 4, 5 };
 
-        // Act
-        var plaintext = hopNode.Decrypt(ciphertext);
+        // Encrypt first to get valid ciphertext
+        var ciphertext = hopNode.Encrypt(originalPlaintext);
+
+        // Act - decrypt the ciphertext
+        var decryptedPlaintext = hopNode.Decrypt(ciphertext);
 
         // Assert
-        plaintext.Should().NotBeNull();
-        // Note: Current implementation is placeholder, returns ciphertext
-        plaintext.Should().BeEquivalentTo(ciphertext);
+        decryptedPlaintext.Should().NotBeNull();
+        decryptedPlaintext.Should().BeEquivalentTo(originalPlaintext,
+            "Decrypted data should match original plaintext");
     }
 
     [Fact]

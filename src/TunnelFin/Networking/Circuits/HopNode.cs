@@ -1,4 +1,5 @@
 using NSec.Cryptography;
+using System.Text;
 
 namespace TunnelFin.Networking.Circuits;
 
@@ -10,6 +11,10 @@ public class HopNode : IDisposable
 {
     private SharedSecret? _sharedSecret;
     private bool _disposed;
+    private Key? _encryptionKey;
+    private ulong _encryptionNonce = 0;
+    private ulong _decryptionNonce = 0;
+    private readonly object _nonceLock = new();
 
     /// <summary>
     /// Public key of the relay peer (32 bytes, Ed25519).
@@ -95,16 +100,16 @@ public class HopNode : IDisposable
         _sharedSecret = algorithm.Agree(ourEphemeralPrivateKey, theirPublicKey);
 
         // Store shared secret for encryption/decryption
-        // Note: In production, this would be used with a symmetric cipher (e.g., ChaCha20-Poly1305)
-        // For now, we just store the raw shared secret (placeholder)
+        // The shared secret is used to derive encryption keys via HKDF in EnsureEncryptionKey()
+        // Encryption/decryption uses ChaCha20-Poly1305 AEAD cipher
     }
 
     /// <summary>
     /// Encrypts data for transmission through this hop.
-    /// Uses the shared secret derived from key exchange.
+    /// Uses ChaCha20-Poly1305 AEAD cipher with the shared secret.
     /// </summary>
     /// <param name="plaintext">Data to encrypt.</param>
-    /// <returns>Encrypted data.</returns>
+    /// <returns>Encrypted data with authentication tag.</returns>
     public byte[] Encrypt(byte[] plaintext)
     {
         if (_disposed)
@@ -114,16 +119,37 @@ public class HopNode : IDisposable
         if (plaintext == null)
             throw new ArgumentNullException(nameof(plaintext));
 
-        // TODO: Implement actual encryption using shared secret
-        // For now, return plaintext (placeholder for ChaCha20-Poly1305 or AES-GCM)
-        return plaintext;
+        // Ensure encryption key is derived
+        EnsureEncryptionKey();
+
+        // Get next nonce (counter-based to avoid reuse)
+        ulong nonce;
+        lock (_nonceLock)
+        {
+            nonce = _encryptionNonce++;
+        }
+
+        // Create nonce buffer (12 bytes for ChaCha20-Poly1305)
+        var nonceBytes = new byte[12];
+        BitConverter.GetBytes(nonce).CopyTo(nonceBytes, 0);
+
+        // Encrypt using ChaCha20-Poly1305
+        var algorithm = AeadAlgorithm.ChaCha20Poly1305;
+        var ciphertext = algorithm.Encrypt(_encryptionKey!, nonceBytes, null, plaintext);
+
+        // Prepend nonce to ciphertext for transmission
+        var result = new byte[nonceBytes.Length + ciphertext.Length];
+        nonceBytes.CopyTo(result, 0);
+        ciphertext.CopyTo(result, nonceBytes.Length);
+
+        return result;
     }
 
     /// <summary>
     /// Decrypts data received from this hop.
-    /// Uses the shared secret derived from key exchange.
+    /// Uses ChaCha20-Poly1305 AEAD cipher with the shared secret.
     /// </summary>
-    /// <param name="ciphertext">Data to decrypt.</param>
+    /// <param name="ciphertext">Data to decrypt (includes nonce prefix).</param>
     /// <returns>Decrypted data.</returns>
     public byte[] Decrypt(byte[] ciphertext)
     {
@@ -134,9 +160,46 @@ public class HopNode : IDisposable
         if (ciphertext == null)
             throw new ArgumentNullException(nameof(ciphertext));
 
-        // TODO: Implement actual decryption using shared secret
-        // For now, return ciphertext (placeholder for ChaCha20-Poly1305 or AES-GCM)
-        return ciphertext;
+        // Ensure encryption key is derived
+        EnsureEncryptionKey();
+
+        // Extract nonce from ciphertext (first 12 bytes)
+        if (ciphertext.Length < 12)
+            throw new ArgumentException("Ciphertext too short to contain nonce", nameof(ciphertext));
+
+        var nonceBytes = new byte[12];
+        Array.Copy(ciphertext, 0, nonceBytes, 0, 12);
+
+        // Extract actual ciphertext (remaining bytes)
+        var actualCiphertext = new byte[ciphertext.Length - 12];
+        Array.Copy(ciphertext, 12, actualCiphertext, 0, actualCiphertext.Length);
+
+        // Decrypt using ChaCha20-Poly1305
+        var algorithm = AeadAlgorithm.ChaCha20Poly1305;
+        var plaintext = algorithm.Decrypt(_encryptionKey!, nonceBytes, null, actualCiphertext);
+
+        return plaintext;
+    }
+
+    /// <summary>
+    /// Derives encryption key from shared secret using HKDF.
+    /// </summary>
+    private void EnsureEncryptionKey()
+    {
+        if (_encryptionKey != null)
+            return;
+
+        if (_sharedSecret == null)
+            throw new InvalidOperationException("Shared secret not available");
+
+        // Derive encryption key using HKDF-SHA256
+        var kdf = KeyDerivationAlgorithm.HkdfSha256;
+        var context = Encoding.UTF8.GetBytes($"hop-encryption-{HopIndex}");
+        _encryptionKey = kdf.DeriveKey(
+            _sharedSecret,
+            null,
+            context,
+            AeadAlgorithm.ChaCha20Poly1305);
     }
 
     public void Dispose()
@@ -145,6 +208,7 @@ public class HopNode : IDisposable
             return;
 
         _sharedSecret?.Dispose();
+        _encryptionKey?.Dispose();
         _disposed = true;
     }
 }

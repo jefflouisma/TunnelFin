@@ -160,6 +160,59 @@ public class Circuit : IDisposable
         LastActivityAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Records bytes sent through this circuit.
+    /// </summary>
+    public void RecordBytesSent(long bytes)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(Circuit));
+        if (bytes < 0)
+            throw new ArgumentOutOfRangeException(nameof(bytes), "Bytes must be non-negative");
+
+        BytesSent += bytes;
+        LastActivityAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Records bytes received through this circuit.
+    /// </summary>
+    public void RecordBytesReceived(long bytes)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(Circuit));
+        if (bytes < 0)
+            throw new ArgumentOutOfRangeException(nameof(bytes), "Bytes must be non-negative");
+
+        BytesReceived += bytes;
+        LastActivityAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Records round-trip time for this circuit.
+    /// </summary>
+    public void RecordRoundTripTime(double rttMs)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(Circuit));
+        if (rttMs < 0)
+            throw new ArgumentOutOfRangeException(nameof(rttMs), "RTT must be non-negative");
+
+        RoundTripTimeMs = rttMs;
+        LastActivityAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Sets the expiration time for this circuit.
+    /// </summary>
+    public void SetExpiration(DateTime expiresAt)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(Circuit));
+
+        ExpiresAt = expiresAt;
+    }
+
     public void Dispose()
     {
         if (_disposed)
