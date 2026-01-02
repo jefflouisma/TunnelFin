@@ -1,0 +1,136 @@
+{
+  "version": "1.0",
+  "generator": "generate_ed25519_vectors.py",
+  "description": "Ed25519 test vectors for C# cross-language verification",
+  "pynacl_available": true,
+  "keypairs": [
+    {
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "private_key_seed_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "public_key_hex": "3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29",
+      "description": "Ed25519 keypair from seed"
+    },
+    {
+      "seed_hex": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "private_key_seed_hex": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "public_key_hex": "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6",
+      "description": "Ed25519 keypair from seed"
+    },
+    {
+      "seed_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "private_key_seed_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "public_key_hex": "76a1592044a6e4f511265bca73a604d90b0529d1df602be30a19a9257660d1f5",
+      "description": "Ed25519 keypair from seed"
+    },
+    {
+      "seed_hex": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      "private_key_seed_hex": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      "public_key_hex": "5cceaad9c202c236cd8c977290a844e3f2f0a15a9b3189220dbe0f9121eb0cd2",
+      "description": "Ed25519 keypair from seed"
+    },
+    {
+      "seed_hex": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "private_key_seed_hex": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "public_key_hex": "ff57575dc7af8bfc4d0837cc1ce2017b686a88145dc5579a958e3462fe9a908e",
+      "description": "Ed25519 keypair from seed"
+    }
+  ],
+  "signatures": [
+    {
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "message": "",
+      "message_hex": "",
+      "signature_hex": "8f895b3cafe2c9506039d0e2a66382568004674fe8d237785092e40d6aaf483e4fc60168705f31f101596138ce21aa357c0d32a064f423dc3ee4aa3abf53f803",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "message": "Hello, World!",
+      "message_hex": "48656c6c6f2c20576f726c6421",
+      "signature_hex": "bb1a53a55494a41cd7f98302d1a156cf9a1ac046eced43b2b565e2debe4a336ccb5e2a03f7bd57bf33fa4bd154b64494a4a695e2d7993fc0727ad35d89413207",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "message": "The quick brown fox jumps over the lazy dog",
+      "message_hex": "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67",
+      "signature_hex": "576eb0642a95ddbd3b0386d131869751c98296dcbba0ebba14c0665a67750531b10c78d5003e81c450fea448a1d8bce37789c62aa9a2ea4bf061bfc823eabe0d",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "message": "TunnelFin - Privacy-first torrent streaming",
+      "message_hex": "54756e6e656c46696e202d20507269766163792d666972737420746f7272656e742073747265616d696e67",
+      "signature_hex": "60292aadcaaed8f8c64122c0306ff3dd7870d811e7cfa3d7261ee715a640e881f528371c42fe374d17869a52064ebb80038dae64bd08820843cbcd2be2b70706",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "message": "",
+      "message_hex": "",
+      "signature_hex": "00a0be3e2a3832b6e817aedce5fb8ecb4c622fff6adfd5ffd7881046d8881008b804a341aab8a850cdaa3969c21aa7334125cdae2169ce7e6cf7c37182253a07",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "message": "Hello, World!",
+      "message_hex": "48656c6c6f2c20576f726c6421",
+      "signature_hex": "a6c731f5171da2d27b8af7704656e51a8e74f2afc1de423ff054b64313c80865ef6c43aac09a09d3618d8c329d7002c9bb36eee40e27d747564415b4c280eb0e",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "message": "The quick brown fox jumps over the lazy dog",
+      "message_hex": "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67",
+      "signature_hex": "9aee4c2f180fab1b6cabe4569819f95235f7907a6d245191abb1711f6839193c76ef12f769e08d61016fb19a9ae0535f1e660a3aca1f4cfb712a894c95721601",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "message": "TunnelFin - Privacy-first torrent streaming",
+      "message_hex": "54756e6e656c46696e202d20507269766163792d666972737420746f7272656e742073747265616d696e67",
+      "signature_hex": "db843435008b1f2cc39c0a9d205540e25ea8f3ec4cc16ea329712413a4277e93e59390421a88834521d1d14426e8817161616c0edafe033aee10fb86d7f74a0c",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "message": "",
+      "message_hex": "",
+      "signature_hex": "ee00ac6e44a6a43bc3a701c137b467473e32a4bed47d3293fe6186fe9868c7d254024f65ffa552487bdbd34aaccd1e82c1a20a191d183dbb64c3523cccd89c0f",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "message": "Hello, World!",
+      "message_hex": "48656c6c6f2c20576f726c6421",
+      "signature_hex": "412934b323f9a72f34d97d1ea9cbc4170139e6611a24a8e0ae3f2172030ad0d6d5c4f77a7ae562b47c1627938b7e7ec104e497b033296e8111a7ccc2a1fde70d",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "message": "The quick brown fox jumps over the lazy dog",
+      "message_hex": "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67",
+      "signature_hex": "044644c8a71af6fcc1643972f01561625d3421f55f50935f265d6ae660590bfe9c125a3cbde0c64328db3a74e1eef0179bffd53f0387c87e7cff7abbb1ac9908",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    },
+    {
+      "seed_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "message": "TunnelFin - Privacy-first torrent streaming",
+      "message_hex": "54756e6e656c46696e202d20507269766163792d666972737420746f7272656e742073747265616d696e67",
+      "signature_hex": "1a27c733276505f0630b8e53b10d79ab7fa0deeb5634c74e4a352a8e0c97fd640203ad7985f2b52aa665b13fd38d6fedc360698922e76ff09c30fac4eb0d3c09",
+      "signature_length": 64,
+      "description": "Ed25519 signature (64 bytes: R || S)"
+    }
+  ]
+}

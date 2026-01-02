@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TunnelFin/TunnelFin.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TunnelFin.Integration/TunnelFin.Integration.csproj" />
+    <Project Path="tests/TunnelFin.Tests/TunnelFin.Tests.csproj" />
+  </Folder>
+</Solution>

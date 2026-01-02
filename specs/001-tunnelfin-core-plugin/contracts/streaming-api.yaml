@@ -1,0 +1,226 @@
+openapi: 3.0.3
+info:
+  title: TunnelFin Streaming API
+  description: Internal HTTP streaming endpoints for exposing torrent data to Jellyfin player
+  version: 1.0.0
+  contact:
+    name: TunnelFin Development
+    
+servers:
+  - url: http://localhost:8096/TunnelFin
+    description: Local Jellyfin instance
+
+paths:
+  /stream/{streamId}:
+    get:
+      summary: Stream torrent content
+      description: |
+        Streams torrent content via HTTP for consumption by Jellyfin player.
+        Supports range requests for seeking. Stream must be initialized before access.
+      operationId: streamTorrent
+      parameters:
+        - name: streamId
+          in: path
+          required: true
+          description: Unique stream identifier (GUID)
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: Range
+          in: header
+          required: false
+          description: HTTP range header for seeking (RFC 7233)
+          schema:
+            type: string
+            example: "bytes=0-1023"
+      responses:
+        '200':
+          description: Full content stream
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                example: "video/mp4"
+            Content-Length:
+              schema:
+                type: integer
+                example: 1073741824
+            Accept-Ranges:
+              schema:
+                type: string
+                example: "bytes"
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Partial content (range request)
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                example: "video/mp4"
+            Content-Range:
+              schema:
+                type: string
+                example: "bytes 0-1023/1073741824"
+            Content-Length:
+              schema:
+                type: integer
+                example: 1024
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '408':
+          description: Stream initialization timeout (60 seconds exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Resource limits reached (max concurrent streams)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stream/{streamId}/health:
+    get:
+      summary: Get stream health metrics
+      description: Returns real-time stream health information for overlay display
+      operationId: getStreamHealth
+      parameters:
+        - name: streamId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Stream health metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamHealth'
+        '404':
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stream/{streamId}/stop:
+    post:
+      summary: Stop active stream
+      description: Stops torrent download and releases resources
+      operationId: stopStream
+      parameters:
+        - name: streamId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Stream stopped successfully
+        '404':
+          description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    StreamHealth:
+      type: object
+      required:
+        - streamId
+        - state
+        - isAnonymous
+        - peerCount
+        - downloadSpeed
+        - uploadSpeed
+        - bufferStatus
+      properties:
+        streamId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        state:
+          type: string
+          enum: [Initializing, Downloading, Streaming, Paused, Stopped, Error]
+          example: "Streaming"
+        isAnonymous:
+          type: boolean
+          description: Whether stream is routed through Tribler network
+          example: true
+        circuitId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Associated anonymity circuit (null if non-anonymous)
+          example: "660e8400-e29b-41d4-a716-446655440001"
+        peerCount:
+          type: integer
+          description: Number of connected peers
+          example: 42
+        downloadSpeed:
+          type: number
+          format: double
+          description: Current download speed in bytes/sec
+          example: 5242880.0
+        uploadSpeed:
+          type: number
+          format: double
+          description: Current upload speed in bytes/sec
+          example: 1048576.0
+        bufferStatus:
+          type: string
+          description: Amount of buffered playback time (ISO 8601 duration)
+          example: "PT15S"
+        downloadedBytes:
+          type: integer
+          format: int64
+          description: Total bytes downloaded
+          example: 104857600
+        totalSize:
+          type: integer
+          format: int64
+          description: Total torrent size in bytes
+          example: 1073741824
+        progress:
+          type: number
+          format: double
+          description: Download progress (0.0 to 1.0)
+          example: 0.097
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: "STREAM_NOT_FOUND"
+        message:
+          type: string
+          example: "Stream with ID 550e8400-e29b-41d4-a716-446655440000 not found"
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+

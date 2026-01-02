@@ -158,13 +158,149 @@ Development will proceed in a phased approach, starting with foundational techno
 - **Minimal Logging:** By default, no personally identifiable information or content titles will be stored in logs.
 - **Secure Identity:** The user's Tribler network identity (private key) will be stored securely within Jellyfin's encrypted configuration.
 
-## 8. License
+## 8. Project Structure
+
+### 8.1. Directory Layout
+
+```
+TunnelFin/
+├── src/
+│   └── TunnelFin/                    # Main plugin source code
+│       ├── BitTorrent/               # MonoTorrent integration & torrent management
+│       ├── Configuration/            # Plugin settings & user preferences
+│       ├── Core/                     # Plugin core, Jellyfin integration
+│       ├── Indexers/                 # Torrent indexer implementations (Torznab, built-in)
+│       ├── Models/                   # Data models & DTOs
+│       ├── Networking/               # IPv8 protocol & Tribler network layer
+│       └── Streaming/                # HTTP stream exposure & playback
+├── tests/
+│   ├── TunnelFin.Tests/              # Unit tests
+│   │   ├── BitTorrent/               # BitTorrent engine tests
+│   │   ├── Core/                     # Core functionality tests
+│   │   ├── Fixtures/                 # Test fixtures & sample data
+│   │   ├── Indexers/                 # Indexer tests
+│   │   ├── Networking/               # IPv8 & network layer tests
+│   │   └── Streaming/                # Streaming engine tests
+│   └── TunnelFin.Integration/        # Integration tests
+│       ├── Jellyfin/                 # Jellyfin integration test utilities
+│       └── Helpers/                  # Integration test helpers
+├── reference_repos/                  # Cloned reference implementations
+│   ├── AIOStreams/                   # Content aggregation reference (TypeScript)
+│   ├── Gelato/                       # Jellyfin plugin integration reference (C#)
+│   ├── monotorrent/                  # C# BitTorrent library source
+│   ├── TorrServer/                   # Torrent streaming reference (Go)
+│   └── tribler/                      # Tribler anonymity network reference (Python)
+├── TunnelFin.slnx                    # Solution file
+├── Directory.Build.props             # Shared MSBuild properties
+├── global.json                       # .NET SDK version pinning
+├── PRD.md                            # This document
+└── AGENTS.md                         # AI agent instructions
+```
+
+### 8.2. Reference Repositories
+
+The `reference_repos/` directory contains cloned source code from projects that inform the implementation:
+
+| Repository | Language | Purpose |
+|------------|----------|---------|
+| **tribler** | Python | IPv8 protocol, onion routing, tunnel community, anonymous downloads |
+| **monotorrent** | C# | BitTorrent protocol implementation (also available as NuGet package) |
+| **TorrServer** | Go | Sequential streaming, piece prioritization, HTTP stream serving |
+| **AIOStreams** | TypeScript | Content aggregation, filtering engine, deduplication logic |
+| **Gelato** | C# | Jellyfin plugin patterns, `IChannel` provider, search integration |
+
+Key reference files for implementation:
+- `tribler/src/tribler/core/tunnel/community.py` — Tribler tunnel overlay protocol
+- `tribler/src/tribler/core/socks5/` — SOCKS5 proxy for anonymous connections
+- `monotorrent/src/MonoTorrent.Client/MonoTorrent.Streaming/` — Streaming support
+- `Gelato/Plugin.cs` — Jellyfin plugin structure and dependency injection
+- `AIOStreams/packages/` — Filtering, sorting, and indexer abstraction
+
+### 8.3. Test Infrastructure
+
+#### Unit Tests (`tests/TunnelFin.Tests/`)
+
+- **Framework:** xUnit with FluentAssertions
+- **Mocking:** Moq for dependency isolation
+- **Coverage:** Coverlet for code coverage reporting
+
+Run unit tests:
+```bash
+dotnet test tests/TunnelFin.Tests
+```
+
+#### Integration Tests (`tests/TunnelFin.Integration/`)
+
+Integration tests validate the plugin against a real Jellyfin instance.
+
+Run integration tests:
+```bash
+dotnet test tests/TunnelFin.Integration
+```
+
+### 8.4. Local Jellyfin Development Environment
+
+A Jellyfin instance is deployed via Kubernetes for integration testing and manual validation.
+
+#### Accessing Jellyfin
+
+Check the running instance:
+```bash
+kubectl -n jellyfin get pods,svc
+```
+
+Expected output:
+```
+NAME                            READY   STATUS    RESTARTS   AGE
+pod/jellyfin-xxxxxxxxx-xxxxx    1/1     Running   0          Xm
+
+NAME               TYPE           CLUSTER-IP      EXTERNAL-IP    PORT(S)          AGE
+service/jellyfin   LoadBalancer   10.43.x.x       192.168.64.6   8096:xxxxx/TCP   Xm
+```
+
+Access the Jellyfin UI at: `http://192.168.64.6:8096`
+
+#### Deploying Plugin for Testing
+
+1. Build the plugin:
+   ```bash
+   dotnet build src/TunnelFin -c Release
+   ```
+
+2. Copy the plugin DLL to Jellyfin's plugin directory (inside the pod or via volume mount)
+
+3. Restart Jellyfin to load the plugin
+
+### 8.5. Dependencies
+
+#### Runtime Dependencies (NuGet)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `Jellyfin.Controller` | 10.11.5 | Jellyfin plugin API |
+| `Jellyfin.Model` | 10.11.5 | Jellyfin data models |
+| `MonoTorrent` | 3.0.2 | BitTorrent protocol implementation with StreamProvider API |
+| `NSec.Cryptography` | 25.4.0 | Ed25519 cryptographic primitives for peer identity |
+| `Microsoft.Extensions.Http` | 10.0.1 | HTTP client factory for indexer requests |
+
+#### Test Dependencies (NuGet)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `xunit` | 2.9.3 | Test framework |
+| `FluentAssertions` | 8.8.0 | Assertion library |
+| `Moq` | 4.20.72 | Mocking framework |
+| `coverlet.collector` | 6.0.4 | Code coverage |
+
+---
+
+## 9. License
 
 This project will be licensed under the **GNU General Public License v3.0 (GPL-3.0)** to respect the licenses of the open-source projects it draws inspiration and functionality from.
 
 ---
 
-## 9. References
+## 10. References
 
 [1] The Tribler Project. *Tribler: Privacy enhanced BitTorrent client with P2P content discovery*. [https://github.com/Tribler/tribler](https://github.com/Tribler/tribler)
 
