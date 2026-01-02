@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -51,6 +52,19 @@ public class Plugin : BasePlugin<PluginConfiguration>
     public override string Description =>
         "Privacy-first torrent streaming plugin that enables anonymous content streaming through the Tribler anonymity network. " +
         "Features include multi-hop onion routing, integrated content discovery, advanced filtering, and seamless Jellyfin integration.";
+
+    /// <summary>
+    /// Gets the plugin configuration pages (T083)
+    /// </summary>
+    public IEnumerable<PluginPageInfo> GetPages()
+    {
+        var prefix = GetType().Namespace;
+        yield return new PluginPageInfo
+        {
+            Name = "TunnelFin",
+            EmbeddedResourcePath = prefix + ".Configuration.config.html"
+        };
+    }
 
     /// <summary>
     /// Updates the plugin configuration and clears caches
