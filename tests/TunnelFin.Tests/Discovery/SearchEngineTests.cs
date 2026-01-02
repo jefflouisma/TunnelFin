@@ -29,6 +29,39 @@ public class SearchEngineTests
             _metadataFetcher);
     }
 
+    /// <summary>
+    /// Simple test indexer that returns predefined results.
+    /// </summary>
+    private class TestIndexer : IIndexer
+    {
+        private readonly List<SearchResult> _results;
+
+        public string Name { get; }
+        public bool IsEnabled { get; set; } = true;
+
+        public TestIndexer(string name, List<SearchResult> results)
+        {
+            Name = name;
+            _results = results;
+        }
+
+        public Task<List<SearchResult>> SearchAsync(string query, ContentType contentType, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_results);
+        }
+
+        public IndexerCapabilities GetCapabilities()
+        {
+            return new IndexerCapabilities
+            {
+                SupportedContentTypes = new List<ContentType> { ContentType.Movie, ContentType.TVShow, ContentType.Anime },
+                SupportsAdvancedSearch = false,
+                MaxResults = 100,
+                TimeoutSeconds = 10
+            };
+        }
+    }
+
     [Fact]
     public async Task SearchAsync_Should_Return_Results_Within_5_Seconds()
     {
@@ -49,29 +82,75 @@ public class SearchEngineTests
     {
         // Arrange
         var query = "Matrix";
+        var duplicate1 = new SearchResult
+        {
+            Title = "The Matrix 1999 1080p BluRay",
+            InfoHash = "abc123",
+            Size = 1024 * 1024 * 1024,
+            Seeders = 100,
+            Leechers = 10,
+            ContentType = ContentType.Movie
+        };
+        var duplicate2 = new SearchResult
+        {
+            Title = "The Matrix (1999) 720p",
+            InfoHash = "abc123", // Same hash - should be deduplicated
+            Size = 700 * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+        var unique = new SearchResult
+        {
+            Title = "The Matrix Reloaded 2003",
+            InfoHash = "def456",
+            Size = 1200 * 1024 * 1024,
+            Seeders = 80,
+            Leechers = 8,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer1 = new TestIndexer("Indexer1", new List<SearchResult> { duplicate1, unique });
+        var indexer2 = new TestIndexer("Indexer2", new List<SearchResult> { duplicate2 });
+        _indexerManager.AddIndexer(indexer1);
+        _indexerManager.AddIndexer(indexer2);
 
         // Act
         var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
 
         // Assert
-        // Since we're using placeholder indexers that return empty results,
-        // we can't test actual deduplication here. This will be tested in integration tests.
         results.Should().NotBeNull();
+        results.Should().HaveCount(2, "duplicate should be removed");
+        results.Should().Contain(r => r.InfoHash == "abc123");
+        results.Should().Contain(r => r.InfoHash == "def456");
     }
 
     [Fact]
-    public async Task SearchAsync_Should_Fetch_Metadata_For_Results()
+    public async Task SearchAsync_Should_Process_Results_Through_Metadata_Fetcher()
     {
         // Arrange
         var query = "Interstellar";
+        var result = new SearchResult
+        {
+            Title = "Interstellar.2014.1080p.BluRay.x264",
+            InfoHash = "abc123",
+            Size = 2L * 1024 * 1024 * 1024,
+            Seeders = 200,
+            Leechers = 20,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
 
         // Act
         var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
 
         // Assert
-        // Since we're using placeholder indexers that return empty results,
-        // we can't test actual metadata fetching here. This will be tested in integration tests.
         results.Should().NotBeNull();
+        results.Should().HaveCount(1);
+        // Metadata fetcher processes the result (even if it doesn't find external IDs)
+        // The important thing is that the workflow completes without errors
     }
 
     [Fact]
@@ -388,6 +467,186 @@ public class SearchEngineTests
         // This will be tested with mocked dependencies in integration tests
         var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
         results.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Aggregate_Results_From_Multiple_Indexers()
+    {
+        // Arrange
+        var query = "Test";
+        var result1 = new SearchResult
+        {
+            Title = "Inception 2010",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+        var result2 = new SearchResult
+        {
+            Title = "Interstellar 2014",
+            InfoHash = "hash2",
+            Size = 1200L * 1024 * 1024,
+            Seeders = 60,
+            Leechers = 6,
+            ContentType = ContentType.Movie
+        };
+        var result3 = new SearchResult
+        {
+            Title = "The Matrix 1999",
+            InfoHash = "hash3",
+            Size = 1500L * 1024 * 1024,
+            Seeders = 70,
+            Leechers = 7,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer1 = new TestIndexer("Indexer1", new List<SearchResult> { result1 });
+        var indexer2 = new TestIndexer("Indexer2", new List<SearchResult> { result2 });
+        var indexer3 = new TestIndexer("Indexer3", new List<SearchResult> { result3 });
+        _indexerManager.AddIndexer(indexer1);
+        _indexerManager.AddIndexer(indexer2);
+        _indexerManager.AddIndexer(indexer3);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        results.Should().HaveCount(3, "should aggregate from all indexers");
+        results.Should().Contain(r => r.InfoHash == "hash1");
+        results.Should().Contain(r => r.InfoHash == "hash2");
+        results.Should().Contain(r => r.InfoHash == "hash3");
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Indexer_With_No_Results()
+    {
+        // Arrange
+        var query = "Nonexistent Movie";
+        var indexer = new TestIndexer("EmptyIndexer", new List<SearchResult>());
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        results.Should().BeEmpty("indexer returned no results");
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Preserve_Higher_Seeder_Count_After_Deduplication()
+    {
+        // Arrange
+        var query = "Popular Movie";
+        var duplicate1 = new SearchResult
+        {
+            Title = "Popular Movie 2020 1080p",
+            InfoHash = "same_hash",
+            Size = 1024 * 1024 * 1024,
+            Seeders = 100,
+            Leechers = 10,
+            ContentType = ContentType.Movie
+        };
+        var duplicate2 = new SearchResult
+        {
+            Title = "Popular Movie 2020 720p",
+            InfoHash = "same_hash",
+            Size = 700 * 1024 * 1024,
+            Seeders = 150, // Higher seeder count
+            Leechers = 15,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer1 = new TestIndexer("Indexer1", new List<SearchResult> { duplicate1 });
+        var indexer2 = new TestIndexer("Indexer2", new List<SearchResult> { duplicate2 });
+        _indexerManager.AddIndexer(indexer1);
+        _indexerManager.AddIndexer(indexer2);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        results.Should().HaveCount(1, "duplicates should be merged");
+        var result = results.First();
+        result.Seeders.Should().Be(150, "should keep higher seeder count");
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Mixed_Content_Types()
+    {
+        // Arrange
+        var query = "Test";
+        var movie = new SearchResult
+        {
+            Title = "Test Movie 2020",
+            InfoHash = "movie_hash",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+        var tvShow = new SearchResult
+        {
+            Title = "Test Show S01E01",
+            InfoHash = "tv_hash",
+            Size = 500L * 1024 * 1024,
+            Seeders = 30,
+            Leechers = 3,
+            ContentType = ContentType.TVShow
+        };
+
+        var indexer = new TestIndexer("MixedIndexer", new List<SearchResult> { movie, tvShow });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act - search for movies only
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        // SearchEngine doesn't filter by content type - that's done by indexers
+        // So we should get both results
+        results.Should().HaveCountGreaterThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Process_All_Results_Through_Metadata_Pipeline()
+    {
+        // Arrange
+        var query = "Movies";
+        var result1 = new SearchResult
+        {
+            Title = "Inception.2010.1080p.BluRay",
+            InfoHash = "hash1",
+            Size = 2L * 1024 * 1024 * 1024,
+            Seeders = 100,
+            Leechers = 10,
+            ContentType = ContentType.Movie
+        };
+        var result2 = new SearchResult
+        {
+            Title = "Interstellar.2014.720p.WEB-DL",
+            InfoHash = "hash2",
+            Size = 1L * 1024 * 1024 * 1024,
+            Seeders = 80,
+            Leechers = 8,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result1, result2 });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        results.Should().HaveCount(2);
+        // All results should be processed through the metadata pipeline
+        // (even if external IDs aren't found, the workflow completes)
     }
 
 }
