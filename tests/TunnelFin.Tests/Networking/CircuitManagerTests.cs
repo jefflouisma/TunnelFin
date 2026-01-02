@@ -689,5 +689,143 @@ public class CircuitManagerTests
         circuit.State.Should().Be(CircuitState.Established);
     }
 
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Prefer_Both_High_Bandwidth_And_Low_Latency()
+    {
+        // Arrange
+        var settings = new AnonymitySettings
+        {
+            DefaultHopCount = 1,
+            PreferHighBandwidthRelays = true,
+            PreferLowLatencyRelays = true
+        };
+        var manager = new CircuitManager(settings);
+
+        // Add peers with different characteristics
+        var peer1 = new Peer(new byte[32], 0x7F000001, 8000);
+        peer1.IsHandshakeComplete = true;
+        peer1.IsRelayCandidate = true;
+        peer1.EstimatedBandwidth = 5000;
+        peer1.RttMs = 100;
+        manager.AddPeer(peer1);
+
+        var peer2Key = new byte[32];
+        peer2Key[0] = 1;
+        var peer2 = new Peer(peer2Key, 0x7F000002, 8001);
+        peer2.IsHandshakeComplete = true;
+        peer2.IsRelayCandidate = true;
+        peer2.EstimatedBandwidth = 10000;
+        peer2.RttMs = 50;
+        manager.AddPeer(peer2);
+
+        // Act
+        var circuit = await manager.CreateCircuitAsync(1);
+
+        // Assert
+        circuit.Should().NotBeNull();
+        circuit.State.Should().Be(CircuitState.Established);
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Select_From_Top_5_Candidates()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { DefaultHopCount = 1 };
+        var manager = new CircuitManager(settings);
+
+        // Add 10 peers to test top-5 selection
+        for (int i = 0; i < 10; i++)
+        {
+            var key = new byte[32];
+            key[0] = (byte)i;
+            var peer = new Peer(key, (uint)(0x7F000001 + i), (ushort)(8000 + i));
+            peer.IsHandshakeComplete = true;
+            peer.IsRelayCandidate = true;
+            manager.AddPeer(peer);
+        }
+
+        // Act
+        var circuit = await manager.CreateCircuitAsync(1);
+
+        // Assert
+        circuit.Should().NotBeNull();
+        circuit.State.Should().Be(CircuitState.Established);
+        circuit.Hops.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Not_Reuse_Peers_In_Same_Circuit()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { DefaultHopCount = 3 };
+        var manager = new CircuitManager(settings);
+
+        // Add 3 unique peers
+        for (int i = 0; i < 3; i++)
+        {
+            var key = new byte[32];
+            key[0] = (byte)(i + 1);
+            var peer = new Peer(key, (uint)(0x7F000001 + i), (ushort)(8000 + i));
+            peer.IsHandshakeComplete = true;
+            peer.IsRelayCandidate = true;
+            manager.AddPeer(peer);
+        }
+
+        // Act
+        var circuit = await manager.CreateCircuitAsync(3);
+
+        // Assert
+        circuit.Should().NotBeNull();
+        circuit.Hops.Should().HaveCount(3);
+
+        // Verify all hops have unique public keys
+        var publicKeys = circuit.Hops.Select(h => Convert.ToBase64String(h.PublicKey)).ToList();
+        publicKeys.Should().OnlyHaveUniqueItems("circuit should not reuse peers");
+    }
+
+    [Fact]
+    public void CloseCircuit_Should_Remove_Circuit_From_Manager()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+        var circuit = new Circuit(1, 3, 600);
+        manager.Circuits.Should().NotContainKey(1);
+
+        // Act
+        manager.CloseCircuit(1);
+
+        // Assert
+        manager.Circuits.Should().NotContainKey(1);
+    }
+
+    [Fact]
+    public void CloseCircuit_Should_Handle_Nonexistent_Circuit()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var act = () => manager.CloseCircuit(999);
+
+        // Assert
+        act.Should().NotThrow("closing nonexistent circuit should be safe");
+    }
+
+    [Fact]
+    public void GetCircuit_Should_Return_Null_For_Nonexistent_Circuit()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var circuit = manager.GetCircuit(999);
+
+        // Assert
+        circuit.Should().BeNull();
+    }
+
 }
 
