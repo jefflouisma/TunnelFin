@@ -238,14 +238,14 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 **Observability Requirements (FR-041 to FR-047)**
 
-- [ ] T093 [P] Implement error logging in src/TunnelFin/Core/ErrorLogger.cs (no content titles or user identifiers per FR-041)
-- [ ] T094 [P] Implement health status metrics in src/TunnelFin/Core/HealthMonitor.cs (plugin running/stopped, component health per FR-042)
-- [ ] T095 [P] Implement active streams counter in src/TunnelFin/Streaming/StreamMetrics.cs (track active streams per FR-043)
-- [ ] T096 [P] Implement bandwidth metrics in src/TunnelFin/Networking/BandwidthMetrics.cs (upload/download rates per FR-044)
-- [ ] T097 [P] Implement circuit health metrics in src/TunnelFin/Networking/CircuitMetrics.cs (active circuits, hop distribution, failures per FR-045)
-- [ ] T098 [P] Implement indexer response time tracking in src/TunnelFin/Indexers/IndexerMetrics.cs (per-indexer response times per FR-046)
-- [ ] T099 [P] Implement cache hit rate tracking in src/TunnelFin/Discovery/CacheMetrics.cs (metadata cache, torrent data cache per FR-047)
-- [ ] T100 Write unit tests for all metrics in tests/TunnelFin.Tests/Metrics/ (verify <1s latency per SC-009, verify no PII exposure per SC-013)
+- [X] T093 [P] Implement error logging in src/TunnelFin/Core/ErrorLogger.cs (no content titles or user identifiers per FR-041)
+- [X] T094 [P] Implement health status metrics in src/TunnelFin/Core/HealthMonitor.cs (plugin running/stopped, component health per FR-042)
+- [X] T095 [P] Implement active streams counter in src/TunnelFin/Streaming/StreamMetrics.cs (track active streams per FR-043)
+- [X] T096 [P] Implement bandwidth metrics in src/TunnelFin/Networking/BandwidthMetrics.cs (upload/download rates per FR-044)
+- [X] T097 [P] Implement circuit health metrics in src/TunnelFin/Networking/CircuitMetrics.cs (active circuits, hop distribution, failures per FR-045)
+- [X] T098 [P] Implement indexer response time tracking in src/TunnelFin/Indexers/IndexerMetrics.cs (per-indexer response times per FR-046)
+- [X] T099 [P] Implement cache hit rate tracking in src/TunnelFin/Discovery/CacheMetrics.cs (metadata cache, torrent data cache per FR-047)
+- [X] T100 Write unit tests for all metrics in tests/TunnelFin.Tests/Metrics/ (verify <1s latency per SC-009, verify no PII exposure per SC-013)
 
 ---
 
