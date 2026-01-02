@@ -44,9 +44,9 @@ public class CircuitMessageTests
         // Verify circuit ID is serialized as big-endian uint32
         var buffer = new byte[4];
         uint circuitId = 0x00000001;
-        
+
         BinaryPrimitives.WriteUInt32BigEndian(buffer, circuitId);
-        
+
         buffer.Should().Equal(new byte[] { 0x00, 0x00, 0x00, 0x01 },
             "Circuit ID must be big-endian per ipv8-wire-format.md");
     }
@@ -166,9 +166,201 @@ public class CircuitMessageTests
         // Test various circuit ID values
         var buffer = new byte[4];
         BinaryPrimitives.WriteUInt32BigEndian(buffer, circuitId);
-        
+
         var readBack = BinaryPrimitives.ReadUInt32BigEndian(buffer);
         readBack.Should().Be(circuitId, "Circuit ID should round-trip correctly");
     }
+
+
+    [Fact]
+    public void SerializeCreate_Should_Throw_When_NodePublicKey_Is_Null()
+    {
+        // Arrange
+        uint circuitId = 1;
+        ushort identifier = 2;
+        byte[]? nodePublicKey = null;
+        var ephemeralKey = new byte[32];
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.SerializeCreate(circuitId, identifier, nodePublicKey!, ephemeralKey));
+    }
+
+    [Fact]
+    public void SerializeCreate_Should_Throw_When_NodePublicKey_Is_Wrong_Length()
+    {
+        // Arrange
+        uint circuitId = 1;
+        ushort identifier = 2;
+        var nodePublicKey = new byte[31]; // Wrong length
+        var ephemeralKey = new byte[32];
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.SerializeCreate(circuitId, identifier, nodePublicKey, ephemeralKey));
+    }
+
+    [Fact]
+    public void SerializeCreate_Should_Throw_When_EphemeralKey_Is_Null()
+    {
+        // Arrange
+        uint circuitId = 1;
+        ushort identifier = 2;
+        var nodePublicKey = new byte[32];
+        byte[]? ephemeralKey = null;
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.SerializeCreate(circuitId, identifier, nodePublicKey, ephemeralKey!));
+    }
+
+    [Fact]
+    public void SerializeCreate_Should_Throw_When_EphemeralKey_Is_Wrong_Length()
+    {
+        // Arrange
+        uint circuitId = 1;
+        ushort identifier = 2;
+        var nodePublicKey = new byte[32];
+        var ephemeralKey = new byte[33]; // Wrong length
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.SerializeCreate(circuitId, identifier, nodePublicKey, ephemeralKey));
+    }
+
+    [Fact]
+    public void SerializeCreated_Should_Throw_When_EphemeralKey_Is_Null()
+    {
+        // Arrange
+        uint circuitId = 1;
+        ushort identifier = 2;
+        byte[]? ephemeralKey = null;
+        var auth = new byte[32];
+        var candidatesEnc = new byte[10];
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.SerializeCreated(circuitId, identifier, ephemeralKey!, auth, candidatesEnc));
+    }
+
+    [Fact]
+    public void SerializeCreated_Should_Throw_When_Auth_Is_Null()
+    {
+        // Arrange
+        uint circuitId = 1;
+        ushort identifier = 2;
+        var ephemeralKey = new byte[32];
+        byte[]? auth = null;
+        var candidatesEnc = new byte[10];
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.SerializeCreated(circuitId, identifier, ephemeralKey, auth!, candidatesEnc));
+    }
+
+    [Fact]
+    public void SerializeCreated_Should_Throw_When_Auth_Is_Wrong_Length()
+    {
+        // Arrange
+        uint circuitId = 1;
+        ushort identifier = 2;
+        var ephemeralKey = new byte[32];
+        var auth = new byte[31]; // Wrong length
+        var candidatesEnc = new byte[10];
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.SerializeCreated(circuitId, identifier, ephemeralKey, auth, candidatesEnc));
+    }
+
+    [Fact]
+    public void SerializeCreated_Should_Throw_When_CandidatesEnc_Is_Null()
+    {
+        // Arrange
+        uint circuitId = 1;
+        ushort identifier = 2;
+        var ephemeralKey = new byte[32];
+        var auth = new byte[32];
+        byte[]? candidatesEnc = null;
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            CircuitMessage.SerializeCreated(circuitId, identifier, ephemeralKey, auth, candidatesEnc!));
+    }
+
+    [Fact]
+    public void SerializeExtend_Should_Throw_When_NodePublicKey_Is_Null()
+    {
+        // Arrange
+        uint circuitId = 1;
+        byte[]? nodePublicKey = null;
+        uint ipv4Address = 0x7F000001;
+        ushort port = 8080;
+        ushort identifier = 2;
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.SerializeExtend(circuitId, nodePublicKey!, ipv4Address, port, identifier));
+    }
+
+    [Fact]
+    public void SerializeExtend_Should_Throw_When_NodePublicKey_Is_Wrong_Length()
+    {
+        // Arrange
+        uint circuitId = 1;
+        var nodePublicKey = new byte[31]; // Wrong length
+        uint ipv4Address = 0x7F000001;
+        ushort port = 8080;
+        ushort identifier = 2;
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.SerializeExtend(circuitId, nodePublicKey, ipv4Address, port, identifier));
+    }
+
+    [Fact]
+    public void ExtractCircuitId_Should_Throw_When_Message_Too_Short()
+    {
+        // Arrange
+        var message = new byte[3]; // Too short
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.ExtractCircuitId(message));
+    }
+
+    [Fact]
+    public void ParseCreate_Should_Throw_When_Message_Too_Short()
+    {
+        // Arrange
+        var message = new byte[10]; // Too short
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.ParseCreate(message));
+    }
+
+    [Fact]
+    public void ParseCreated_Should_Throw_When_Message_Too_Short()
+    {
+        // Arrange
+        var message = new byte[10]; // Too short
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.ParseCreated(message));
+    }
+
+    [Fact]
+    public void ParseExtend_Should_Throw_When_Message_Too_Short()
+    {
+        // Arrange
+        var message = new byte[10]; // Too short
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            CircuitMessage.ParseExtend(message));
+    }
+
 }
 
