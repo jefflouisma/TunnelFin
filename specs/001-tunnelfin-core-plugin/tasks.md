@@ -117,9 +117,9 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 **Jellyfin Integration for Streaming (FR-027, FR-034, FR-039)**
 
-- [ ] T046 [US1] Implement TunnelFinSearchProvider skeleton in src/TunnelFin/Jellyfin/SearchProvider.cs (ISearchProvider interface, basic search integration per FR-027 - enhanced with metadata in T070)
-- [ ] T047 [US1] Implement play button color coding in SearchProvider (green=anonymous, orange=non-anonymous per FR-034)
-- [ ] T048 [US1] Implement Tribler network availability check in SearchProvider (per FR-039)
+- [X] T046 [US1] Implement TunnelFinSearchProvider skeleton in src/TunnelFin/Jellyfin/SearchProvider.cs (ISearchProvider interface, basic search integration per FR-027 - enhanced with metadata in T070)
+- [X] T047 [US1] Implement play button color coding in SearchProvider (green=anonymous, orange=non-anonymous per FR-034)
+- [X] T048 [US1] Implement Tribler network availability check in SearchProvider (per FR-039)
 
 **Privacy & Consent (FR-035, FR-036)**
 
