@@ -154,5 +154,128 @@ public class ErrorLoggerTests
         duration.Should().BeLessThan(TimeSpan.FromSeconds(1), "should meet SC-009 latency requirement");
         errors.Should().HaveCount(50);
     }
+
+    [Fact]
+    public void LogError_Should_Throw_When_Component_Is_Null()
+    {
+        // Act
+        var act = () => _logger.LogError(null!, "Error message");
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("component");
+    }
+
+    [Fact]
+    public void LogError_Should_Throw_When_Component_Is_Empty()
+    {
+        // Act
+        var act = () => _logger.LogError("", "Error message");
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("component");
+    }
+
+    [Fact]
+    public void LogError_Should_Throw_When_Component_Is_Whitespace()
+    {
+        // Act
+        var act = () => _logger.LogError("   ", "Error message");
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("component");
+    }
+
+    [Fact]
+    public void LogError_Should_Throw_When_Message_Is_Null()
+    {
+        // Act
+        var act = () => _logger.LogError("Component", null!);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("message");
+    }
+
+    [Fact]
+    public void LogError_Should_Throw_When_Message_Is_Empty()
+    {
+        // Act
+        var act = () => _logger.LogError("Component", "");
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("message");
+    }
+
+    [Fact]
+    public void LogError_Should_Throw_When_Message_Is_Whitespace()
+    {
+        // Act
+        var act = () => _logger.LogError("Component", "   ");
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("message");
+    }
+
+    [Fact]
+    public void LogError_Should_Limit_Stored_Errors_To_1000()
+    {
+        // Arrange - Log 1100 errors
+        for (int i = 0; i < 1100; i++)
+        {
+            _logger.LogError("Component", $"Error {i}");
+        }
+
+        // Act
+        var count = _logger.GetErrorCount();
+
+        // Assert
+        count.Should().Be(1000, "should limit to MaxStoredErrors");
+    }
+
+    [Fact]
+    public void LogError_Should_Remove_Oldest_Errors_When_Limit_Exceeded()
+    {
+        // Arrange - Log 1100 errors
+        for (int i = 0; i < 1100; i++)
+        {
+            _logger.LogError("Component", $"Error {i}");
+        }
+
+        // Act
+        var errors = _logger.GetRecentErrors(1000);
+
+        // Assert
+        errors.Should().HaveCount(1000);
+        // The oldest 100 errors (0-99) should be removed
+        errors.Should().NotContain(e => e.Message == "Error 0");
+        errors.Should().NotContain(e => e.Message == "Error 99");
+        // The newest errors should still be present
+        errors.Should().Contain(e => e.Message == "Error 1099");
+    }
+
+    [Fact]
+    public void GetRecentErrors_Should_Return_Empty_List_When_No_Errors()
+    {
+        // Act
+        var errors = _logger.GetRecentErrors(10);
+
+        // Assert
+        errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GetErrorCount_Should_Return_Zero_Initially()
+    {
+        // Act
+        var count = _logger.GetErrorCount();
+
+        // Assert
+        count.Should().Be(0);
+    }
 }
 

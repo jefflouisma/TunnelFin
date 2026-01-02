@@ -187,5 +187,86 @@ public class SecureStorageTests : IDisposable
         // Assert
         retrieved.Should().BeEquivalentTo(key2, "second key should overwrite first");
     }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_StoragePath_Is_Null()
+    {
+        // Act
+        var act = () => new SecureStorage(null!, _encryptionKey);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("storagePath");
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_EncryptionKey_Is_Null()
+    {
+        // Act
+        var act = () => new SecureStorage(_testStoragePath, null!);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("encryptionKey");
+    }
+
+    [Fact]
+    public void StorePrivateKey_Should_Throw_When_PrivateKey_Is_Null()
+    {
+        // Act
+        var act = () => _storage.StorePrivateKey(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("privateKey");
+    }
+
+    [Fact]
+    public void DeletePrivateKey_Should_Not_Throw_When_No_Key_Exists()
+    {
+        // Act
+        var act = () => _storage.DeletePrivateKey();
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Constructor_Should_Create_Directory_If_Not_Exists()
+    {
+        // Arrange
+        var nestedPath = Path.Combine(Path.GetTempPath(), $"tunnelfin_test_{Guid.NewGuid()}", "nested", "storage.dat");
+
+        // Act
+        var storage = new SecureStorage(nestedPath, _encryptionKey);
+
+        // Assert
+        var directory = Path.GetDirectoryName(nestedPath);
+        Directory.Exists(directory).Should().BeTrue();
+
+        // Cleanup
+        if (directory != null && Directory.Exists(directory))
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public void RetrievePrivateKey_Should_Return_Null_When_File_Is_Corrupted()
+    {
+        // Arrange
+        var privateKey = new byte[32];
+        Random.Shared.NextBytes(privateKey);
+        _storage.StorePrivateKey(privateKey);
+
+        // Corrupt the file
+        File.WriteAllBytes(_testStoragePath, new byte[] { 1, 2, 3 });
+
+        // Act
+        var retrieved = _storage.RetrievePrivateKey();
+
+        // Assert
+        retrieved.Should().BeNull("corrupted file should return null");
+    }
 }
 
