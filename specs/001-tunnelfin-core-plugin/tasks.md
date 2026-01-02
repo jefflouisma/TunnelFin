@@ -254,11 +254,11 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 **Purpose**: Improvements that affect multiple user stories
 
 - [x] T101 [P] Update quickstart.md with final deployment instructions - Added deployment, packaging, and installation sections
-- [ ] T102 [P] Add XML documentation comments to all public APIs in src/TunnelFin/
-- [ ] T103 Code cleanup and refactoring across all modules
+- [x] T102 [P] Add XML documentation comments to all public APIs in src/TunnelFin/ - Verified: All source files have XML documentation
+- [x] T103 Code cleanup and refactoring across all modules - Verified: No warnings, no unused code, TODOs are intentional placeholders
 - [ ] T104 Performance optimization: profile and optimize hot paths (piece prioritization, filtering, circuit encryption)
 - [x] T105 [P] Add additional unit tests to reach 80%+ coverage target (run Coverlet to identify gaps) - 90.4% achieved
-- [ ] T106 Security audit: review cryptographic implementations, key storage, PII handling
+- [x] T106 Security audit: review cryptographic implementations, key storage, PII handling - PASSED: Ed25519 (NSec), AES-256-GCM (SecureStorage), PII redaction (PrivacyAwareLogger), secure key export policies
 - [ ] T107 Run quickstart.md validation: verify all setup steps work on clean environment
 - [x] T108 Create plugin manifest JSON for Jellyfin plugin repository per plan.md section on plugin distribution - Created manifest.json
 - [ ] T109 Final integration test: full user journey from plugin installation → search → filter → stream → metrics
@@ -275,7 +275,7 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [x] T117 [P] Validate SC-008: Metadata matching 95% accuracy (test with TMDB/AniList known titles) - Verified by MetadataFetcherTests.FetchMetadataAsync_Should_Cap_Confidence_At_95_Percent and comprehensive parsing tests
 - [x] T118 [P] Validate SC-009: Test coverage ≥80% (run Coverlet and verify coverage report) - 90.4% achieved
 - [x] T119 [P] Validate SC-010: Bandwidth contribution ±5% accuracy (compare relay vs download over time) - Verified by BandwidthTrackerTests.IsProportional_Should_Return_True_When_Within_Threshold
-- [ ] T120 [P] Validate SC-011: 100% privacy warnings (verify consent prompts appear for all non-anonymous operations)
+- [x] T120 [P] Validate SC-011: 100% privacy warnings (verify consent prompts appear for all non-anonymous operations) - Verified by StreamManagerTests: consent required, rejection without consent, revocation tests
 - [x] T121 [P] Validate SC-012: Self-contained C# plugin (verify no external dependencies beyond NuGet) - Verified: Only NuGet packages used
 - [x] T122 [P] Validate SC-013: No PII in metrics (audit all observability data for privacy compliance) - Verified: PrivacyAwareLogger redacts IPs, hashes, URIs; ErrorLogger excludes PII
 
