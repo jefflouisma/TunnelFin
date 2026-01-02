@@ -143,6 +143,96 @@ public class PluginConfigurationTests
         config.BuiltInIndexers.Should().Contain(i => i.Name == "RARBG");
         config.BuiltInIndexers.Should().OnlyContain(i => i.Enabled);
     }
+
+    [Fact]
+    public void PluginConfiguration_Should_Accept_Minimum_Valid_MaxConcurrentStreams()
+    {
+        // Arrange
+        var config = new PluginConfiguration { MaxConcurrentStreams = 1 };
+
+        // Act
+        var isValid = config.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeTrue();
+        errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PluginConfiguration_Should_Accept_Maximum_Valid_MaxConcurrentStreams()
+    {
+        // Arrange
+        var config = new PluginConfiguration { MaxConcurrentStreams = 10 };
+
+        // Act
+        var isValid = config.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeTrue();
+        errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PluginConfiguration_Should_Accept_Minimum_Valid_StreamInitializationTimeout()
+    {
+        // Arrange
+        var config = new PluginConfiguration { StreamInitializationTimeoutSeconds = 10 };
+
+        // Act
+        var isValid = config.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeTrue();
+        errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PluginConfiguration_Should_Accept_Maximum_Valid_StreamInitializationTimeout()
+    {
+        // Arrange
+        var config = new PluginConfiguration { StreamInitializationTimeoutSeconds = 300 };
+
+        // Act
+        var isValid = config.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeTrue();
+        errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PluginConfiguration_Should_Accept_Minimum_Valid_MaxCacheSize()
+    {
+        // Arrange
+        var config = new PluginConfiguration { MaxCacheSize = 1073741824L }; // Exactly 1GB
+
+        // Act
+        var isValid = config.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeTrue();
+        errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PluginConfiguration_Should_Allow_Setting_TmdbApiKey()
+    {
+        // Arrange & Act
+        var config = new PluginConfiguration { TmdbApiKey = "test-api-key-123" };
+
+        // Assert
+        config.TmdbApiKey.Should().Be("test-api-key-123");
+    }
+
+    [Fact]
+    public void PluginConfiguration_Should_Allow_Setting_AniListClientId()
+    {
+        // Arrange & Act
+        var config = new PluginConfiguration { AniListClientId = "test-client-id-456" };
+
+        // Assert
+        config.AniListClientId.Should().Be("test-client-id-456");
+    }
 }
 
 
