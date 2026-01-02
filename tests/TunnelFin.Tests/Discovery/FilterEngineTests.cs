@@ -227,6 +227,213 @@ public class FilterEngineTests
         // Assert
         filtered.Should().HaveCount(2);
     }
+
+    [Fact]
+    public void LoadProfile_Should_Apply_AllowedQualities()
+    {
+        // Arrange - Note: Dictionary only keeps last value, so only 2160p will be required
+        var profile = new FilterProfile
+        {
+            Name = "Test Profile",
+            AllowedQualities = new List<string> { "1080p", "2160p" }
+        };
+
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie 1080p", Quality = "1080p" },
+            new SearchResult { Title = "Movie 720p", Quality = "720p" },
+            new SearchResult { Title = "Movie 2160p", Quality = "2160p" }
+        };
+
+        // Act
+        _filterEngine.LoadProfile(profile);
+        var filtered = _filterEngine.ApplyFilters(results);
+
+        // Assert - Only last quality (2160p) is kept in dictionary
+        filtered.Should().HaveCount(1);
+        filtered[0].Quality.Should().Be("2160p");
+    }
+
+    [Fact]
+    public void LoadProfile_Should_Apply_BlockedQualities()
+    {
+        // Arrange - Dictionary only keeps last value, so only 480p will be excluded
+        var profile = new FilterProfile
+        {
+            Name = "Test Profile",
+            BlockedQualities = new List<string> { "720p", "480p" }
+        };
+
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie 1080p", Quality = "1080p" },
+            new SearchResult { Title = "Movie 720p", Quality = "720p" },
+            new SearchResult { Title = "Movie 480p", Quality = "480p" }
+        };
+
+        // Act
+        _filterEngine.LoadProfile(profile);
+        var filtered = _filterEngine.ApplyFilters(results);
+
+        // Assert - Only last quality (480p) is excluded
+        filtered.Should().HaveCount(2);
+        filtered.Should().Contain(r => r.Quality == "1080p");
+        filtered.Should().Contain(r => r.Quality == "720p");
+    }
+
+    [Fact]
+    public void LoadProfile_Should_Clear_Filters_Before_Loading()
+    {
+        // Arrange
+        _filterEngine.AddRequiredFilter("quality", "720p");
+
+        var profile = new FilterProfile
+        {
+            Name = "Test Profile"
+        };
+
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie 1080p", Quality = "1080p" },
+            new SearchResult { Title = "Movie 720p", Quality = "720p" }
+        };
+
+        // Act
+        _filterEngine.LoadProfile(profile);
+        var filtered = _filterEngine.ApplyFilters(results);
+
+        // Assert - Previous filters should be cleared
+        filtered.Should().HaveCount(2, "LoadProfile should clear previous filters");
+    }
+
+    [Fact]
+    public void LoadProfile_Should_Apply_RequiredKeywords()
+    {
+        // Arrange - Dictionary only keeps last value, so only REMUX will be included
+        var profile = new FilterProfile
+        {
+            Name = "Test Profile",
+            RequiredKeywords = new List<string> { "BluRay", "REMUX" }
+        };
+
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie.BluRay.1080p" },
+            new SearchResult { Title = "Movie.WEBRip.1080p" },
+            new SearchResult { Title = "Movie.REMUX.2160p" }
+        };
+
+        // Act
+        _filterEngine.LoadProfile(profile);
+        var filtered = _filterEngine.ApplyFilters(results);
+
+        // Assert - Only last keyword (REMUX) is kept in dictionary
+        filtered.Should().HaveCount(1);
+        filtered[0].Title.Should().Contain("REMUX");
+    }
+
+    [Fact]
+    public void LoadProfile_Should_Apply_ExcludedKeywords()
+    {
+        // Arrange - Dictionary only keeps last value, so only TS will be excluded
+        var profile = new FilterProfile
+        {
+            Name = "Test Profile",
+            ExcludedKeywords = new List<string> { "CAM", "TS" }
+        };
+
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie.BluRay.1080p" },
+            new SearchResult { Title = "Movie.CAM.720p" },
+            new SearchResult { Title = "Movie.TS.1080p" }
+        };
+
+        // Act
+        _filterEngine.LoadProfile(profile);
+        var filtered = _filterEngine.ApplyFilters(results);
+
+        // Assert - Only last keyword (TS) is excluded
+        filtered.Should().HaveCount(2);
+        filtered.Should().Contain(r => r.Title.Contains("BluRay"));
+        filtered.Should().Contain(r => r.Title.Contains("CAM"));
+    }
+
+    [Fact]
+    public void LoadProfile_Should_Apply_AllowedReleaseGroups()
+    {
+        // Arrange - Dictionary only keeps last value, so only FGT will be included
+        var profile = new FilterProfile
+        {
+            Name = "Test Profile",
+            AllowedReleaseGroups = new List<string> { "SPARKS", "FGT" }
+        };
+
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie.1080p-SPARKS", ReleaseGroup = "SPARKS" },
+            new SearchResult { Title = "Movie.1080p-YIFY", ReleaseGroup = "YIFY" },
+            new SearchResult { Title = "Movie.1080p-FGT", ReleaseGroup = "FGT" }
+        };
+
+        // Act
+        _filterEngine.LoadProfile(profile);
+        var filtered = _filterEngine.ApplyFilters(results);
+
+        // Assert - Only last release group (FGT) is kept in dictionary
+        filtered.Should().HaveCount(1);
+        filtered[0].ReleaseGroup.Should().Be("FGT");
+    }
+
+    [Fact]
+    public void LoadProfile_Should_Clear_Previous_Filters()
+    {
+        // Arrange
+        _filterEngine.AddRequiredFilter("quality", "720p");
+
+        var profile = new FilterProfile
+        {
+            Name = "Test Profile",
+            AllowedQualities = new List<string> { "1080p" }
+        };
+
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie 1080p", Quality = "1080p" },
+            new SearchResult { Title = "Movie 720p", Quality = "720p" }
+        };
+
+        // Act
+        _filterEngine.LoadProfile(profile);
+        var filtered = _filterEngine.ApplyFilters(results);
+
+        // Assert
+        filtered.Should().HaveCount(1);
+        filtered[0].Quality.Should().Be("1080p", "previous 720p filter should be cleared");
+    }
+
+    [Fact]
+    public void LoadProfile_Should_Handle_Empty_Profile()
+    {
+        // Arrange
+        var profile = new FilterProfile
+        {
+            Name = "Empty Profile"
+        };
+
+        var results = new List<SearchResult>
+        {
+            new SearchResult { Title = "Movie 1080p", Quality = "1080p" },
+            new SearchResult { Title = "Movie 720p", Quality = "720p" }
+        };
+
+        // Act
+        _filterEngine.LoadProfile(profile);
+        var filtered = _filterEngine.ApplyFilters(results);
+
+        // Assert
+        filtered.Should().HaveCount(2, "empty profile should not filter anything");
+    }
 }
 
 
