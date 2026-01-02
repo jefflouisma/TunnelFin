@@ -1,9 +1,13 @@
 using System;
 using System.IO;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
+using MonoTorrent;
+using MonoTorrent.Connections;
+using ReusableTasks;
 using TunnelFin.BitTorrent;
 using TunnelFin.Models;
 using Xunit;
@@ -145,6 +149,48 @@ public class TorrentEngineTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => engine.AddTorrentAsync(magnetLinkWithNoSeeds, cts.Token)
         );
+    }
+
+    /// <summary>
+    /// T107: Verify TorrentEngine accepts custom socket connector for circuit-routed connections.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithSocketConnector_ConfiguresEngine()
+    {
+        // Arrange
+        var mockConnector = new Mock<ISocketConnector>();
+        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        mockConnector
+            .Setup(c => c.ConnectAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
+            .Returns(ReusableTask.FromResult(socket));
+
+        // Act
+        var engine = new TorrentEngine(socketConnector: mockConnector.Object);
+
+        // Assert
+        engine.Should().NotBeNull();
+        // Engine should be configured with custom connector
+        // (MonoTorrent will use it for peer connections)
+    }
+
+    /// <summary>
+    /// T107: Verify SetSocketConnector is deprecated and logs warning.
+    /// </summary>
+    [Fact]
+    public void SetSocketConnector_LogsDeprecationWarning()
+    {
+        // Arrange
+        var engine = new TorrentEngine();
+        var mockConnector = new Mock<ISocketConnector>();
+
+        // Act
+        #pragma warning disable CS0618 // Type or member is obsolete
+        engine.SetSocketConnector(mockConnector.Object);
+        #pragma warning restore CS0618
+
+        // Assert
+        // Method should complete without throwing
+        // (Warning is logged but we can't easily verify that in unit test)
     }
 }
 

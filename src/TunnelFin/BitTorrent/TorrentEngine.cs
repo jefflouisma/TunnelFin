@@ -31,13 +31,18 @@ public class TorrentEngine : ITorrentEngine
     /// Initializes a new instance of the TorrentEngine class.
     /// </summary>
     /// <param name="downloadPath">Path where torrent data will be cached (default: temp directory)</param>
+    /// <param name="socketConnector">Optional custom socket connector for circuit-routed connections (T107)</param>
     /// <param name="logger">Optional logger for diagnostic output</param>
-    public TorrentEngine(string? downloadPath = null, ILogger<TorrentEngine>? logger = null)
+    public TorrentEngine(
+        string? downloadPath = null,
+        ISocketConnector? socketConnector = null,
+        ILogger<TorrentEngine>? logger = null)
     {
         _downloadPath = downloadPath ?? Path.Combine(Path.GetTempPath(), "TunnelFin", "Cache");
         _managers = new ConcurrentDictionary<string, TorrentManager>();
         _metadata = new ConcurrentDictionary<string, TorrentMetadata>();
         _logger = logger;
+        _socketConnector = socketConnector;
 
         // Create download directory if it doesn't exist
         if (!Directory.Exists(_downloadPath))
@@ -56,7 +61,16 @@ public class TorrentEngine : ITorrentEngine
             CacheDirectory = _downloadPath
         }.ToSettings();
 
-        _engine = new ClientEngine(settings);
+        // Configure custom socket connector if provided (T107)
+        // This enables circuit-routed peer connections for anonymity (FR-020)
+        Factories factories = Factories.Default;
+        if (socketConnector != null)
+        {
+            factories = factories.WithSocketConnectorCreator(() => socketConnector);
+            _logger?.LogInformation("TorrentEngine configured with custom socket connector for circuit-routed connections");
+        }
+
+        _engine = new ClientEngine(settings, factories);
     }
 
     /// <summary>
@@ -227,11 +241,17 @@ public class TorrentEngine : ITorrentEngine
 
     /// <summary>
     /// Sets the socket connector for circuit-routed connections (FR-020).
+    /// NOTE: This method is deprecated. Pass socketConnector to constructor instead.
+    /// MonoTorrent's ClientEngine is configured at creation time and cannot be reconfigured.
     /// </summary>
+    [Obsolete("Pass socketConnector to constructor instead. This method has no effect.")]
     public void SetSocketConnector(ISocketConnector socketConnector)
     {
+        _logger?.LogWarning(
+            "SetSocketConnector called but has no effect. " +
+            "Socket connector must be passed to TorrentEngine constructor. " +
+            "MonoTorrent's ClientEngine is configured at creation time.");
         _socketConnector = socketConnector;
-        // Note: Applying to existing managers would require MonoTorrent internal API access
     }
 
     /// <summary>
