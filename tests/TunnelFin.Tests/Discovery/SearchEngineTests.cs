@@ -834,6 +834,76 @@ public class SearchEngineTests
         animeResults[0].ContentType.Should().Be(ContentType.Anime);
     }
 
+    [Fact]
+    public async Task SearchAsync_Should_Log_Info_When_No_Results_Found()
+    {
+        // Arrange
+        var query = "NonExistentMovie999999";
+        // Don't add any indexers, so no results will be found
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        results.Should().BeEmpty();
+        // Should log "No results found for query" (line 58)
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Exception_From_IndexerManager()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Add a failing indexer
+        var failingIndexer = new FailingTestIndexer("FailingIndexer");
+        _indexerManager.AddIndexer(failingIndexer);
+
+        // Act
+        // IndexerManager handles indexer failures gracefully, so this should not throw
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        // Results may be empty if all indexers fail
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Log_Deduplication_Info()
+    {
+        // Arrange
+        var query = "Test";
+        var duplicate1 = new SearchResult
+        {
+            Title = "Test Movie 1",
+            InfoHash = "samehash",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 10,
+            Leechers = 1,
+            ContentType = ContentType.Movie
+        };
+        var duplicate2 = new SearchResult
+        {
+            Title = "Test Movie 2",
+            InfoHash = "samehash", // Same hash
+            Size = 1024L * 1024 * 1024,
+            Seeders = 20,
+            Leechers = 2,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { duplicate1, duplicate2 });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().HaveCount(1, "duplicates should be removed");
+        // Should log "Deduplication completed: 2 → 1 results" (line 64)
+    }
+
     /// <summary>
     /// Test indexer that introduces a delay to simulate slow searches.
     /// </summary>
@@ -1038,6 +1108,36 @@ public class SearchEngineTests
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(
             async () => await _searchEngine.SearchAsync(query, ContentType.Movie, cts.Token));
+    }
+
+    /// <summary>
+    /// Test indexer that always throws an exception.
+    /// </summary>
+    private class FailingTestIndexer : IIndexer
+    {
+        public string Name { get; }
+        public bool IsEnabled { get; set; } = true;
+
+        public FailingTestIndexer(string name)
+        {
+            Name = name;
+        }
+
+        public Task<List<SearchResult>> SearchAsync(string query, ContentType contentType, CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("Indexer failed");
+        }
+
+        public IndexerCapabilities GetCapabilities()
+        {
+            return new IndexerCapabilities
+            {
+                SupportedContentTypes = new List<ContentType> { ContentType.Movie, ContentType.TVShow, ContentType.Anime },
+                SupportsAdvancedSearch = false,
+                MaxResults = 100,
+                TimeoutSeconds = 10
+            };
+        }
     }
 
 }

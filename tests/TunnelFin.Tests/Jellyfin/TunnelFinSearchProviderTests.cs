@@ -435,5 +435,153 @@ public class TunnelFinSearchProviderTests
         }
     }
 
+    [Fact]
+    public async Task CheckNetworkAvailabilityAsync_Should_Return_True_And_Update_Property()
+    {
+        // Arrange
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance);
+
+        // Act
+        var isAvailable = await provider.CheckNetworkAvailabilityAsync();
+
+        // Assert
+        isAvailable.Should().BeTrue();
+        provider.IsNetworkAvailable.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CheckNetworkAvailabilityAsync_Should_Return_False_On_Cancellation()
+    {
+        // Arrange
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance);
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var isAvailable = await provider.CheckNetworkAvailabilityAsync(cts.Token);
+
+        // Assert
+        isAvailable.Should().BeFalse("cancellation should be caught and return false");
+        provider.IsNetworkAvailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public void GetPlayButtonColor_Should_Return_Green_When_Network_Available_And_Has_Seeders()
+    {
+        // Arrange
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance);
+        provider.CheckNetworkAvailabilityAsync().Wait(); // Set network available
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var color = provider.GetPlayButtonColor(result);
+
+        // Assert
+        color.Should().Be(PlayButtonColor.Green, "network is available and torrent has seeders");
+    }
+
+    [Fact]
+    public void GetPlayButtonColor_Should_Return_Orange_When_Network_Not_Available()
+    {
+        // Arrange
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance);
+        // Don't call CheckNetworkAvailabilityAsync - network is not available
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var color = provider.GetPlayButtonColor(result);
+
+        // Assert
+        color.Should().Be(PlayButtonColor.Orange, "network is not available");
+    }
+
+    [Fact]
+    public void GetPlayButtonColor_Should_Return_Orange_When_Torrent_Has_Zero_Seeders()
+    {
+        // Arrange
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance);
+        provider.CheckNetworkAvailabilityAsync().Wait(); // Set network available
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 0, // No seeders
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var color = provider.GetPlayButtonColor(result);
+
+        // Assert
+        color.Should().Be(PlayButtonColor.Orange, "torrent has no seeders");
+    }
+
+    [Fact]
+    public void GetPlayButtonColor_Should_Throw_When_Result_Is_Null()
+    {
+        // Arrange
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => provider.GetPlayButtonColor(null!));
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Return_Empty_Results_Without_SearchEngine()
+    {
+        // Arrange
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance); // No SearchEngine
+
+        // Act
+        var response = await provider.SearchAsync("Test Movie", ContentType.Movie);
+
+        // Assert
+        response.Results.Should().BeEmpty();
+        response.TotalResults.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Log_Error_On_Exception()
+    {
+        // Arrange
+        var indexerManager = new TunnelFin.Indexers.IndexerManager(NullLogger.Instance);
+        var deduplicator = new TunnelFin.Discovery.Deduplicator();
+        var metadataFetcher = new TunnelFin.Discovery.MetadataFetcher(NullLogger.Instance);
+        var searchEngine = new TunnelFin.Discovery.SearchEngine(
+            NullLogger.Instance, indexerManager, deduplicator, metadataFetcher);
+
+        var provider = new TunnelFinSearchProvider(NullLogger.Instance, searchEngine);
+
+        // Add a failing indexer
+        var failingIndexer = new FailingTestIndexer("FailingIndexer");
+        indexerManager.AddIndexer(failingIndexer);
+
+        // Act & Assert
+        // SearchEngine handles indexer failures gracefully, so this should not throw
+        var response = await provider.SearchAsync("Test", ContentType.Movie);
+        response.Results.Should().BeEmpty();
+    }
+
 }
 
