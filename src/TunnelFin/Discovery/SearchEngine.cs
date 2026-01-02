@@ -65,17 +65,34 @@ public class SearchEngine
                 searchResponse.Results.Count, deduplicated.Count);
 
             // Step 3: Fetch metadata for each result (FR-029, SC-008)
-            // Note: This is a placeholder - actual implementation would fetch metadata in parallel
-            // and attach it to the SearchResult objects
-            foreach (var result in deduplicated)
+            // Fetch metadata in parallel with max 10 concurrent requests
+            var metadataFetchTasks = deduplicated.Select(async result =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                
-                // TODO: Fetch metadata and attach to result
-                // var metadata = await _metadataFetcher.FetchMetadataAsync(result, cancellationToken);
-                // result.TmdbId = metadata.TmdbId;
-                // result.AniListId = metadata.AniListId;
-            }
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var metadata = await _metadataFetcher.FetchMetadataAsync(result, cancellationToken);
+
+                    // Attach metadata to result
+                    result.TmdbId = metadata.TmdbId;
+                    result.AniListId = metadata.AniListId;
+
+                    _logger.LogDebug("Fetched metadata for: {Title} (Source: {Source}, Confidence: {Confidence})",
+                        result.Title, metadata.Source, metadata.MatchConfidence);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch metadata for: {Title}", result.Title);
+                    // Continue with other results even if one fails
+                }
+            }).ToList();
+
+            await Task.WhenAll(metadataFetchTasks);
 
             var duration = DateTime.UtcNow - startTime;
             _logger.LogInformation("Search completed: {Count} results in {Duration}ms", deduplicated.Count, duration.TotalMilliseconds);

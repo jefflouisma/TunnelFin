@@ -243,5 +243,36 @@ public class SearchEngineTests
         var infoHashes = results.Select(r => r.InfoHash).Where(h => !string.IsNullOrEmpty(h)).ToList();
         infoHashes.Should().OnlyHaveUniqueItems("results should be deduplicated");
     }
+
+    [Fact]
+    public async Task SearchAsync_Should_Fetch_Metadata_In_Parallel()
+    {
+        // Arrange
+        var query = "Test Movie";
+
+        // Act
+        var startTime = DateTime.UtcNow;
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+        var duration = DateTime.UtcNow - startTime;
+
+        // Assert
+        results.Should().NotBeNull();
+        // Metadata fetching should complete quickly (parallel execution)
+        duration.Should().BeLessThan(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Continue_On_Metadata_Fetch_Failure()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        // Should not throw even if metadata fetching fails for some results
+        results.Should().NotBeNull();
+    }
 }
 

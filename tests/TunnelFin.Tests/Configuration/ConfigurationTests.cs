@@ -64,6 +64,186 @@ public class ConfigurationTests
     }
 
     [Fact]
+    public void AnonymitySettings_SetHopCount_Should_Update_DefaultHopCount()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+
+        // Act
+        settings.SetHopCount(2);
+
+        // Assert
+        settings.DefaultHopCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void AnonymitySettings_SetHopCount_Should_Throw_When_Below_Minimum()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+
+        // Act
+        var act = () => settings.SetHopCount(0);
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName("hopCount");
+    }
+
+    [Fact]
+    public void AnonymitySettings_SetHopCount_Should_Throw_When_Above_Maximum()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+
+        // Act
+        var act = () => settings.SetHopCount(4);
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName("hopCount");
+    }
+
+    [Fact]
+    public void AnonymitySettings_GetEffectiveHopCount_Should_Return_DefaultHopCount()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { DefaultHopCount = 2 };
+
+        // Act
+        var hopCount = settings.GetEffectiveHopCount();
+
+        // Assert
+        hopCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void AnonymitySettings_Validate_Should_Call_IsValid()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+
+        // Act
+        var isValid = settings.Validate(out var errors);
+
+        // Assert
+        isValid.Should().BeTrue();
+        errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AnonymitySettings_Should_Fail_Validation_With_Invalid_MinHopCount()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { MinHopCount = 0 };
+
+        // Act
+        var isValid = settings.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MinHopCount"));
+    }
+
+    [Fact]
+    public void AnonymitySettings_Should_Fail_Validation_With_Invalid_MaxHopCount()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { MaxHopCount = 5 };
+
+        // Act
+        var isValid = settings.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxHopCount"));
+    }
+
+    [Fact]
+    public void AnonymitySettings_Should_Fail_Validation_With_Invalid_CircuitEstablishmentTimeout()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { CircuitEstablishmentTimeoutSeconds = 3 };
+
+        // Act
+        var isValid = settings.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("CircuitEstablishmentTimeoutSeconds"));
+    }
+
+    [Fact]
+    public void AnonymitySettings_Should_Fail_Validation_With_Invalid_MaxConcurrentCircuits()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { MaxConcurrentCircuits = 0 };
+
+        // Act
+        var isValid = settings.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxConcurrentCircuits"));
+    }
+
+    [Fact]
+    public void AnonymitySettings_Should_Fail_Validation_With_Invalid_CircuitLifetime()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { CircuitLifetimeSeconds = 30 };
+
+        // Act
+        var isValid = settings.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("CircuitLifetimeSeconds"));
+    }
+
+    [Fact]
+    public void AnonymitySettings_Should_Fail_Validation_With_Invalid_MinRelayNodes()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { MinRelayNodes = 2 };
+
+        // Act
+        var isValid = settings.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MinRelayNodes"));
+    }
+
+    [Fact]
+    public void AnonymitySettings_Should_Fail_Validation_With_Invalid_MaxCircuitRtt()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { MaxCircuitRttMs = 50 };
+
+        // Act
+        var isValid = settings.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("MaxCircuitRttMs"));
+    }
+
+    [Fact]
+    public void AnonymitySettings_Should_Fail_Validation_With_Invalid_CircuitHealthCheckInterval()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { CircuitHealthCheckIntervalSeconds = 5 };
+
+        // Act
+        var isValid = settings.IsValid(out var errors);
+
+        // Assert
+        isValid.Should().BeFalse();
+        errors.Should().Contain(e => e.Contains("CircuitHealthCheckIntervalSeconds"));
+    }
+
+    [Fact]
     public void ResourceLimits_Should_Have_Valid_Defaults()
     {
         // Arrange & Act

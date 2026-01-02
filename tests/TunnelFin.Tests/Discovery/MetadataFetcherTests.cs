@@ -191,5 +191,222 @@ public class MetadataFetcherTests
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await _fetcher.FetchMetadataAsync(null!));
     }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Parse_Season_And_Episode_From_Filename()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Breaking.Bad.S05E14.1080p.BluRay",
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Season.Should().Be(5);
+        metadata.Episode.Should().Be(14);
+        metadata.Source.Should().Be(MetadataSource.Filename);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Parse_Anime_Episode_Format()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Attack.on.Titan.S02E01.720p",
+            ContentType = ContentType.Anime
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Season.Should().Be(2);
+        metadata.Episode.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Clean_Title_From_Quality_Indicators()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Inception.2010.1080p.BluRay.x264.DTS.HEVC-GROUP",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Title.Should().NotContain("1080p");
+        metadata.Title.Should().NotContain("BluRay");
+        metadata.Title.Should().NotContain("x264");
+        metadata.Title.Should().NotContain("DTS");
+        metadata.Title.Should().NotContain("HEVC");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Set_Lower_Confidence_For_Filename_Parsing()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Test.Movie.2020.1080p",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.MatchConfidence.Should().Be(0.5);
+        metadata.Source.Should().Be(MetadataSource.Filename);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Set_FetchedAt_Timestamp()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            ContentType = ContentType.Movie
+        };
+
+        var beforeFetch = DateTime.UtcNow;
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        var afterFetch = DateTime.UtcNow;
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.FetchedAt.Should().BeOnOrAfter(beforeFetch);
+        metadata.FetchedAt.Should().BeOnOrBefore(afterFetch);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Store_Original_Title()
+    {
+        // Arrange
+        var originalTitle = "The.Matrix.1999.1080p.BluRay.x264";
+        var result = new SearchResult
+        {
+            Title = originalTitle,
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.OriginalTitle.Should().Be(originalTitle);
+    }
+
+    [Fact]
+    public void GetCachedFailureCount_Should_Return_Zero_Initially()
+    {
+        // Arrange
+        var fetcher = new MetadataFetcher(NullLogger.Instance);
+
+        // Act
+        var count = fetcher.GetCachedFailureCount();
+
+        // Assert
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public void ClearCache_Should_Reset_Failure_Count()
+    {
+        // Arrange
+        var fetcher = new MetadataFetcher(NullLogger.Instance);
+
+        // Act
+        fetcher.ClearCache();
+        var count = fetcher.GetCachedFailureCount();
+
+        // Assert
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_Logger_Is_Null()
+    {
+        // Act
+        var act = () => new MetadataFetcher(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Theory]
+    [InlineData("Movie.Title.2020.720p", 2020)]
+    [InlineData("Movie.Title.(2019).1080p", 2019)]
+    [InlineData("Movie.Title.[2018].BluRay", 2018)]
+    public async Task FetchMetadataAsync_Should_Extract_Year_From_Various_Formats(string title, int expectedYear)
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = title,
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Year.Should().Be(expectedYear);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Title_Without_Year()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie.Title.BluRay.x264",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Year.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Movie_Without_Episode_Info()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie.Title.2020.1080p",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Season.Should().BeNull();
+        metadata.Episode.Should().BeNull();
+    }
 }
 
