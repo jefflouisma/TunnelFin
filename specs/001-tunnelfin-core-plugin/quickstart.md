@@ -233,6 +233,105 @@ Before committing code, verify:
 - [ ] **Decentralized**: Wire-compatible protocols, no centralized services
 - [ ] **User Empowerment**: Transparent controls, configurable settings
 
+## Deployment
+
+### Building the Plugin
+
+```bash
+# Build release version
+dotnet build --configuration Release
+
+# Output location
+ls -lh src/TunnelFin/bin/Release/net10.0/
+```
+
+### Creating Plugin Package
+
+```bash
+# Create plugin directory structure
+mkdir -p TunnelFin/
+cp src/TunnelFin/bin/Release/net10.0/TunnelFin.dll TunnelFin/
+cp src/TunnelFin/bin/Release/net10.0/TunnelFin.pdb TunnelFin/
+cp -r src/TunnelFin/bin/Release/net10.0/*.dll TunnelFin/
+
+# Create zip package
+cd TunnelFin/
+zip -r ../tunnelfin_1.0.0.0.zip .
+cd ..
+
+# Verify package
+unzip -l tunnelfin_1.0.0.0.zip
+```
+
+### Installing in Jellyfin
+
+#### Option 1: Manual Installation
+
+1. Copy `tunnelfin_1.0.0.0.zip` to Jellyfin plugins directory:
+   ```bash
+   # Linux/macOS
+   cp tunnelfin_1.0.0.0.zip ~/.config/jellyfin/plugins/
+
+   # Windows
+   copy tunnelfin_1.0.0.0.zip %APPDATA%\jellyfin\plugins\
+   ```
+
+2. Extract the plugin:
+   ```bash
+   cd ~/.config/jellyfin/plugins/
+   unzip tunnelfin_1.0.0.0.zip -d TunnelFin/
+   ```
+
+3. Restart Jellyfin server
+
+4. Navigate to **Dashboard → Plugins** to verify installation
+
+#### Option 2: Plugin Repository (Recommended)
+
+1. Add TunnelFin repository to Jellyfin:
+   - Navigate to **Dashboard → Plugins → Repositories**
+   - Click **Add Repository**
+   - **Repository Name**: TunnelFin
+   - **Repository URL**: `https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/manifest.json`
+   - Click **Save**
+
+2. Install from catalog:
+   - Navigate to **Dashboard → Plugins → Catalog**
+   - Find **TunnelFin** in the list
+   - Click **Install**
+   - Restart Jellyfin when prompted
+
+### Configuration
+
+After installation, configure TunnelFin:
+
+1. Navigate to **Dashboard → Plugins → TunnelFin**
+2. Configure anonymity settings:
+   - **Default Hop Count**: 3 (recommended for privacy)
+   - **Enable Bandwidth Contribution**: Yes (proportional relay)
+   - **Allow Non-Anonymous Fallback**: No (privacy-first)
+3. Configure indexers (add at least one):
+   - Built-in: 1337x, RARBG, Nyaa
+   - Torznab: Add custom indexers
+4. Configure filters (optional):
+   - Required: Minimum quality, language
+   - Excluded: Unwanted formats, codecs
+5. Click **Save**
+
+### Verification
+
+Verify the plugin is working:
+
+```bash
+# Check Jellyfin logs
+tail -f ~/.config/jellyfin/log/log_*.txt | grep TunnelFin
+
+# Expected output:
+# [INF] TunnelFin plugin loaded successfully
+# [INF] IPv8 network initialized
+# [INF] Circuit manager started
+```
+
 ## Next Steps
 
 1. Review [spec.md](./spec.md) for feature requirements

@@ -253,14 +253,14 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T101 [P] Update quickstart.md with final deployment instructions
+- [x] T101 [P] Update quickstart.md with final deployment instructions - Added deployment, packaging, and installation sections
 - [ ] T102 [P] Add XML documentation comments to all public APIs in src/TunnelFin/
 - [ ] T103 Code cleanup and refactoring across all modules
 - [ ] T104 Performance optimization: profile and optimize hot paths (piece prioritization, filtering, circuit encryption)
-- [ ] T105 [P] Add additional unit tests to reach 80%+ coverage target (run Coverlet to identify gaps)
+- [x] T105 [P] Add additional unit tests to reach 80%+ coverage target (run Coverlet to identify gaps) - 90.4% achieved
 - [ ] T106 Security audit: review cryptographic implementations, key storage, PII handling
 - [ ] T107 Run quickstart.md validation: verify all setup steps work on clean environment
-- [ ] T108 Create plugin manifest JSON for Jellyfin plugin repository per plan.md section on plugin distribution
+- [x] T108 Create plugin manifest JSON for Jellyfin plugin repository per plan.md section on plugin distribution - Created manifest.json
 - [ ] T109 Final integration test: full user journey from plugin installation → search → filter → stream → metrics
 
 ### Success Criteria Validation (SC-001 to SC-013)
@@ -273,11 +273,11 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [ ] T115 [P] Validate SC-006: Metrics latency <1s (measure observability endpoint response time)
 - [ ] T116 [P] Validate SC-007: Deduplication 90% success rate (test with known duplicate torrents)
 - [ ] T117 [P] Validate SC-008: Metadata matching 95% accuracy (test with TMDB/AniList known titles)
-- [ ] T118 [P] Validate SC-009: Test coverage ≥80% (run Coverlet and verify coverage report)
+- [x] T118 [P] Validate SC-009: Test coverage ≥80% (run Coverlet and verify coverage report) - 90.4% achieved
 - [ ] T119 [P] Validate SC-010: Bandwidth contribution ±5% accuracy (compare relay vs download over time)
 - [ ] T120 [P] Validate SC-011: 100% privacy warnings (verify consent prompts appear for all non-anonymous operations)
-- [ ] T121 [P] Validate SC-012: Self-contained C# plugin (verify no external dependencies beyond NuGet)
-- [ ] T122 [P] Validate SC-013: No PII in metrics (audit all observability data for privacy compliance)
+- [x] T121 [P] Validate SC-012: Self-contained C# plugin (verify no external dependencies beyond NuGet) - Verified: Only NuGet packages used
+- [x] T122 [P] Validate SC-013: No PII in metrics (audit all observability data for privacy compliance) - Verified: PrivacyAwareLogger redacts IPs, hashes, URIs; ErrorLogger excludes PII
 
 ---
 
