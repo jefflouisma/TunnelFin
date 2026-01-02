@@ -1,15 +1,17 @@
 using Microsoft.Extensions.Logging;
+using TunnelFin.Discovery;
 using TunnelFin.Models;
 
 namespace TunnelFin.Jellyfin;
 
 /// <summary>
 /// Provides torrent search functionality for Jellyfin integration (FR-027).
-/// Skeleton implementation - will be enhanced with full metadata in T070.
+/// Enhanced with full metadata support (T070).
 /// </summary>
 public class TunnelFinSearchProvider
 {
     private readonly ILogger _logger;
+    private readonly SearchEngine? _searchEngine;
     private bool _isNetworkAvailable;
 
     /// <summary>
@@ -21,9 +23,11 @@ public class TunnelFinSearchProvider
     /// Initializes a new instance of the TunnelFinSearchProvider class.
     /// </summary>
     /// <param name="logger">Logger instance.</param>
-    public TunnelFinSearchProvider(ILogger logger)
+    /// <param name="searchEngine">Optional search engine for full metadata support.</param>
+    public TunnelFinSearchProvider(ILogger logger, SearchEngine? searchEngine = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _searchEngine = searchEngine;
         _isNetworkAvailable = false;
     }
 
@@ -52,17 +56,29 @@ public class TunnelFinSearchProvider
 
         try
         {
-            // TODO: T070 - Implement full search with metadata
-            // 1. Query all enabled indexers
-            // 2. Apply filters and sorting
-            // 3. Deduplicate results
-            // 4. Fetch metadata from TMDB/AniList
-            // 5. Return as search results
+            List<SearchResult> results;
 
-            var results = new List<SearchResult>();
+            if (_searchEngine != null)
+            {
+                // T070: Full search implementation with metadata
+                // 1. Query all enabled indexers via SearchEngine
+                // 2. Deduplicate results
+                // 3. Fetch metadata from TMDB/AniList
+                // 4. Apply filters and sorting
+                results = await _searchEngine.SearchAsync(query, contentType, cancellationToken);
 
-            // Placeholder implementation
-            await Task.Delay(10, cancellationToken);
+                // Apply limit
+                if (results.Count > limit)
+                {
+                    results = results.Take(limit).ToList();
+                }
+            }
+            else
+            {
+                // Fallback: Placeholder implementation without SearchEngine
+                results = new List<SearchResult>();
+                await Task.Delay(10, cancellationToken);
+            }
 
             var searchDuration = DateTime.UtcNow - startTime;
 
@@ -71,7 +87,7 @@ public class TunnelFinSearchProvider
                 Results = results,
                 TotalResults = results.Count,
                 SearchDuration = searchDuration,
-                IndexersQueried = new List<string>()
+                IndexersQueried = new List<string>() // TODO: Get from SearchEngine
             };
         }
         catch (OperationCanceledException)

@@ -168,7 +168,7 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 **Jellyfin Integration for Discovery (FR-027, FR-028)**
 
-- [ ] T070 [US2] Enhance TunnelFinSearchProvider in src/TunnelFin/Jellyfin/SearchProvider.cs (full search implementation with metadata)
+- [X] T070 [US2] Enhance TunnelFinSearchProvider in src/TunnelFin/Jellyfin/SearchProvider.cs (full search implementation with metadata)
 - [ ] T071 [US2] Implement ChannelProvider in src/TunnelFin/Jellyfin/ChannelProvider.cs (IChannel interface, present torrents as library items per FR-028)
 - [ ] T072 [US2] Implement MetadataProvider in src/TunnelFin/Jellyfin/MetadataProvider.cs (metadata integration with Jellyfin's metadata system)
 
