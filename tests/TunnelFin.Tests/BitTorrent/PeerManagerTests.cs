@@ -172,6 +172,182 @@ public class PeerManagerTests
         manager.ActiveConnectionCount.Should().Be(0);
     }
 
+    [Fact]
+    public void Constructor_Should_Throw_When_CircuitManager_Is_Null()
+    {
+        // Arrange & Act
+        var act = () => new PeerManager(null!, maxPeersPerTorrent: 50);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("circuitManager");
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_MaxPeersPerTorrent_Is_Less_Than_1()
+    {
+        // Arrange & Act
+        var act = () => new PeerManager(_circuitManager, maxPeersPerTorrent: 0);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*at least 1*");
+    }
+
+    [Fact]
+    public void Constructor_Should_Set_MaxPeersPerTorrent()
+    {
+        // Arrange & Act
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 100);
+
+        // Assert
+        manager.MaxPeersPerTorrent.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task AddPeer_Should_Use_Existing_Circuit_When_Available()
+    {
+        // Arrange
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 50);
+        var torrentId = Guid.NewGuid();
+
+        // Add peers and create circuit
+        for (int i = 1; i <= 3; i++)
+        {
+            var peer = CreateTestPeer($"192.168.1.{i}", 6881);
+            _circuitManager.AddPeer(peer);
+        }
+        var circuit = await _circuitManager.CreateCircuitAsync(hopCount: 1);
+
+        // Act - Should use existing circuit
+        var result = await manager.AddPeerAsync(torrentId, "10.0.0.1", 6882);
+
+        // Assert
+        result.Should().BeTrue("should use existing circuit and add peer");
+        manager.GetPeerCount(torrentId).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AddPeer_Should_Return_False_When_Circuit_Creation_Fails()
+    {
+        // Arrange
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 50);
+        var torrentId = Guid.NewGuid();
+        // No peers available for circuit creation
+
+        // Act
+        var result = await manager.AddPeerAsync(torrentId, "10.0.0.1", 6882);
+
+        // Assert
+        result.Should().BeFalse("should fail when no circuits available");
+    }
+
+    [Fact]
+    public async Task AddPeer_Should_Throw_When_Disposed()
+    {
+        // Arrange
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 50);
+        manager.Dispose();
+
+        // Act
+        var act = async () => await manager.AddPeerAsync(Guid.NewGuid(), "10.0.0.1", 6882);
+
+        // Assert
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void GetPeerCount_Should_Return_Zero_For_Unknown_Torrent()
+    {
+        // Arrange
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 50);
+
+        // Act
+        var count = manager.GetPeerCount(Guid.NewGuid());
+
+        // Assert
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public void GetPeers_Should_Return_Empty_For_Unknown_Torrent()
+    {
+        // Arrange
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 50);
+
+        // Act
+        var peers = manager.GetPeers(Guid.NewGuid());
+
+        // Assert
+        peers.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RemovePeer_Should_Handle_Non_Existent_Peer()
+    {
+        // Arrange
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 50);
+
+        // Act
+        var act = () => manager.RemovePeer("10.0.0.1", 6882);
+
+        // Assert
+        act.Should().NotThrow("removing non-existent peer should be safe");
+    }
+
+    [Fact]
+    public void Dispose_Should_Clear_All_Connections()
+    {
+        // Arrange
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 50);
+
+        // Act
+        manager.Dispose();
+
+        // Assert
+        manager.ActiveConnectionCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void Dispose_Should_Allow_Multiple_Calls()
+    {
+        // Arrange
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 50);
+
+        // Act
+        manager.Dispose();
+        var act = () => manager.Dispose();
+
+        // Assert
+        act.Should().NotThrow("multiple dispose calls should be safe");
+    }
+
+    [Fact]
+    public async Task AddPeer_Should_Use_Best_Circuit_When_Multiple_Available()
+    {
+        // Arrange
+        var manager = new PeerManager(_circuitManager, maxPeersPerTorrent: 50);
+        var torrentId = Guid.NewGuid();
+
+        // Create multiple circuits
+        for (int i = 1; i <= 5; i++)
+        {
+            var peer = CreateTestPeer($"192.168.1.{i}", 6881);
+            _circuitManager.AddPeer(peer);
+        }
+        var circuit1 = await _circuitManager.CreateCircuitAsync(hopCount: 1);
+        var circuit2 = await _circuitManager.CreateCircuitAsync(hopCount: 1);
+
+        // Act - Should select circuit with fewest connections
+        var result1 = await manager.AddPeerAsync(torrentId, "10.0.0.1", 6882);
+        var result2 = await manager.AddPeerAsync(torrentId, "10.0.0.2", 6883);
+
+        // Assert
+        result1.Should().BeTrue();
+        result2.Should().BeTrue();
+        manager.GetPeerCount(torrentId).Should().Be(2);
+    }
+
     private TunnelFin.Networking.IPv8.Peer CreateTestPeer(string ip, int port)
     {
         // Convert IP string to uint (big-endian)

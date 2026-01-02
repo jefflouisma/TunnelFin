@@ -139,10 +139,159 @@ public class PiecePrioritizerTests
         // Arrange & Act
         var act1 = () => new PiecePrioritizer(totalPieces: 0, bufferWindowSize: 10);
         var act2 = () => new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 0);
+        var act3 = () => new PiecePrioritizer(totalPieces: -1, bufferWindowSize: 10);
+        var act4 = () => new PiecePrioritizer(totalPieces: 100, bufferWindowSize: -1);
 
         // Assert
         act1.Should().Throw<ArgumentException>("total pieces must be positive");
         act2.Should().Throw<ArgumentException>("buffer window size must be positive");
+        act3.Should().Throw<ArgumentException>("total pieces must be positive");
+        act4.Should().Throw<ArgumentException>("buffer window size must be positive");
+    }
+
+    [Fact]
+    public void GetPiecePriority_Should_Return_Distance_For_Pieces_In_Window()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+
+        // Act
+        var priority0 = prioritizer.GetPiecePriority(pieceIndex: 5, currentPosition: 5);
+        var priority1 = prioritizer.GetPiecePriority(pieceIndex: 6, currentPosition: 5);
+        var priority5 = prioritizer.GetPiecePriority(pieceIndex: 10, currentPosition: 5);
+
+        // Assert
+        priority0.Should().Be(0, "piece at current position has highest priority");
+        priority1.Should().Be(1, "next piece has priority 1");
+        priority5.Should().Be(5, "piece 5 ahead has priority 5");
+    }
+
+    [Fact]
+    public void GetPiecePriority_Should_Return_MaxValue_For_Pieces_Behind_Position()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+
+        // Act
+        var priority = prioritizer.GetPiecePriority(pieceIndex: 4, currentPosition: 5);
+
+        // Assert
+        priority.Should().Be(int.MaxValue, "pieces behind playback have lowest priority");
+    }
+
+    [Fact]
+    public void GetPiecePriority_Should_Return_Low_Priority_For_Pieces_Beyond_Window()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+
+        // Act
+        var priority = prioritizer.GetPiecePriority(pieceIndex: 20, currentPosition: 5);
+
+        // Assert
+        priority.Should().Be(int.MaxValue - 1, "pieces beyond window have low priority");
+    }
+
+    [Fact]
+    public void IsInBufferWindow_Should_Return_True_For_Pieces_In_Window()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+
+        // Act
+        var inWindow1 = prioritizer.IsInBufferWindow(pieceIndex: 5, currentPosition: 5);
+        var inWindow2 = prioritizer.IsInBufferWindow(pieceIndex: 10, currentPosition: 5);
+        var inWindow3 = prioritizer.IsInBufferWindow(pieceIndex: 14, currentPosition: 5);
+
+        // Assert
+        inWindow1.Should().BeTrue("piece at current position is in window");
+        inWindow2.Should().BeTrue("piece 5 ahead is in window");
+        inWindow3.Should().BeTrue("piece 9 ahead is in window");
+    }
+
+    [Fact]
+    public void IsInBufferWindow_Should_Return_False_For_Pieces_Behind_Position()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+
+        // Act
+        var inWindow = prioritizer.IsInBufferWindow(pieceIndex: 4, currentPosition: 5);
+
+        // Assert
+        inWindow.Should().BeFalse("pieces behind position are not in window");
+    }
+
+    [Fact]
+    public void IsInBufferWindow_Should_Return_False_For_Pieces_Beyond_Window()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+
+        // Act
+        var inWindow = prioritizer.IsInBufferWindow(pieceIndex: 15, currentPosition: 5);
+
+        // Assert
+        inWindow.Should().BeFalse("pieces beyond window are not in window");
+    }
+
+    [Fact]
+    public void IsInBufferWindow_Should_Return_False_For_Pieces_Beyond_Total()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+
+        // Act
+        var inWindow = prioritizer.IsInBufferWindow(pieceIndex: 100, currentPosition: 95);
+
+        // Assert
+        inWindow.Should().BeFalse("pieces beyond total pieces are not in window");
+    }
+
+    [Fact]
+    public void GetNextPieces_Should_Handle_Null_AvailablePieces()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+
+        // Act
+        var nextPieces = prioritizer.GetNextPieces(null!, currentPosition: 0);
+
+        // Assert
+        nextPieces.Should().BeEmpty("null available pieces should return empty");
+    }
+
+    [Fact]
+    public void GetNextPieces_Should_Respect_Total_Pieces_Boundary()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+        var availablePieces = Enumerable.Range(98, 5).ToArray(); // 98, 99, 100, 101, 102
+
+        // Act
+        var nextPieces = prioritizer.GetNextPieces(availablePieces, currentPosition: 98);
+
+        // Assert
+        nextPieces.Should().NotContain(100, "piece 100 is beyond total pieces");
+        nextPieces.Should().NotContain(101, "piece 101 is beyond total pieces");
+        nextPieces.Should().NotContain(102, "piece 102 is beyond total pieces");
+        nextPieces.Should().Contain(98);
+        nextPieces.Should().Contain(99);
+    }
+
+    [Fact]
+    public void GetNextPieces_Should_Return_Sequential_Order()
+    {
+        // Arrange
+        var prioritizer = new PiecePrioritizer(totalPieces: 100, bufferWindowSize: 10);
+        var availablePieces = new[] { 7, 5, 9, 6, 8 }; // Unordered
+
+        // Act
+        var nextPieces = prioritizer.GetNextPieces(availablePieces, currentPosition: 5);
+
+        // Assert
+        nextPieces.Should().BeInAscendingOrder("pieces should be returned in sequential order");
+        nextPieces.Should().Equal(5, 6, 7, 8, 9);
     }
 }
 

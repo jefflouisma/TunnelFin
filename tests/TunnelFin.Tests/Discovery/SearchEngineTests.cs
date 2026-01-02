@@ -139,5 +139,109 @@ public class SearchEngineTests
         await Assert.ThrowsAsync<OperationCanceledException>(
             async () => await _searchEngine.SearchAsync(query, ContentType.Movie, cts.Token));
     }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_Logger_Is_Null()
+    {
+        // Arrange & Act
+        var act = () => new SearchEngine(
+            null!,
+            _indexerManager,
+            _deduplicator,
+            _metadataFetcher);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("logger");
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_IndexerManager_Is_Null()
+    {
+        // Arrange & Act
+        var act = () => new SearchEngine(
+            NullLogger.Instance,
+            null!,
+            _deduplicator,
+            _metadataFetcher);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("indexerManager");
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_Deduplicator_Is_Null()
+    {
+        // Arrange & Act
+        var act = () => new SearchEngine(
+            NullLogger.Instance,
+            _indexerManager,
+            null!,
+            _metadataFetcher);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("deduplicator");
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_MetadataFetcher_Is_Null()
+    {
+        // Arrange & Act
+        var act = () => new SearchEngine(
+            NullLogger.Instance,
+            _indexerManager,
+            _deduplicator,
+            null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("metadataFetcher");
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Throw_When_Query_Is_Whitespace()
+    {
+        // Arrange
+        var query = "   ";
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _searchEngine.SearchAsync(query, ContentType.Movie));
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Different_ContentTypes()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Act
+        var movieResults = await _searchEngine.SearchAsync(query, ContentType.Movie);
+        var tvResults = await _searchEngine.SearchAsync(query, ContentType.TVShow);
+        var animeResults = await _searchEngine.SearchAsync(query, ContentType.Anime);
+
+        // Assert
+        movieResults.Should().NotBeNull();
+        tvResults.Should().NotBeNull();
+        animeResults.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Return_Deduplicated_Results()
+    {
+        // Arrange
+        var query = "Test";
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().NotBeNull();
+        // Results should be deduplicated (no duplicate info hashes)
+        var infoHashes = results.Select(r => r.InfoHash).Where(h => !string.IsNullOrEmpty(h)).ToList();
+        infoHashes.Should().OnlyHaveUniqueItems("results should be deduplicated");
+    }
 }
 

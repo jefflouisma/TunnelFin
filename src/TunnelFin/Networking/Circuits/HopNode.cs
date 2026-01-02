@@ -8,7 +8,7 @@ namespace TunnelFin.Networking.Circuits;
 /// </summary>
 public class HopNode : IDisposable
 {
-    private readonly Key? _sharedSecret;
+    private SharedSecret? _sharedSecret;
     private bool _disposed;
 
     /// <summary>
@@ -92,7 +92,7 @@ public class HopNode : IDisposable
         var theirPublicKey = NSec.Cryptography.PublicKey.Import(algorithm, ephemeralPublicKey, KeyBlobFormat.RawPublicKey);
 
         // Derive shared secret using X25519
-        using var sharedSecretBytes = algorithm.Agree(ourEphemeralPrivateKey, theirPublicKey);
+        _sharedSecret = algorithm.Agree(ourEphemeralPrivateKey, theirPublicKey);
 
         // Store shared secret for encryption/decryption
         // Note: In production, this would be used with a symmetric cipher (e.g., ChaCha20-Poly1305)
