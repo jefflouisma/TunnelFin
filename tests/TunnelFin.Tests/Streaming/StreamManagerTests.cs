@@ -311,5 +311,151 @@ public class StreamManagerTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*explicit user consent*", "should reject after consent is revoked");
     }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_MaxConcurrentStreams_Is_Zero()
+    {
+        // Act
+        var act = () => new StreamManager(maxConcurrentStreams: 0);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("maxConcurrentStreams");
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_MaxConcurrentStreams_Is_Negative()
+    {
+        // Act
+        var act = () => new StreamManager(maxConcurrentStreams: -1);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("maxConcurrentStreams");
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_StreamInitializationTimeout_Is_Too_Small()
+    {
+        // Act
+        var act = () => new StreamManager(streamInitializationTimeoutSeconds: 4);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("streamInitializationTimeoutSeconds");
+    }
+
+    [Fact]
+    public void Constructor_Should_Set_Properties()
+    {
+        // Act
+        var manager = new StreamManager(maxConcurrentStreams: 5, streamInitializationTimeoutSeconds: 120);
+
+        // Assert
+        manager.MaxConcurrentStreams.Should().Be(5);
+        manager.StreamInitializationTimeoutSeconds.Should().Be(120);
+    }
+
+    [Fact]
+    public async Task GetStreamEndpoint_Should_Throw_When_Stream_Not_Found()
+    {
+        // Arrange
+        var manager = new StreamManager();
+        var nonExistentStreamId = Guid.NewGuid();
+
+        // Act
+        var act = () => manager.GetStreamEndpoint(nonExistentStreamId);
+
+        // Assert
+        act.Should().Throw<KeyNotFoundException>()
+            .WithMessage($"*{nonExistentStreamId}*");
+    }
+
+    [Fact]
+    public async Task GetStreamHealth_Should_Throw_When_Stream_Not_Found()
+    {
+        // Arrange
+        var manager = new StreamManager();
+        var nonExistentStreamId = Guid.NewGuid();
+
+        // Act
+        var act = () => manager.GetStreamHealth(nonExistentStreamId);
+
+        // Assert
+        act.Should().Throw<KeyNotFoundException>()
+            .WithMessage($"*{nonExistentStreamId}*");
+    }
+
+    [Fact]
+    public async Task StopStreamAsync_Should_Not_Throw_When_Stream_Not_Found()
+    {
+        // Arrange
+        var manager = new StreamManager();
+        var nonExistentStreamId = Guid.NewGuid();
+
+        // Act
+        var act = async () => await manager.StopStreamAsync(nonExistentStreamId);
+
+        // Assert
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Use_AnonymousFirst_By_Default()
+    {
+        // Arrange
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+
+        // Act
+        var streamId = await manager.CreateStreamAsync(torrentId, 0);
+
+        // Assert
+        streamId.Should().NotBeEmpty("stream should be created with default anonymous-first routing");
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Allow_Whitespace_UserId_For_Anonymous_Mode()
+    {
+        // Arrange
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+
+        // Act
+        var streamId = await manager.CreateStreamAsync(torrentId, 0, RoutingMode.AnonymousFirst, userId: "   ");
+
+        // Assert
+        streamId.Should().NotBeEmpty("anonymous mode should not require valid user ID");
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Reject_NonAnonymous_With_Empty_UserId()
+    {
+        // Arrange
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+
+        // Act
+        var act = async () => await manager.CreateStreamAsync(torrentId, 0, RoutingMode.NonAnonymous, userId: "");
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithParameterName("userId");
+    }
+
+    [Fact]
+    public async Task CreateStream_Should_Reject_NonAnonymous_With_Whitespace_UserId()
+    {
+        // Arrange
+        var manager = new StreamManager();
+        var torrentId = Guid.NewGuid();
+
+        // Act
+        var act = async () => await manager.CreateStreamAsync(torrentId, 0, RoutingMode.NonAnonymous, userId: "   ");
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithParameterName("userId");
+    }
 }
 
