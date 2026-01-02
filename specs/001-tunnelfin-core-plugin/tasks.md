@@ -108,7 +108,7 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [X] T037 [P] [US1] Implement TorrentEngine in src/TunnelFin/BitTorrent/TorrentEngine.cs (MonoTorrent integration, engine initialization per FR-007)
 - [X] T038 [P] [US1] Implement TorrentStream in src/TunnelFin/BitTorrent/TorrentStream.cs (wraps MonoTorrent.Client.TorrentManager with streaming-specific logic, uses MonoTorrent.Streaming.StreamProvider for HTTP endpoint creation, manages torrent state per data-model.md)
 - [X] T039 [P] [US1] Implement PiecePrioritizer in src/TunnelFin/BitTorrent/PiecePrioritizer.cs (sequential piece selection per FR-008, research.md custom prioritizer pattern)
-- [ ] T040 [P] [US1] Implement PeerManager in src/TunnelFin/BitTorrent/PeerManager.cs (peer connection management, routing through circuits)
+- [X] T040 [P] [US1] Implement PeerManager in src/TunnelFin/BitTorrent/PeerManager.cs (peer connection management, routing through circuits)
 - [X] T041 [US1] Implement StreamManager in src/TunnelFin/Streaming/StreamManager.cs (HTTP endpoint management, concurrent stream limits per FR-013, FR-015)
 - [X] T042 [P] [US1] Implement HttpStreamEndpoint in src/TunnelFin/Streaming/HttpStreamEndpoint.cs (HTTP range request handling per FR-009, contracts/streaming-api.yaml)
 - [X] T043 [P] [US1] Implement BufferManager in src/TunnelFin/Streaming/BufferManager.cs (buffer status tracking, >10s buffer per FR-010, SC-003)
