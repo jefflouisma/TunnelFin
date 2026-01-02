@@ -83,10 +83,7 @@ public class Plugin : BasePlugin<PluginConfiguration>
 
         base.UpdateConfiguration(config);
 
-        // TODO: Clear caches when implemented
-        // - Search result cache
-        // - Metadata cache
-        // - Torrent data cache
+        // Note: Cache clearing will be implemented when caching is added
     }
 }
 

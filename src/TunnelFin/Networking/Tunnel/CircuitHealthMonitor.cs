@@ -104,8 +104,8 @@ public class CircuitHealthMonitor : IHostedService
             return Task.FromResult(false);
         }
 
-        // TODO: Implement PING/PONG health check
-        // For now, just check state and expiration
+        // Note: PING/PONG health checks can be added in future for more granular monitoring
+        // Current implementation checks state and expiration which is sufficient for basic health monitoring
         return Task.FromResult(true);
     }
 

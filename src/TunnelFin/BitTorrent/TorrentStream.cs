@@ -11,6 +11,7 @@ public class TorrentStreamWrapper
 {
     private readonly Guid _torrentId;
     private readonly string _magnetLink;
+    private readonly DateTime _addedAt;
     private TorrentState _state;
     private long _downloadedBytes;
     private long _totalBytes;
@@ -44,6 +45,7 @@ public class TorrentStreamWrapper
     {
         _torrentId = torrentId;
         _magnetLink = magnetLink;
+        _addedAt = DateTime.UtcNow;
         _state = TorrentState.Initializing;
     }
 
@@ -67,7 +69,7 @@ public class TorrentStreamWrapper
             DownloadSpeedBytesPerSecond = _downloadSpeed,
             UploadSpeedBytesPerSecond = _uploadSpeed,
             PeerCount = _peerCount,
-            AddedAt = DateTime.UtcNow // TODO: Track actual add time
+            AddedAt = _addedAt
         };
     }
 

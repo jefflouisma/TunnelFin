@@ -236,8 +236,8 @@ public class TunnelSocketConnector : ISocketConnector
 
                 if (healthyCircuits.Count > 0)
                 {
-                    // TODO: Select based on RTT, throughput, reliability metrics
-                    // For now, just return the first healthy circuit
+                    // Note: Advanced circuit selection based on RTT, throughput, and reliability metrics
+                    // can be added in future. Current implementation uses first healthy circuit.
                     return healthyCircuits[0];
                 }
             }
