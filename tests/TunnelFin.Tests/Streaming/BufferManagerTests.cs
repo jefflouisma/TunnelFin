@@ -165,5 +165,135 @@ public class BufferManagerTests
         // Assert
         status.BufferedSeconds.Should().Be(0, "removed stream should reset to initial state");
     }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_MinimumBufferSeconds_Is_Negative()
+    {
+        // Act
+        var act = () => new BufferManager(minimumBufferSeconds: -1);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("minimumBufferSeconds");
+    }
+
+    [Fact]
+    public void Constructor_Should_Allow_Zero_MinimumBufferSeconds()
+    {
+        // Act
+        var manager = new BufferManager(minimumBufferSeconds: 0);
+
+        // Assert
+        manager.MinimumBufferSeconds.Should().Be(0);
+    }
+
+    [Fact]
+    public void UpdatePlaybackPosition_Should_Not_Throw_When_Stream_Not_Found()
+    {
+        // Arrange
+        var manager = new BufferManager();
+        var nonExistentStreamId = Guid.NewGuid();
+
+        // Act
+        var act = () => manager.UpdatePlaybackPosition(nonExistentStreamId, consumedBytes: 1000);
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void UpdatePlaybackPosition_Should_Not_Go_Below_Zero()
+    {
+        // Arrange
+        var manager = new BufferManager();
+        var streamId = Guid.NewGuid();
+        manager.UpdateBuffer(streamId, bufferedBytes: 1000, downloadSpeedBytesPerSecond: 100);
+
+        // Act - Consume more than buffered
+        manager.UpdatePlaybackPosition(streamId, consumedBytes: 2000);
+        var status = manager.GetBufferStatus(streamId);
+
+        // Assert
+        status.BufferedBytes.Should().Be(0, "buffered bytes should not go below zero");
+    }
+
+    [Fact]
+    public void UpdatePlaybackPosition_Should_Recalculate_BufferedSeconds()
+    {
+        // Arrange
+        var manager = new BufferManager();
+        var streamId = Guid.NewGuid();
+        manager.UpdateBuffer(streamId, bufferedBytes: 2_000_000, downloadSpeedBytesPerSecond: 100_000);
+
+        // Act
+        manager.UpdatePlaybackPosition(streamId, consumedBytes: 1_000_000);
+        var status = manager.GetBufferStatus(streamId);
+
+        // Assert
+        status.BufferedSeconds.Should().BeApproximately(10, 0.1, "should recalculate based on remaining bytes");
+    }
+
+    [Fact]
+    public void UpdatePlaybackPosition_Should_Handle_Zero_Download_Speed()
+    {
+        // Arrange
+        var manager = new BufferManager();
+        var streamId = Guid.NewGuid();
+        manager.UpdateBuffer(streamId, bufferedBytes: 2_000_000, downloadSpeedBytesPerSecond: 0);
+
+        // Act
+        manager.UpdatePlaybackPosition(streamId, consumedBytes: 500_000);
+        var status = manager.GetBufferStatus(streamId);
+
+        // Assert
+        status.BufferedSeconds.Should().Be(0, "zero speed should result in 0 buffered seconds");
+    }
+
+    [Fact]
+    public void RemoveStream_Should_Not_Throw_When_Stream_Not_Found()
+    {
+        // Arrange
+        var manager = new BufferManager();
+        var nonExistentStreamId = Guid.NewGuid();
+
+        // Act
+        var act = () => manager.RemoveStream(nonExistentStreamId);
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void UpdateBuffer_Should_Update_LastUpdated_Timestamp()
+    {
+        // Arrange
+        var manager = new BufferManager();
+        var streamId = Guid.NewGuid();
+        var beforeUpdate = DateTime.UtcNow;
+
+        // Act
+        manager.UpdateBuffer(streamId, bufferedBytes: 1_000_000, downloadSpeedBytesPerSecond: 100_000);
+        var status = manager.GetBufferStatus(streamId);
+
+        // Assert
+        status.LastUpdated.Should().BeOnOrAfter(beforeUpdate);
+    }
+
+    [Fact]
+    public void UpdatePlaybackPosition_Should_Update_LastUpdated_Timestamp()
+    {
+        // Arrange
+        var manager = new BufferManager();
+        var streamId = Guid.NewGuid();
+        manager.UpdateBuffer(streamId, bufferedBytes: 2_000_000, downloadSpeedBytesPerSecond: 100_000);
+        var beforeUpdate = DateTime.UtcNow;
+
+        // Act
+        manager.UpdatePlaybackPosition(streamId, consumedBytes: 500_000);
+        var status = manager.GetBufferStatus(streamId);
+
+        // Assert
+        status.LastUpdated.Should().BeOnOrAfter(beforeUpdate);
+    }
 }
 
