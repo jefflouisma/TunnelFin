@@ -150,5 +150,173 @@ public class HandshakeTests
         parsed.Should().NotBeNull();
         parsed.Identifier.Should().Be(identifier);
     }
+
+
+    [Fact]
+    public void IntroductionRequestPayload_Should_Support_Equality()
+    {
+        // Arrange
+        var payload1 = new IntroductionRequestPayload(
+            ("192.168.1.100", 8000),
+            ("192.168.1.50", 8001),
+            ("203.0.113.50", 8001),
+            12345);
+
+        var payload2 = new IntroductionRequestPayload(
+            ("192.168.1.100", 8000),
+            ("192.168.1.50", 8001),
+            ("203.0.113.50", 8001),
+            12345);
+
+        var payload3 = new IntroductionRequestPayload(
+            ("192.168.1.101", 8000),
+            ("192.168.1.50", 8001),
+            ("203.0.113.50", 8001),
+            12345);
+
+        // Act & Assert
+        payload1.Should().Be(payload2);
+        payload1.Should().NotBe(payload3);
+        payload1.Equals(payload2).Should().BeTrue();
+        payload1.Equals(payload3).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IntroductionRequestPayload_Should_Have_Consistent_HashCode()
+    {
+        // Arrange
+        var payload1 = new IntroductionRequestPayload(
+            ("192.168.1.100", 8000),
+            ("192.168.1.50", 8001),
+            ("203.0.113.50", 8001),
+            12345);
+
+        var payload2 = new IntroductionRequestPayload(
+            ("192.168.1.100", 8000),
+            ("192.168.1.50", 8001),
+            ("203.0.113.50", 8001),
+            12345);
+
+        // Act & Assert
+        payload1.GetHashCode().Should().Be(payload2.GetHashCode());
+    }
+
+    [Fact]
+    public void IntroductionRequestPayload_Should_Support_ToString()
+    {
+        // Arrange
+        var payload = new IntroductionRequestPayload(
+            ("192.168.1.100", 8000),
+            ("192.168.1.50", 8001),
+            ("203.0.113.50", 8001),
+            12345);
+
+        // Act
+        var str = payload.ToString();
+
+        // Assert
+        str.Should().NotBeNullOrEmpty();
+        str.Should().Contain("IntroductionRequestPayload");
+    }
+
+    [Fact]
+    public void IntroductionRequestPayload_Should_Support_Deconstruction()
+    {
+        // Arrange
+        var payload = new IntroductionRequestPayload(
+            ("192.168.1.100", 8000),
+            ("192.168.1.50", 8001),
+            ("203.0.113.50", 8001),
+            12345);
+
+        // Act
+        var (dest, lan, wan, id) = payload;
+
+        // Assert
+        dest.Should().Be(("192.168.1.100", 8000));
+        lan.Should().Be(("192.168.1.50", 8001));
+        wan.Should().Be(("203.0.113.50", 8001));
+        id.Should().Be(12345);
+    }
+
+    [Fact]
+    public void PunctureRequestPayload_Should_Support_Equality()
+    {
+        // Arrange
+        var payload1 = new PunctureRequestPayload(
+            ("192.168.1.75", 8002),
+            ("203.0.113.75", 8002),
+            12345);
+
+        var payload2 = new PunctureRequestPayload(
+            ("192.168.1.75", 8002),
+            ("203.0.113.75", 8002),
+            12345);
+
+        var payload3 = new PunctureRequestPayload(
+            ("192.168.1.76", 8002),
+            ("203.0.113.75", 8002),
+            12345);
+
+        // Act & Assert
+        payload1.Should().Be(payload2);
+        payload1.Should().NotBe(payload3);
+        payload1.Equals(payload2).Should().BeTrue();
+        payload1.Equals(payload3).Should().BeFalse();
+    }
+
+    [Fact]
+    public void PunctureRequestPayload_Should_Have_Consistent_HashCode()
+    {
+        // Arrange
+        var payload1 = new PunctureRequestPayload(
+            ("192.168.1.75", 8002),
+            ("203.0.113.75", 8002),
+            12345);
+
+        var payload2 = new PunctureRequestPayload(
+            ("192.168.1.75", 8002),
+            ("203.0.113.75", 8002),
+            12345);
+
+        // Act & Assert
+        payload1.GetHashCode().Should().Be(payload2.GetHashCode());
+    }
+
+    [Fact]
+    public void PunctureRequestPayload_Should_Support_ToString()
+    {
+        // Arrange
+        var payload = new PunctureRequestPayload(
+            ("192.168.1.75", 8002),
+            ("203.0.113.75", 8002),
+            12345);
+
+        // Act
+        var str = payload.ToString();
+
+        // Assert
+        str.Should().NotBeNullOrEmpty();
+        str.Should().Contain("PunctureRequestPayload");
+    }
+
+    [Fact]
+    public void PunctureRequestPayload_Should_Support_Deconstruction()
+    {
+        // Arrange
+        var payload = new PunctureRequestPayload(
+            ("192.168.1.75", 8002),
+            ("203.0.113.75", 8002),
+            12345);
+
+        // Act
+        var (lan, wan, id) = payload;
+
+        // Assert
+        lan.Should().Be(("192.168.1.75", 8002));
+        wan.Should().Be(("203.0.113.75", 8002));
+        id.Should().Be(12345);
+    }
+
 }
 

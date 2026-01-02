@@ -178,7 +178,7 @@ public class BlockSerializerTests
         // Arrange
         var creatorIdentity = new NetworkIdentity();
         var linkIdentity = new NetworkIdentity();
-        
+
         var block = new TrustChainBlock
         {
             CreatorPublicKey = creatorIdentity.PublicKey,
@@ -199,6 +199,265 @@ public class BlockSerializerTests
 
         // Assert
         isValid.Should().BeFalse("signature should not verify for modified block");
+    }
+
+    [Fact]
+    public void SerializeForSigning_Should_Throw_When_Creator_Key_Invalid()
+    {
+        // Arrange
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = new byte[16], // Invalid: should be 32 bytes
+            LinkPublicKey = new byte[32],
+            SequenceNumber = 1,
+            PreviousHash = new byte[32],
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = new byte[] { 1, 2, 3 }
+        };
+
+        // Act
+        var act = () => BlockSerializer.SerializeForSigning(block);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("Creator public key must be 32 bytes");
+    }
+
+    [Fact]
+    public void SerializeForSigning_Should_Throw_When_Link_Key_Invalid()
+    {
+        // Arrange
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = new byte[32],
+            LinkPublicKey = new byte[16], // Invalid: should be 32 bytes
+            SequenceNumber = 1,
+            PreviousHash = new byte[32],
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = new byte[] { 1, 2, 3 }
+        };
+
+        // Act
+        var act = () => BlockSerializer.SerializeForSigning(block);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("Link public key must be 32 bytes");
+    }
+
+    [Fact]
+    public void SerializeForSigning_Should_Throw_When_Previous_Hash_Invalid()
+    {
+        // Arrange
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = new byte[32],
+            LinkPublicKey = new byte[32],
+            SequenceNumber = 1,
+            PreviousHash = new byte[16], // Invalid: should be 32 bytes
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = new byte[] { 1, 2, 3 }
+        };
+
+        // Act
+        var act = () => BlockSerializer.SerializeForSigning(block);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("Previous hash must be 32 bytes");
+    }
+
+    [Fact]
+    public void SerializeForSigning_Should_Throw_When_Message_Too_Large()
+    {
+        // Arrange
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = new byte[32],
+            LinkPublicKey = new byte[32],
+            SequenceNumber = 1,
+            PreviousHash = new byte[32],
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = new byte[ushort.MaxValue + 1] // Too large: exceeds ushort.MaxValue
+        };
+
+        // Act
+        var act = () => BlockSerializer.SerializeForSigning(block);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("Message length exceeds maximum");
+    }
+
+    [Fact]
+    public void SignBlock_Should_Throw_When_Block_Is_Null()
+    {
+        // Arrange
+        var creatorIdentity = new NetworkIdentity();
+
+        // Act
+        var act = () => BlockSerializer.SignBlock(null!, creatorIdentity);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("block");
+    }
+
+    [Fact]
+    public void SignBlock_Should_Throw_When_Identity_Is_Null()
+    {
+        // Arrange
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = new byte[32],
+            LinkPublicKey = new byte[32],
+            SequenceNumber = 1,
+            PreviousHash = new byte[32],
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = new byte[] { 1, 2, 3 }
+        };
+
+        // Act
+        var act = () => BlockSerializer.SignBlock(block, null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("creatorIdentity");
+    }
+
+    [Fact]
+    public void SignBlock_Should_Throw_When_Creator_Key_Mismatch()
+    {
+        // Arrange
+        var creatorIdentity = new NetworkIdentity();
+        var otherIdentity = new NetworkIdentity();
+
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = otherIdentity.PublicKey, // Mismatch!
+            LinkPublicKey = new byte[32],
+            SequenceNumber = 1,
+            PreviousHash = new byte[32],
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = new byte[] { 1, 2, 3 }
+        };
+
+        // Act
+        var act = () => BlockSerializer.SignBlock(block, creatorIdentity);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("Block creator public key does not match identity");
+    }
+
+    [Fact]
+    public void VerifyBlock_Should_Throw_When_Block_Is_Null()
+    {
+        // Act
+        var act = () => BlockSerializer.VerifyBlock(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("block");
+    }
+
+    [Fact]
+    public void VerifyBlock_Should_Return_False_When_Signature_Is_Null()
+    {
+        // Arrange
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = new byte[32],
+            LinkPublicKey = new byte[32],
+            SequenceNumber = 1,
+            PreviousHash = new byte[32],
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = new byte[] { 1, 2, 3 },
+            Signature = null!
+        };
+
+        // Act
+        var isValid = BlockSerializer.VerifyBlock(block);
+
+        // Assert
+        isValid.Should().BeFalse("signature is null");
+    }
+
+    [Fact]
+    public void VerifyBlock_Should_Return_False_When_Signature_Invalid_Length()
+    {
+        // Arrange
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = new byte[32],
+            LinkPublicKey = new byte[32],
+            SequenceNumber = 1,
+            PreviousHash = new byte[32],
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = new byte[] { 1, 2, 3 },
+            Signature = new byte[32] // Invalid: should be 64 bytes
+        };
+
+        // Act
+        var isValid = BlockSerializer.VerifyBlock(block);
+
+        // Assert
+        isValid.Should().BeFalse("signature length is invalid");
+    }
+
+    [Fact]
+    public void SerializeBlock_Should_Handle_Empty_Message()
+    {
+        // Arrange
+        var creatorIdentity = new NetworkIdentity();
+        var linkIdentity = new NetworkIdentity();
+
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = creatorIdentity.PublicKey,
+            LinkPublicKey = linkIdentity.PublicKey,
+            SequenceNumber = 1,
+            PreviousHash = new byte[32],
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = Array.Empty<byte>()
+        };
+
+        // Act
+        var serialized = BlockSerializer.SerializeBlock(block);
+
+        // Assert
+        serialized.Should().NotBeNull();
+        // Expected size: 32 + 32 + 4 + 32 + 8 + 2 + 0 + 64 = 174 bytes
+        serialized.Should().HaveCount(174);
+    }
+
+    [Fact]
+    public void SerializeBlock_Should_Include_Signature_When_Present()
+    {
+        // Arrange
+        var creatorIdentity = new NetworkIdentity();
+        var linkIdentity = new NetworkIdentity();
+
+        var block = new TrustChainBlock
+        {
+            CreatorPublicKey = creatorIdentity.PublicKey,
+            LinkPublicKey = linkIdentity.PublicKey,
+            SequenceNumber = 1,
+            PreviousHash = new byte[32],
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Message = new byte[] { 1, 2, 3 }
+        };
+
+        BlockSerializer.SignBlock(block, creatorIdentity);
+
+        // Act
+        var serialized = BlockSerializer.SerializeBlock(block);
+
+        // Assert
+        serialized.Should().NotBeNull();
+        // Last 64 bytes should be the signature
+        var signatureFromSerialized = serialized.Skip(serialized.Length - 64).ToArray();
+        signatureFromSerialized.Should().Equal(block.Signature);
     }
 }
 
