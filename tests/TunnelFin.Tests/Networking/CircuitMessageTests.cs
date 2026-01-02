@@ -17,7 +17,7 @@ public class CircuitMessageTests
     {
         // Arrange
         uint circuitId = 0x12345678;
-        uint identifier = 0xABCDEF01;
+        ushort identifier = 0xABCD;  // Changed to ushort (16-bit)
         var nodePublicKey = new byte[32];
         var ephemeralKey = new byte[32];
         for (int i = 0; i < 32; i++)
@@ -56,15 +56,16 @@ public class CircuitMessageTests
     {
         // Arrange
         uint circuitId = 0x87654321;
+        ushort identifier = 0x1234;  // Added identifier parameter
         var ephemeralKey = new byte[32];
-        var auth = new byte[16];
-        var candidateList = new byte[10];
+        var auth = new byte[32];  // Changed to 32 bytes (fixed size per py-ipv8)
+        var candidatesEnc = new byte[10];  // Renamed from candidateList
         for (int i = 0; i < 32; i++) ephemeralKey[i] = (byte)i;
-        for (int i = 0; i < 16; i++) auth[i] = (byte)(i + 100);
-        for (int i = 0; i < 10; i++) candidateList[i] = (byte)(i + 200);
+        for (int i = 0; i < 32; i++) auth[i] = (byte)(i + 100);  // Fill 32 bytes
+        for (int i = 0; i < 10; i++) candidatesEnc[i] = (byte)(i + 200);
 
         // Act
-        var message = CircuitMessage.SerializeCreated(circuitId, ephemeralKey, auth, candidateList);
+        var message = CircuitMessage.SerializeCreated(circuitId, identifier, ephemeralKey, auth, candidatesEnc);
 
         // Assert
         message.Should().NotBeNull();
@@ -80,7 +81,7 @@ public class CircuitMessageTests
         var nodePublicKey = new byte[32];
         uint ipv4Address = 0x7F000001; // 127.0.0.1
         ushort port = 8080;
-        uint identifier = 0x11223344;
+        ushort identifier = 0x1122;  // Changed to ushort (16-bit)
         for (int i = 0; i < 32; i++) nodePublicKey[i] = (byte)i;
 
         // Act
@@ -97,15 +98,16 @@ public class CircuitMessageTests
     {
         // Arrange
         uint circuitId = 0xCAFEBABE;
+        ushort identifier = 0x5678;  // Added identifier parameter
         var ephemeralKey = new byte[32];
-        var auth = new byte[8];
-        var candidateList = new byte[5];
+        var auth = new byte[32];  // Changed to 32 bytes (fixed size per py-ipv8)
+        var candidatesEnc = new byte[5];  // Renamed from candidateList
         for (int i = 0; i < 32; i++) ephemeralKey[i] = (byte)(255 - i);
-        for (int i = 0; i < 8; i++) auth[i] = (byte)(i + 50);
-        for (int i = 0; i < 5; i++) candidateList[i] = (byte)(i + 150);
+        for (int i = 0; i < 32; i++) auth[i] = (byte)(i + 50);  // Fill 32 bytes
+        for (int i = 0; i < 5; i++) candidatesEnc[i] = (byte)(i + 150);
 
         // Act
-        var message = CircuitMessage.SerializeExtended(circuitId, ephemeralKey, auth, candidateList);
+        var message = CircuitMessage.SerializeExtended(circuitId, identifier, ephemeralKey, auth, candidatesEnc);
 
         // Assert
         message.Should().NotBeNull();
@@ -118,7 +120,7 @@ public class CircuitMessageTests
     {
         // Arrange
         uint circuitId = 1;
-        uint identifier = 2;
+        ushort identifier = 2;  // Changed to ushort (16-bit)
         var nodePublicKey = new byte[32];
         var ephemeralKey = new byte[32];
 
@@ -126,8 +128,8 @@ public class CircuitMessageTests
         var message = CircuitMessage.SerializeCreate(circuitId, identifier, nodePublicKey, ephemeralKey);
 
         // Assert - exact size with no padding
-        // 4 (circuit ID) + 4 (identifier) + 2 (node key length) + 32 (node key) + 2 (ephemeral key length) + 32 (ephemeral key) = 76
-        message.Length.Should().Be(76, "Message should have no padding between fields");
+        // 4 (circuit ID) + 2 (identifier) + 2 (node key length) + 32 (node key) + 2 (ephemeral key length) + 32 (ephemeral key) = 74
+        message.Length.Should().Be(74, "Message should have no padding between fields");  // Changed from 76 to 74
     }
 
     [Fact]
@@ -135,25 +137,23 @@ public class CircuitMessageTests
     {
         // Arrange
         uint circuitId = 1;
+        ushort identifier = 2;  // Added identifier parameter
         var ephemeralKey = new byte[32];
-        var auth = new byte[16];
-        var candidateList = new byte[10];
+        var auth = new byte[32];  // Changed to 32 bytes (fixed size per py-ipv8)
+        var candidatesEnc = new byte[10];  // Renamed from candidateList
 
         // Act
-        var message = CircuitMessage.SerializeCreated(circuitId, ephemeralKey, auth, candidateList);
+        var message = CircuitMessage.SerializeCreated(circuitId, identifier, ephemeralKey, auth, candidatesEnc);
 
         // Assert - check length prefixes
-        // Offset 4: ephemeral key length prefix (2 bytes)
-        var ephemeralKeyLength = BinaryPrimitives.ReadUInt16BigEndian(message.AsSpan(4, 2));
+        // Offset 4 (circuit ID) + 2 (identifier) = 6: ephemeral key length prefix (2 bytes)
+        var ephemeralKeyLength = BinaryPrimitives.ReadUInt16BigEndian(message.AsSpan(6, 2));
         ephemeralKeyLength.Should().Be(32, "Ephemeral key length should be 2-byte big-endian");
 
-        // Offset 4 + 2 + 32 = 38: auth length prefix (2 bytes)
-        var authLength = BinaryPrimitives.ReadUInt16BigEndian(message.AsSpan(38, 2));
-        authLength.Should().Be(16, "Auth length should be 2-byte big-endian");
-
-        // Offset 38 + 2 + 16 = 56: candidate list length prefix (2 bytes)
-        var candidateListLength = BinaryPrimitives.ReadUInt16BigEndian(message.AsSpan(56, 2));
-        candidateListLength.Should().Be(10, "Candidate list length should be 2-byte big-endian");
+        // NOTE: Auth is FIXED 32 bytes with NO length prefix per py-ipv8 format!
+        // Offset 6 + 2 + 32 = 40: auth data (32 bytes, no prefix)
+        // Offset 40 + 32 = 72: candidates_enc data (10 bytes, no prefix)
+        message.Length.Should().Be(4 + 2 + 2 + 32 + 32 + 10, "Total message size should be correct");
     }
 
     [Theory]

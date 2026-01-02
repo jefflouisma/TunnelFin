@@ -1,0 +1,86 @@
+{
+  "version": "1.0",
+  "generator": "generate_ipv8_vectors.py",
+  "description": "IPv8 protocol test vectors for C# cross-language verification",
+  "pyipv8_available": true,
+  "basic_serialization": {
+    "uint32_examples": [
+      {
+        "value": 305419896,
+        "format": ">I",
+        "hex": "12345678",
+        "description": "Circuit ID example"
+      },
+      {
+        "value": 2882343476,
+        "format": ">I",
+        "hex": "abcd1234",
+        "description": "Circuit ID example 2"
+      }
+    ],
+    "uint16_examples": [
+      {
+        "value": 8080,
+        "format": ">H",
+        "hex": "1f90",
+        "description": "Port number example"
+      },
+      {
+        "value": 4660,
+        "format": ">H",
+        "hex": "1234",
+        "description": "Port number example 2"
+      }
+    ],
+    "uint64_examples": [
+      {
+        "value": 1311768467463790320,
+        "format": ">Q",
+        "hex": "123456789abcdef0",
+        "description": "Timestamp example"
+      }
+    ],
+    "boolean_examples": [
+      {
+        "value": true,
+        "format": "?",
+        "hex": "01",
+        "description": "Boolean true"
+      },
+      {
+        "value": false,
+        "format": "?",
+        "hex": "00",
+        "description": "Boolean false"
+      }
+    ]
+  },
+  "messages": {
+    "create_message": {
+      "message_type": "CREATE",
+      "description": "IPv8 circuit CREATE message (format: I H varlenH varlenH)",
+      "fields": {
+        "circuit_id": "0x12345678",
+        "identifier": "0xABCD",
+        "node_public_key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "ephemeral_key": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+      },
+      "hex": "12345678abcd0020000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f0020202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "length": 74,
+      "note": "identifier is 16-bit (ushort), not 32-bit (uint)"
+    },
+    "created_message": {
+      "message_type": "CREATED",
+      "description": "IPv8 circuit CREATED message",
+      "fields": {
+        "circuit_id": "0x12345678",
+        "identifier": "0xABCD",
+        "ephemeral_key": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+        "auth": "746573745f617574685f64617461",
+        "candidates_enc_length": 0
+      },
+      "hex": "12345678abcd0020202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f746573745f617574685f64617461000000000000000000000000000000000000",
+      "length": 72
+    }
+  }
+}

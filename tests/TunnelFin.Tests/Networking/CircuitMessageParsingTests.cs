@@ -15,7 +15,7 @@ public class CircuitMessageParsingTests
     {
         // Arrange - simulate a CREATE message (would come from Python in real scenario)
         uint expectedCircuitId = 0x12345678;
-        uint expectedIdentifier = 0xABCDEF01;
+        ushort expectedIdentifier = 0xABCD;  // Changed to ushort (16-bit)
         var expectedNodeKey = new byte[32];
         var expectedEphemeralKey = new byte[32];
         for (int i = 0; i < 32; i++)
@@ -40,22 +40,24 @@ public class CircuitMessageParsingTests
     {
         // Arrange
         uint expectedCircuitId = 0x87654321;
+        ushort expectedIdentifier = 0x1234;  // Added identifier parameter
         var expectedEphemeralKey = new byte[32];
-        var expectedAuth = new byte[16];
-        var expectedCandidateList = new byte[10];
+        var expectedAuth = new byte[32];  // Changed to 32 bytes (fixed size per py-ipv8)
+        var expectedCandidatesEnc = new byte[10];  // Renamed from candidateList
         for (int i = 0; i < 32; i++) expectedEphemeralKey[i] = (byte)i;
-        for (int i = 0; i < 16; i++) expectedAuth[i] = (byte)(i + 100);
-        for (int i = 0; i < 10; i++) expectedCandidateList[i] = (byte)(i + 200);
-        var message = CircuitMessage.SerializeCreated(expectedCircuitId, expectedEphemeralKey, expectedAuth, expectedCandidateList);
+        for (int i = 0; i < 32; i++) expectedAuth[i] = (byte)(i + 100);  // Fill 32 bytes
+        for (int i = 0; i < 10; i++) expectedCandidatesEnc[i] = (byte)(i + 200);
+        var message = CircuitMessage.SerializeCreated(expectedCircuitId, expectedIdentifier, expectedEphemeralKey, expectedAuth, expectedCandidatesEnc);
 
         // Act
-        var (circuitId, ephemeralKey, auth, candidateList) = CircuitMessage.ParseCreated(message);
+        var (circuitId, identifier, ephemeralKey, auth, candidatesEnc) = CircuitMessage.ParseCreated(message);
 
         // Assert
         circuitId.Should().Be(expectedCircuitId);
+        identifier.Should().Be(expectedIdentifier);
         ephemeralKey.Should().Equal(expectedEphemeralKey);
         auth.Should().Equal(expectedAuth);
-        candidateList.Should().Equal(expectedCandidateList);
+        candidatesEnc.Should().Equal(expectedCandidatesEnc);
     }
 
     [Fact]
@@ -66,7 +68,7 @@ public class CircuitMessageParsingTests
         var expectedNodeKey = new byte[32];
         uint expectedIpv4 = 0x7F000001;
         ushort expectedPort = 8080;
-        uint expectedIdentifier = 0x11223344;
+        ushort expectedIdentifier = 0x1122;  // Changed to ushort (16-bit)
         for (int i = 0; i < 32; i++) expectedNodeKey[i] = (byte)i;
         var message = CircuitMessage.SerializeExtend(expectedCircuitId, expectedNodeKey, expectedIpv4, expectedPort, expectedIdentifier);
 
@@ -86,22 +88,24 @@ public class CircuitMessageParsingTests
     {
         // Arrange
         uint expectedCircuitId = 0xCAFEBABE;
+        ushort expectedIdentifier = 0x5678;  // Added identifier parameter
         var expectedEphemeralKey = new byte[32];
-        var expectedAuth = new byte[8];
-        var expectedCandidateList = new byte[5];
+        var expectedAuth = new byte[32];  // Changed to 32 bytes (fixed size per py-ipv8)
+        var expectedCandidatesEnc = new byte[5];  // Renamed from candidateList
         for (int i = 0; i < 32; i++) expectedEphemeralKey[i] = (byte)(255 - i);
-        for (int i = 0; i < 8; i++) expectedAuth[i] = (byte)(i + 50);
-        for (int i = 0; i < 5; i++) expectedCandidateList[i] = (byte)(i + 150);
-        var message = CircuitMessage.SerializeExtended(expectedCircuitId, expectedEphemeralKey, expectedAuth, expectedCandidateList);
+        for (int i = 0; i < 32; i++) expectedAuth[i] = (byte)(i + 50);  // Fill 32 bytes
+        for (int i = 0; i < 5; i++) expectedCandidatesEnc[i] = (byte)(i + 150);
+        var message = CircuitMessage.SerializeExtended(expectedCircuitId, expectedIdentifier, expectedEphemeralKey, expectedAuth, expectedCandidatesEnc);
 
         // Act
-        var (circuitId, ephemeralKey, auth, candidateList) = CircuitMessage.ParseExtended(message);
+        var (circuitId, identifier, ephemeralKey, auth, candidatesEnc) = CircuitMessage.ParseExtended(message);
 
         // Assert
         circuitId.Should().Be(expectedCircuitId);
+        identifier.Should().Be(expectedIdentifier);
         ephemeralKey.Should().Equal(expectedEphemeralKey);
         auth.Should().Equal(expectedAuth);
-        candidateList.Should().Equal(expectedCandidateList);
+        candidatesEnc.Should().Equal(expectedCandidatesEnc);
     }
 
     [Fact]
@@ -109,7 +113,8 @@ public class CircuitMessageParsingTests
     {
         // Arrange
         uint expectedCircuitId = 0xABCD1234;
-        var message = CircuitMessage.SerializeCreate(expectedCircuitId, 1, new byte[32], new byte[32]);
+        ushort identifier = 1;  // Changed to ushort
+        var message = CircuitMessage.SerializeCreate(expectedCircuitId, identifier, new byte[32], new byte[32]);
 
         // Act
         var circuitId = CircuitMessage.ExtractCircuitId(message);
@@ -124,10 +129,11 @@ public class CircuitMessageParsingTests
         // Arrange
         var expectedEphemeralKey = new byte[32];
         for (int i = 0; i < 32; i++) expectedEphemeralKey[i] = (byte)(i + 100);
-        var message = CircuitMessage.SerializeCreated(1, expectedEphemeralKey, new byte[0], new byte[0]);
+        var auth = new byte[32];  // Changed to 32 bytes
+        var message = CircuitMessage.SerializeCreated(1, 1, expectedEphemeralKey, auth, new byte[0]);
 
         // Act
-        var (_, ephemeralKey, _, _) = CircuitMessage.ParseCreated(message);
+        var (_, _, ephemeralKey, _, _) = CircuitMessage.ParseCreated(message);  // Updated tuple deconstruction
 
         // Assert
         ephemeralKey.Should().Equal(expectedEphemeralKey);
