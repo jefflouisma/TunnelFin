@@ -69,6 +69,21 @@ public class Peer
         : 0.5;
 
     /// <summary>
+    /// RTT variance in milliseconds (for jitter calculation).
+    /// </summary>
+    public double RttVariance { get; set; }
+
+    /// <summary>
+    /// Protocol version supported by this peer.
+    /// </summary>
+    public ProtocolVersion? ProtocolVersion { get; set; }
+
+    /// <summary>
+    /// NAT type of this peer (if known).
+    /// </summary>
+    public NatType NatType { get; set; } = NatType.Unknown;
+
+    /// <summary>
     /// Creates a new peer.
     /// </summary>
     /// <param name="publicKey">Public key of the peer (32 bytes).</param>

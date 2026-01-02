@@ -1,5 +1,10 @@
 using System.Buffers.Binary;
+using System.Net;
+using Microsoft.Extensions.Logging;
+using NSec.Cryptography;
+using TunnelFin.Core;
 using TunnelFin.Networking.Identity;
+using TunnelFin.Networking.Transport;
 
 namespace TunnelFin.Networking.IPv8;
 
@@ -10,12 +15,17 @@ namespace TunnelFin.Networking.IPv8;
 public class Handshake
 {
     private readonly NetworkIdentity _identity;
+    private readonly ITransport? _transport;
+    private readonly PrivacyAwareLogger? _logger;
 
     // Message type IDs from py-ipv8
     private const byte MSG_INTRODUCTION_REQUEST = 246;
     private const byte MSG_INTRODUCTION_RESPONSE = 245;
     private const byte MSG_PUNCTURE_REQUEST = 250;
     private const byte MSG_PUNCTURE = 249;
+
+    // Signature algorithm
+    private static readonly SignatureAlgorithm Ed25519 = SignatureAlgorithm.Ed25519;
 
     /// <summary>
     /// Initializes a new instance of the Handshake class.
@@ -24,6 +34,19 @@ public class Handshake
     public Handshake(NetworkIdentity identity)
     {
         _identity = identity ?? throw new ArgumentNullException(nameof(identity));
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the Handshake class with transport.
+    /// </summary>
+    /// <param name="identity">Network identity for signing messages.</param>
+    /// <param name="transport">Transport layer for sending/receiving messages.</param>
+    /// <param name="logger">Logger for privacy-aware logging.</param>
+    public Handshake(NetworkIdentity identity, ITransport transport, ILogger logger)
+    {
+        _identity = identity ?? throw new ArgumentNullException(nameof(identity));
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _logger = new PrivacyAwareLogger(logger ?? throw new ArgumentNullException(nameof(logger)));
     }
 
     /// <summary>
@@ -123,6 +146,103 @@ public class Handshake
         BinaryPrimitives.WriteUInt16BigEndian(buffer.AsSpan(offset), identifier);
 
         return buffer;
+    }
+
+    /// <summary>
+    /// Signs a message with Ed25519 signature (FR-010, FR-011).
+    /// </summary>
+    /// <param name="messageType">Message type byte.</param>
+    /// <param name="payload">Message payload.</param>
+    /// <returns>Signed message: [type(1) + payload + signature(64)].</returns>
+    public byte[] SignMessage(byte messageType, byte[] payload)
+    {
+        if (payload == null)
+            throw new ArgumentNullException(nameof(payload));
+
+        // Message format: [type(1) + payload + signature(64)]
+        var message = new byte[1 + payload.Length + 64];
+        message[0] = messageType;
+        Array.Copy(payload, 0, message, 1, payload.Length);
+
+        // Sign: type + payload
+        var dataToSign = new byte[1 + payload.Length];
+        dataToSign[0] = messageType;
+        Array.Copy(payload, 0, dataToSign, 1, payload.Length);
+
+        var signature = _identity.Sign(dataToSign);
+        Array.Copy(signature, 0, message, 1 + payload.Length, 64);
+
+        return message;
+    }
+
+    /// <summary>
+    /// Verifies a signed message (FR-011).
+    /// </summary>
+    /// <param name="message">Signed message.</param>
+    /// <param name="publicKey">Public key to verify against.</param>
+    /// <returns>True if signature is valid, false otherwise.</returns>
+    public bool VerifyMessage(byte[] message, byte[] publicKey)
+    {
+        if (message == null)
+            throw new ArgumentNullException(nameof(message));
+        if (publicKey == null)
+            throw new ArgumentNullException(nameof(publicKey));
+        if (message.Length < 65) // At least: type(1) + signature(64)
+            return false;
+
+        try
+        {
+            // Extract signature (last 64 bytes)
+            var signature = new byte[64];
+            Array.Copy(message, message.Length - 64, signature, 0, 64);
+
+            // Data to verify: everything except signature
+            var dataToVerify = new byte[message.Length - 64];
+            Array.Copy(message, 0, dataToVerify, 0, message.Length - 64);
+
+            // Import public key and verify
+            var key = PublicKey.Import(Ed25519, publicKey, KeyBlobFormat.RawPublicKey);
+            return Ed25519.Verify(key, dataToVerify, signature);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sends an introduction-request message over the transport (FR-009).
+    /// </summary>
+    public async Task<bool> SendIntroductionRequestAsync(
+        IPEndPoint destination,
+        (string ip, int port) sourceLanAddress,
+        (string ip, int port) sourceWanAddress,
+        ushort identifier,
+        CancellationToken cancellationToken = default)
+    {
+        if (_transport == null)
+            throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
+
+        var payload = CreateIntroductionRequest(
+            (destination.Address.ToString(), destination.Port),
+            sourceLanAddress,
+            sourceWanAddress,
+            identifier);
+
+        var signedMessage = SignMessage(MSG_INTRODUCTION_REQUEST, payload);
+
+        try
+        {
+            await _transport.SendAsync(signedMessage, destination, cancellationToken);
+            _logger?.LogDebug("Sent introduction-request to {Destination}, identifier={Identifier}",
+                destination, identifier);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Failed to send introduction-request", ex);
+            return false;
+        }
     }
 
     /// <summary>
