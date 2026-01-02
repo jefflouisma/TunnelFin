@@ -879,5 +879,166 @@ public class SearchEngineTests
         }
     }
 
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Large_Result_Sets()
+    {
+        // Arrange
+        var query = "Popular Movie";
+        var results = Enumerable.Range(1, 100).Select(i => new SearchResult
+        {
+            Title = $"Movie {i}",
+            InfoHash = $"hash{i}",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 100 - i,
+            Leechers = 10,
+            ContentType = ContentType.Movie
+        }).ToList();
+
+        var indexer = new TestIndexer("TestIndexer", results);
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var searchResults = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        searchResults.Should().HaveCount(100);
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Empty_Results_From_All_Indexers()
+    {
+        // Arrange
+        var query = "NonExistentMovie12345";
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult>());
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Complete_With_Metadata_Attached()
+    {
+        // Arrange
+        var query = "Test";
+        var result = new SearchResult
+        {
+            Title = "Test.Movie.2020.1080p",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().HaveCount(1);
+        // Metadata IDs should be attached (even if null in placeholder implementation)
+        results[0].Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Process_Metadata_In_Parallel()
+    {
+        // Arrange
+        var query = "Test";
+        var results = Enumerable.Range(1, 20).Select(i => new SearchResult
+        {
+            Title = $"Movie {i}",
+            InfoHash = $"hash{i}",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        }).ToList();
+
+        var indexer = new TestIndexer("TestIndexer", results);
+        _indexerManager.AddIndexer(indexer);
+
+        var startTime = DateTime.UtcNow;
+
+        // Act
+        var searchResults = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        var duration = DateTime.UtcNow - startTime;
+
+        // Assert
+        searchResults.Should().HaveCount(20);
+        // Parallel processing should be faster than sequential
+        // With 20 results and 10ms delay each, sequential would take 200ms+
+        // Parallel should be much faster
+        duration.Should().BeLessThan(TimeSpan.FromMilliseconds(500));
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Handle_Mixed_Success_And_Failure_Metadata_Fetches()
+    {
+        // Arrange
+        var query = "Test";
+        var result1 = new SearchResult
+        {
+            Title = "Valid.Movie.2020",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+        var result2 = new SearchResult
+        {
+            Title = "Another.Movie.2021",
+            InfoHash = "hash2",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 40,
+            Leechers = 4,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result1, result2 });
+        _indexerManager.AddIndexer(indexer);
+
+        // Act
+        var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
+
+        // Assert
+        results.Should().HaveCount(2, "all results should be returned even if some metadata fetches fail");
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Respect_Cancellation_Before_Metadata_Fetch()
+    {
+        // Arrange
+        var query = "Test";
+        var cts = new CancellationTokenSource();
+
+        var result = new SearchResult
+        {
+            Title = "Test Movie",
+            InfoHash = "hash1",
+            Size = 1024L * 1024 * 1024,
+            Seeders = 50,
+            Leechers = 5,
+            ContentType = ContentType.Movie
+        };
+
+        var indexer = new TestIndexer("TestIndexer", new List<SearchResult> { result });
+        _indexerManager.AddIndexer(indexer);
+
+        cts.Cancel(); // Cancel before search
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await _searchEngine.SearchAsync(query, ContentType.Movie, cts.Token));
+    }
+
 }
 

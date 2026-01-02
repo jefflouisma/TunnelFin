@@ -268,7 +268,8 @@ public class MetadataFetcherTests
 
         // Assert
         metadata.Should().NotBeNull();
-        metadata.MatchConfidence.Should().Be(0.5);
+        // T069: Enhanced confidence calculation - base 0.5 + 0.2 for year = 0.7
+        metadata.MatchConfidence.Should().Be(0.7);
         metadata.Source.Should().Be(MetadataSource.Filename);
     }
 
@@ -732,7 +733,7 @@ public class MetadataFetcherTests
     }
 
     [Fact]
-    public async Task FetchMetadataAsync_Should_Set_Match_Confidence_To_0_5()
+    public async Task FetchMetadataAsync_Should_Set_Enhanced_Match_Confidence()
     {
         // Arrange
         var result = new SearchResult
@@ -745,7 +746,240 @@ public class MetadataFetcherTests
         var metadata = await _fetcher.FetchMetadataAsync(result);
 
         // Assert
-        metadata.MatchConfidence.Should().Be(0.5, "filename parsing has lower confidence");
+        // T069: Enhanced confidence calculation - base 0.5 + 0.2 for year = 0.7
+        metadata.MatchConfidence.Should().Be(0.7, "filename parsing with year has enhanced confidence");
+    }
+
+    // T069: Enhanced title/year/episode matching tests
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Validate_Year_Range()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Ancient Movie 1850",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Year.Should().BeNull("year 1850 is outside valid range");
+        metadata.MatchConfidence.Should().BeLessThan(0.7, "confidence should be reduced for invalid year");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Accept_Valid_Year_In_Parentheses()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Great Movie (2020) 1080p",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Year.Should().Be(2020);
+        metadata.Title.Should().NotContain("2020");
+        metadata.MatchConfidence.Should().Be(0.7, "year in parentheses adds confidence");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Parse_Multiple_Episode_Formats()
+    {
+        // Arrange - Test 1x05 format
+        var result1 = new SearchResult
+        {
+            Title = "Show Name 1x05 Episode Title",
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata1 = await _fetcher.FetchMetadataAsync(result1);
+
+        // Assert
+        metadata1.Season.Should().Be(1);
+        metadata1.Episode.Should().Be(5);
+        metadata1.MatchConfidence.Should().Be(0.7, "season/episode adds confidence");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Parse_Season_Episode_Text_Format()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Show Name Season 2 Episode 10",
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Season.Should().Be(2);
+        metadata.Episode.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Validate_Season_Range()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Show Name S99E01",
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Season.Should().BeNull("season 99 is outside valid range");
+        metadata.MatchConfidence.Should().BeLessThan(0.7, "confidence should be reduced for invalid season");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Validate_Episode_Range()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Show Name S01E999",
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Episode.Should().Be(999, "episode 999 is at the upper limit");
+        // Confidence should still be good since it's within range
+        metadata.MatchConfidence.Should().BeGreaterThan(0.5);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Remove_Extended_Quality_Indicators()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie.Title.2020.UHD.BRRip.WEBRip.H.264.DD5.1.TrueHD.Atmos",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Title.ToLower().Should().NotContain("uhd");
+        metadata.Title.ToLower().Should().NotContain("brrip");
+        metadata.Title.ToLower().Should().NotContain("webrip");
+        metadata.Title.ToLower().Should().NotContain("h.264");
+        metadata.Title.ToLower().Should().NotContain("dd5.1");
+        metadata.Title.ToLower().Should().NotContain("truehd");
+        metadata.Title.ToLower().Should().NotContain("atmos");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Remove_Release_Tags()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie.Title.2020.REPACK.PROPER.EXTENDED.UNRATED",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Title.ToLower().Should().NotContain("repack");
+        metadata.Title.ToLower().Should().NotContain("proper");
+        metadata.Title.ToLower().Should().NotContain("extended");
+        metadata.Title.ToLower().Should().NotContain("unrated");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Cap_Confidence_At_95_Percent()
+    {
+        // Arrange - Perfect scenario with year and season/episode
+        var result = new SearchResult
+        {
+            Title = "Perfect Show (2020) S01E01",
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.MatchConfidence.Should().BeLessThanOrEqualTo(0.95, "confidence should be capped at 95%");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Fallback_To_Original_Title_If_Cleaned_Is_Empty()
+    {
+        // Arrange - Title with only quality indicators
+        var result = new SearchResult
+        {
+            Title = "1080p.BluRay.x264",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Title.Should().NotBeNullOrWhiteSpace();
+        metadata.MatchConfidence.Should().BeLessThan(0.5, "confidence should be significantly reduced");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Year_In_Brackets()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie Title [2021] 1080p",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Year.Should().Be(2021);
+        metadata.Title.Should().NotContain("2021");
+        metadata.Title.Should().NotContain("[");
+        metadata.Title.Should().NotContain("]");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Calculate_High_Confidence_For_Complete_Metadata()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "TV Show Name (2020) S02E15 1080p",
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Year.Should().Be(2020);
+        metadata.Season.Should().Be(2);
+        metadata.Episode.Should().Be(15);
+        // Base 0.5 + 0.2 (year) + 0.2 (season/episode) = 0.9
+        metadata.MatchConfidence.Should().BeApproximately(0.9, 0.01);
     }
 
 }
