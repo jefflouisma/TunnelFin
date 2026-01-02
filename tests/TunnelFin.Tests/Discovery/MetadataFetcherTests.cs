@@ -408,5 +408,164 @@ public class MetadataFetcherTests
         metadata.Season.Should().BeNull();
         metadata.Episode.Should().BeNull();
     }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Remove_Bracketed_Content_From_Title()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie.Title.[Release.Group].2020.1080p",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Title.Should().NotContain("[");
+        metadata.Title.Should().NotContain("]");
+        metadata.Title.Should().NotContain("Release.Group");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Replace_Dots_Dashes_Underscores_With_Spaces()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie_Title-Name.2020",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Title.Should().NotContain(".");
+        metadata.Title.Should().NotContain("-");
+        metadata.Title.Should().NotContain("_");
+        metadata.Title.Should().Contain(" ");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Collapse_Multiple_Spaces()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie    Title    2020",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Title.Should().NotContain("  "); // No double spaces
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Trim_Title()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "  Movie.Title.2020  ",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Title.Should().NotStartWith(" ");
+        metadata.Title.Should().NotEndWith(" ");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Generate_Unique_Id()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie.Title.2020",
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata1 = await _fetcher.FetchMetadataAsync(result);
+        var metadata2 = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata1.Id.Should().NotBe(Guid.Empty);
+        metadata2.Id.Should().NotBe(Guid.Empty);
+        metadata1.Id.Should().NotBe(metadata2.Id, "each metadata should have unique ID");
+    }
+
+    [Theory]
+    [InlineData("s01e01", 1, 1)]
+    [InlineData("S05E14", 5, 14)]
+    [InlineData("s10e99", 10, 99)]
+    public async Task FetchMetadataAsync_Should_Parse_Episode_Format_Case_Insensitive(
+        string episodeFormat, int expectedSeason, int expectedEpisode)
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = $"Show.Title.{episodeFormat}.720p",
+            ContentType = ContentType.TVShow
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Season.Should().Be(expectedSeason);
+        metadata.Episode.Should().Be(expectedEpisode);
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Not_Parse_Episode_For_Movies()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "Movie.Title.S01E01.2020", // Has episode format but is a movie
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Season.Should().BeNull("movies should not have season");
+        metadata.Episode.Should().BeNull("movies should not have episode");
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_Should_Handle_Title_With_Multiple_Years()
+    {
+        // Arrange
+        var result = new SearchResult
+        {
+            Title = "2001.A.Space.Odyssey.1968.1080p", // Has year in title and release year
+            ContentType = ContentType.Movie
+        };
+
+        // Act
+        var metadata = await _fetcher.FetchMetadataAsync(result);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata.Year.Should().NotBeNull("should extract at least one year");
+    }
+
 }
 
