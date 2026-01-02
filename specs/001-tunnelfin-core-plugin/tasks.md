@@ -83,7 +83,7 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [X] T023 [P] [US1] Write unit tests for TorrentEngine in tests/TunnelFin.Tests/BitTorrent/TorrentEngineTests.cs (torrent initialization, piece prioritization, stream creation)
 - [X] T024 [P] [US1] Write unit tests for StreamManager in tests/TunnelFin.Tests/Streaming/StreamManagerTests.cs (HTTP endpoint creation, range requests, concurrent stream limits per FR-013)
 - [X] T025 [P] [US1] Write unit tests for BufferManager in tests/TunnelFin.Tests/Streaming/BufferManagerTests.cs (buffer status tracking, >10s buffer requirement per SC-003)
-- [ ] T026 [P] [US1] Write integration test for anonymous stream initialization in tests/TunnelFin.Integration/AnonymousStreamingTests.cs (end-to-end: circuit establishment → torrent download → HTTP stream)
+- [X] T026 [P] [US1] Write integration test for anonymous stream initialization in tests/TunnelFin.Integration/AnonymousStreamingTests.cs (end-to-end: circuit establishment → torrent download → HTTP stream)
 
 ### Implementation for User Story 1
 
