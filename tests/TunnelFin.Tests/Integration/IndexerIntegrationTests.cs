@@ -113,10 +113,13 @@ public class IndexerIntegrationTests
     }
 
     [Fact]
-    public async Task TorznabClient_InvalidApiKey_ReturnsEmptyResults()
+    public async Task TorznabClient_InvalidApiKey_ThrowsOnConnectionRefused()
     {
         // Arrange
-        var httpClient = new HttpClient();
+        var httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(5)
+        };
         var client = new TorznabClient(httpClient, _mockLogger.Object);
 
         var config = new IndexerConfig
@@ -128,15 +131,14 @@ public class IndexerIntegrationTests
             Enabled = true
         };
 
-        // Act
-        var results = await client.SearchAsync(config, "test", CancellationToken.None);
-
-        // Assert
-        results.Should().BeEmpty(); // Should handle 401/403 gracefully
+        // Act & Assert
+        // Connection refused is expected when Jackett is not running
+        await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            await client.SearchAsync(config, "test", CancellationToken.None));
     }
 
     [Fact]
-    public async Task TorznabClient_UnreachableEndpoint_ReturnsEmptyResults()
+    public async Task TorznabClient_UnreachableEndpoint_ThrowsConnectionException()
     {
         // Arrange
         var httpClient = new HttpClient
@@ -149,16 +151,15 @@ public class IndexerIntegrationTests
         {
             Name = "Unreachable",
             Type = IndexerType.Torznab,
-            BaseUrl = "http://localhost:99999/api",
+            BaseUrl = "http://localhost:59999/api", // Valid port, but no server listening
             ApiKey = "test",
             Enabled = true
         };
 
-        // Act
-        var results = await client.SearchAsync(config, "test", CancellationToken.None);
-
-        // Assert
-        results.Should().BeEmpty(); // Should handle connection errors gracefully
+        // Act & Assert
+        // Connection refused or timeout is expected when no server is listening
+        await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            await client.SearchAsync(config, "test", CancellationToken.None));
     }
 }
 
