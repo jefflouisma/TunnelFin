@@ -8,7 +8,7 @@ namespace TunnelFin.Discovery;
 /// <summary>
 /// Fetches metadata from TMDB/AniList with exponential backoff and failure caching (FR-029, FR-030, FR-031, FR-032).
 /// </summary>
-public class MetadataFetcher
+public class MetadataFetcher : IMetadataFetcher
 {
     private readonly ILogger _logger;
     private readonly ConcurrentDictionary<string, DateTime> _failureCache = new();

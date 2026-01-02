@@ -169,8 +169,8 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 **Jellyfin Integration for Discovery (FR-027, FR-028)**
 
 - [X] T070 [US2] Enhance TunnelFinSearchProvider in src/TunnelFin/Jellyfin/SearchProvider.cs (full search implementation with metadata)
-- [ ] T071 [US2] Implement ChannelProvider in src/TunnelFin/Jellyfin/ChannelProvider.cs (IChannel interface, present torrents as library items per FR-028)
-- [ ] T072 [US2] Implement MetadataProvider in src/TunnelFin/Jellyfin/MetadataProvider.cs (metadata integration with Jellyfin's metadata system)
+- [X] T071 [US2] Implement ChannelProvider in src/TunnelFin/Jellyfin/ChannelProvider.cs (IChannel interface, present torrents as library items per FR-028)
+- [X] T072 [US2] Implement MetadataProvider in src/TunnelFin/Jellyfin/MetadataProvider.cs (metadata integration with Jellyfin's metadata system)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently - users can search, discover content with metadata, and stream
 
