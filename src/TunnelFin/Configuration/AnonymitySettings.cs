@@ -29,6 +29,12 @@ public class AnonymitySettings
     public bool AllowNonAnonymousFallback { get; set; } = false;
 
     /// <summary>
+    /// Enable bandwidth contribution/relay (FR-005).
+    /// Default: true (proportional contribution).
+    /// </summary>
+    public bool EnableBandwidthContribution { get; set; } = true;
+
+    /// <summary>
     /// Maximum time to wait for circuit establishment in seconds.
     /// </summary>
     public int CircuitEstablishmentTimeoutSeconds { get; set; } = 30;
@@ -85,6 +91,42 @@ public class AnonymitySettings
     /// Note: Logs will exclude PII and content titles per FR-037, FR-041.
     /// </summary>
     public bool EnableCircuitLogging { get; set; } = true;
+
+    /// <summary>
+    /// Sets the default hop count with validation (T087).
+    /// </summary>
+    /// <param name="hopCount">Hop count (1-3)</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when hop count is outside valid range</exception>
+    public void SetHopCount(int hopCount)
+    {
+        if (hopCount < MinHopCount || hopCount > MaxHopCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(hopCount),
+                $"Hop count must be between {MinHopCount} and {MaxHopCount}");
+        }
+
+        DefaultHopCount = hopCount;
+    }
+
+    /// <summary>
+    /// Gets the effective hop count for circuit creation (T087).
+    /// </summary>
+    /// <returns>Current default hop count</returns>
+    public int GetEffectiveHopCount()
+    {
+        return DefaultHopCount;
+    }
+
+    /// <summary>
+    /// Validates the anonymity settings (T084).
+    /// </summary>
+    /// <param name="errors">List of validation errors.</param>
+    /// <returns>True if valid, false otherwise.</returns>
+    public bool Validate(out List<string> errors)
+    {
+        return IsValid(out errors);
+    }
 
     /// <summary>
     /// Validates the anonymity settings.

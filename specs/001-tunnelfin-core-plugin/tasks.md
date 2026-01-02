@@ -213,17 +213,17 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 ### Tests for User Story 4 (MANDATORY - Test-First Development) ⚠️
 
-- [ ] T084 [P] [US4] Write unit tests for AnonymitySettings in tests/TunnelFin.Tests/Configuration/AnonymitySettingsTests.cs (hop count validation 1-3, defaults per FR-003, FR-006)
-- [ ] T085 [P] [US4] Write unit tests for bandwidth contribution in tests/TunnelFin.Tests/Networking/BandwidthTrackerTests.cs (proportional relay per FR-005, 5% accuracy per SC-010)
-- [ ] T086 [P] [US4] Write integration test for privacy settings in tests/TunnelFin.Integration/PrivacySettingsTests.cs (change hop count, verify circuit creation uses new setting)
+- [X] T084 [P] [US4] Write unit tests for AnonymitySettings in tests/TunnelFin.Tests/Configuration/AnonymitySettingsTests.cs (hop count validation 1-3, defaults per FR-003, FR-006)
+- [X] T085 [P] [US4] Write unit tests for bandwidth contribution in tests/TunnelFin.Tests/Networking/BandwidthTrackerTests.cs (proportional relay per FR-005, 5% accuracy per SC-010)
+- [X] T086 [P] [US4] Write integration test for privacy settings in tests/TunnelFin.Integration/PrivacySettingsTests.cs (change hop count, verify circuit creation uses new setting)
 
 ### Implementation for User Story 4
 
 **Privacy Configuration (FR-003, FR-005, FR-006, FR-033, FR-037, FR-038)**
 
-- [ ] T087 [US4] Implement hop count configuration in src/TunnelFin/Configuration/AnonymitySettings.cs (1-3 hops, default 3 per FR-003, FR-006)
-- [ ] T088 [US4] Implement bandwidth contribution settings in AnonymitySettings (enable/disable relay per FR-005)
-- [ ] T089 [US4] Implement non-anonymous fallback settings in AnonymitySettings (allow/block per FR-040)
+- [X] T087 [US4] Implement hop count configuration in src/TunnelFin/Configuration/AnonymitySettings.cs (1-3 hops, default 3 per FR-003, FR-006)
+- [X] T088 [US4] Implement bandwidth contribution settings in AnonymitySettings (enable/disable relay per FR-005)
+- [X] T089 [US4] Implement non-anonymous fallback settings in AnonymitySettings (allow/block per FR-040)
 - [ ] T090 [US4] Implement logging level configuration in src/TunnelFin/Configuration/PluginSettings.cs (Minimal/Verbose per FR-037)
 - [ ] T091 [US4] Implement scheduled catalog sync in src/TunnelFin/Configuration/ScheduledTasks.cs (automatic catalog syncing per FR-033)
 - [ ] T092 [US4] Implement secure key storage in src/TunnelFin/Core/SecureStorage.cs (Jellyfin encrypted config for Ed25519 private key per FR-038)
