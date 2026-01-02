@@ -143,7 +143,7 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [X] T053 [P] [US2] Write unit tests for Torznab indexer in tests/TunnelFin.Tests/Indexers/TorznabIndexerTests.cs (custom endpoint support per FR-017)
 - [X] T054 [P] [US2] Write unit tests for MetadataFetcher in tests/TunnelFin.Tests/Discovery/MetadataFetcherTests.cs (TMDB/AniList integration, exponential backoff per FR-030, failure caching per FR-031)
 - [X] T055 [P] [US2] Write unit tests for Deduplicator in tests/TunnelFin.Tests/Discovery/DeduplicatorTests.cs (infohash, filename, smart hash deduplication per FR-025, SC-007)
-- [ ] T056 [P] [US2] Write integration test for search workflow in tests/TunnelFin.Integration/SearchWorkflowTests.cs (end-to-end: query → indexers → deduplication → metadata → results)
+- [X] T056 [P] [US2] Write integration test for search workflow in tests/TunnelFin.Integration/SearchWorkflowTests.cs (end-to-end: query → indexers → deduplication → metadata → results)
 
 ### Implementation for User Story 2
 
