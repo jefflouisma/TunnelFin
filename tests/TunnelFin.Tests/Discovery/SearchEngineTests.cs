@@ -840,7 +840,9 @@ public class SearchEngineTests
     {
         // Arrange
         var query = "NonExistentMovie999999";
-        // Don't add any indexers, so no results will be found
+        // Add an indexer that returns no results
+        var emptyIndexer = new TestIndexer("EmptyIndexer", new List<SearchResult>());
+        _indexerManager.AddIndexer(emptyIndexer);
 
         // Act
         var results = await _searchEngine.SearchAsync(query, ContentType.Movie);
