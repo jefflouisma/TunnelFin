@@ -246,6 +246,80 @@ public class Handshake
     }
 
     /// <summary>
+    /// Sends a puncture-request message via an intermediary peer (FR-013).
+    /// Used for NAT traversal when direct connection is not possible.
+    /// </summary>
+    /// <param name="intermediary">Intermediary peer to relay the puncture request.</param>
+    /// <param name="targetLanAddress">Target peer's LAN address.</param>
+    /// <param name="targetWanAddress">Target peer's WAN address.</param>
+    /// <param name="identifier">Request identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if sent successfully, false otherwise.</returns>
+    public async Task<bool> SendPunctureRequestAsync(
+        IPEndPoint intermediary,
+        (string ip, int port) targetLanAddress,
+        (string ip, int port) targetWanAddress,
+        ushort identifier,
+        CancellationToken cancellationToken = default)
+    {
+        if (_transport == null)
+            throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
+
+        var payload = CreatePunctureRequest(targetLanAddress, targetWanAddress, identifier);
+        var signedMessage = SignMessage(MSG_PUNCTURE_REQUEST, payload);
+
+        try
+        {
+            await _transport.SendAsync(signedMessage, intermediary, cancellationToken);
+            _logger?.LogDebug("Sent puncture-request via {Intermediary}, identifier={Identifier}",
+                intermediary, identifier);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Failed to send puncture-request", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sends a puncture message directly to a peer (FR-013).
+    /// Sent in response to receiving a puncture-request.
+    /// </summary>
+    /// <param name="destination">Destination peer endpoint.</param>
+    /// <param name="sourceLanAddress">Source LAN address.</param>
+    /// <param name="sourceWanAddress">Source WAN address.</param>
+    /// <param name="identifier">Request identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if sent successfully, false otherwise.</returns>
+    public async Task<bool> SendPunctureAsync(
+        IPEndPoint destination,
+        (string ip, int port) sourceLanAddress,
+        (string ip, int port) sourceWanAddress,
+        ushort identifier,
+        CancellationToken cancellationToken = default)
+    {
+        if (_transport == null)
+            throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
+
+        var payload = CreatePuncture(sourceLanAddress, sourceWanAddress, identifier);
+        var signedMessage = SignMessage(MSG_PUNCTURE, payload);
+
+        try
+        {
+            await _transport.SendAsync(signedMessage, destination, cancellationToken);
+            _logger?.LogDebug("Sent puncture to {Destination}, identifier={Identifier}",
+                destination, identifier);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Failed to send puncture", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Parses an introduction-request message.
     /// </summary>
     public IntroductionRequestPayload ParseIntroductionRequest(byte[] message)
