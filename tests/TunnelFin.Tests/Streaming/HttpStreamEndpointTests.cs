@@ -177,5 +177,169 @@ public class HttpStreamEndpointTests
         // Assert
         isValid.Should().BeFalse("negative start should be rejected");
     }
+
+    [Fact]
+    public void ValidateRange_Should_Reject_Negative_End()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+
+        // Act
+        var isValid = endpoint.ValidateRange(start: 0, end: -1, contentLength: 1000);
+
+        // Assert
+        isValid.Should().BeFalse("negative end should be rejected");
+    }
+
+    [Fact]
+    public void CalculateRangeLength_Should_Return_Correct_Length()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+
+        // Act
+        var length = endpoint.CalculateRangeLength(start: 0, end: 499);
+
+        // Assert
+        length.Should().Be(500, "range 0-499 should be 500 bytes");
+    }
+
+    [Fact]
+    public void CalculateRangeLength_Should_Handle_Single_Byte_Range()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+
+        // Act
+        var length = endpoint.CalculateRangeLength(start: 100, end: 100);
+
+        // Assert
+        length.Should().Be(1, "single byte range should be 1 byte");
+    }
+
+    [Fact]
+    public void ParseRangeHeader_Should_Return_Null_For_Null_Header()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+
+        // Act
+        var result = endpoint.ParseRangeHeader(null!, contentLength: 1000);
+
+        // Assert
+        result.Should().BeNull("null header should return null");
+    }
+
+    [Fact]
+    public void ParseRangeHeader_Should_Return_Null_For_Empty_Header()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+
+        // Act
+        var result = endpoint.ParseRangeHeader("", contentLength: 1000);
+
+        // Assert
+        result.Should().BeNull("empty header should return null");
+    }
+
+    [Fact]
+    public void ParseRangeHeader_Should_Return_Null_For_Whitespace_Header()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+
+        // Act
+        var result = endpoint.ParseRangeHeader("   ", contentLength: 1000);
+
+        // Assert
+        result.Should().BeNull("whitespace header should return null");
+    }
+
+    [Fact]
+    public void ParseRangeHeader_Should_Handle_Suffix_Range_Larger_Than_Content()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+        var rangeHeader = "bytes=-2000"; // Request last 2000 bytes, but content is only 1000
+
+        // Act
+        var result = endpoint.ParseRangeHeader(rangeHeader, contentLength: 1000);
+
+        // Assert
+        result.Should().NotBeNull("valid suffix range should be parsed");
+        result!.Value.start.Should().Be(0, "start should be clamped to 0");
+        result!.Value.end.Should().Be(999, "end should be content length - 1");
+    }
+
+    [Fact]
+    public void ParseRangeHeader_Should_Return_Null_For_Invalid_Start_Value()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+        var rangeHeader = "bytes=abc-500";
+
+        // Act
+        var result = endpoint.ParseRangeHeader(rangeHeader, contentLength: 1000);
+
+        // Assert
+        result.Should().BeNull("invalid start value should return null");
+    }
+
+    [Fact]
+    public void ParseRangeHeader_Should_Handle_Non_Numeric_End_As_Open_Range()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+        var rangeHeader = "bytes=0-xyz"; // Regex will match "0" and "" (empty end)
+
+        // Act
+        var result = endpoint.ParseRangeHeader(rangeHeader, contentLength: 1000);
+
+        // Assert - This is treated as open-ended range "bytes=0-"
+        result.Should().NotBeNull("regex matches and treats as open-ended range");
+        result!.Value.start.Should().Be(0);
+        result!.Value.end.Should().Be(999);
+    }
+
+    [Fact]
+    public void ParseRangeHeader_Should_Return_Null_For_Invalid_Suffix_Value()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+        var rangeHeader = "bytes=-abc";
+
+        // Act
+        var result = endpoint.ParseRangeHeader(rangeHeader, contentLength: 1000);
+
+        // Assert
+        result.Should().BeNull("invalid suffix value should return null");
+    }
+
+    [Fact]
+    public void BuildContentRangeHeader_Should_Handle_Large_Values()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 10_000_000_000L);
+
+        // Act
+        var header = endpoint.BuildContentRangeHeader(start: 0, end: 1_000_000_000L, totalLength: 10_000_000_000L);
+
+        // Assert
+        header.Should().Be("bytes 0-1000000000/10000000000", "should handle large values");
+    }
+
+    [Fact]
+    public void ValidateRange_Should_Accept_Range_At_End_Of_Content()
+    {
+        // Arrange
+        var endpoint = new HttpStreamEndpoint(Guid.NewGuid(), contentLength: 1000);
+
+        // Act
+        var isValid = endpoint.ValidateRange(start: 999, end: 999, contentLength: 1000);
+
+        // Assert
+        isValid.Should().BeTrue("range at end of content should be valid");
+    }
 }
 
