@@ -155,12 +155,96 @@ public class PluginTests
         // This test assumes Plugin.Instance is reset between tests
         // In actual implementation, Instance is set in constructor
         // This test verifies the pattern is correct
-        
+
         // Arrange & Act
         var plugin = new Plugin(_mockApplicationPaths.Object, _mockXmlSerializer.Object);
 
         // Assert
         Plugin.Instance.Should().NotBeNull("Instance should be set after plugin creation");
+    }
+
+    [Fact]
+    public void GetPages_Should_Return_Configuration_Page()
+    {
+        // Arrange
+        var plugin = new Plugin(_mockApplicationPaths.Object, _mockXmlSerializer.Object);
+
+        // Act
+        var pages = plugin.GetPages().ToList();
+
+        // Assert
+        pages.Should().NotBeEmpty("Plugin should have at least one configuration page");
+        pages.Should().HaveCount(1, "Plugin should have exactly one configuration page");
+        pages[0].Name.Should().Be("TunnelFin");
+        pages[0].EmbeddedResourcePath.Should().Contain("Configuration.config.html");
+    }
+
+    [Fact]
+    public void UpdateConfiguration_Should_Throw_When_Configuration_Is_Invalid()
+    {
+        // Arrange
+        var plugin = new Plugin(_mockApplicationPaths.Object, _mockXmlSerializer.Object);
+        var invalidConfig = new PluginConfiguration
+        {
+            MaxConcurrentStreams = -1, // Invalid
+            MaxCacheSize = -1 // Invalid
+        };
+
+        // Act
+        var act = () => plugin.UpdateConfiguration(invalidConfig);
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Invalid configuration*");
+    }
+
+    [Fact]
+    public void UpdateConfiguration_Should_Accept_Valid_Configuration()
+    {
+        // Arrange
+        var plugin = new Plugin(_mockApplicationPaths.Object, _mockXmlSerializer.Object);
+        var validConfig = new PluginConfiguration
+        {
+            MaxConcurrentStreams = 10,
+            MaxCacheSize = 21474836480L, // 20GB
+            DefaultHopCount = 2,
+            EnableBandwidthContribution = true
+        };
+
+        // Act
+        plugin.UpdateConfiguration(validConfig);
+
+        // Assert
+        var config = plugin.Configuration as PluginConfiguration;
+        config.Should().NotBeNull();
+        config!.MaxConcurrentStreams.Should().Be(10);
+        config.MaxCacheSize.Should().Be(21474836480L);
+        config.DefaultHopCount.Should().Be(2);
+        config.EnableBandwidthContribution.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Plugin_Id_Should_Be_Specific_GUID()
+    {
+        // Arrange & Act
+        var plugin = new Plugin(_mockApplicationPaths.Object, _mockXmlSerializer.Object);
+
+        // Assert
+        plugin.Id.Should().Be(Guid.Parse("A7F8B3C2-1D4E-4A5B-9C6D-7E8F9A0B1C2D"),
+            "Plugin should have the specific GUID defined in the implementation");
+    }
+
+    [Fact]
+    public void Plugin_Description_Should_Mention_Key_Features()
+    {
+        // Arrange & Act
+        var plugin = new Plugin(_mockApplicationPaths.Object, _mockXmlSerializer.Object);
+
+        // Assert
+        plugin.Description.Should().ContainEquivalentOf("privacy");
+        plugin.Description.Should().ContainEquivalentOf("torrent");
+        plugin.Description.Should().ContainEquivalentOf("Tribler");
+        plugin.Description.Should().ContainEquivalentOf("anonymity");
     }
 }
 

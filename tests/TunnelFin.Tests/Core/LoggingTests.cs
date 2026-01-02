@@ -211,5 +211,190 @@ public class LoggingTests
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_Logger_Is_Null()
+    {
+        // Arrange & Act
+        var act = () => new PrivacyAwareLogger(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void LogWarning_Should_Redact_Sensitive_Info()
+    {
+        // Arrange
+        var messageWithIp = "Warning: Connection from 10.0.0.1 failed";
+
+        // Act
+        _privacyLogger.LogWarning(messageWithIp);
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("[IP_REDACTED]")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void LogCritical_Should_Redact_Sensitive_Info()
+    {
+        // Arrange
+        var messageWithHash = "Critical: Failed to download 1234567890abcdef1234567890abcdef12345678";
+
+        // Act
+        _privacyLogger.LogCritical(messageWithHash);
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Critical,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("[HASH_REDACTED]")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void LogCritical_Should_Log_With_Exception()
+    {
+        // Arrange
+        var exception = new Exception("Critical error");
+        var message = "Critical failure occurred";
+
+        // Act
+        _privacyLogger.LogCritical(message, exception);
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Critical,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                exception,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void LogCircuitFailed_Should_Log_Without_PII()
+    {
+        // Arrange
+        var circuitId = Guid.NewGuid();
+        var hopCount = 2;
+        var reason = "Timeout connecting to 192.168.1.1";
+
+        // Act
+        _privacyLogger.LogCircuitFailed(circuitId, hopCount, reason);
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) =>
+                    v.ToString()!.Contains(circuitId.ToString()) &&
+                    v.ToString()!.Contains("2") &&
+                    v.ToString()!.Contains("[IP_REDACTED]") &&
+                    !v.ToString()!.Contains("192.168.1.1")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void LogStreamProgress_Should_Log_When_Verbose_Enabled()
+    {
+        // Arrange
+        var streamId = Guid.NewGuid();
+        var progressPercent = 45.5;
+        var speedBps = 1024000L;
+
+        // Act
+        _privacyLogger.LogStreamProgress(streamId, progressPercent, speedBps);
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Debug,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) =>
+                    v.ToString()!.Contains(streamId.ToString()) &&
+                    v.ToString()!.Contains("45.5") &&
+                    v.ToString()!.Contains("1024000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void LogStreamFailed_Should_Redact_Sensitive_Info()
+    {
+        // Arrange
+        var streamId = Guid.NewGuid();
+        var reason = "Failed to connect to peer at 172.16.0.1";
+
+        // Act
+        _privacyLogger.LogStreamFailed(streamId, reason);
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) =>
+                    v.ToString()!.Contains(streamId.ToString()) &&
+                    v.ToString()!.Contains("[IP_REDACTED]") &&
+                    !v.ToString()!.Contains("172.16.0.1")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void RedactSensitiveInfo_Should_Handle_Empty_String()
+    {
+        // Arrange & Act
+        _privacyLogger.LogInformation("");
+
+        // Assert - Should not throw
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void RedactSensitiveInfo_Should_Handle_Multiple_IPs()
+    {
+        // Arrange
+        var message = "Connecting from 192.168.1.1 to 10.0.0.1";
+
+        // Act
+        _privacyLogger.LogInformation(message);
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) =>
+                    !v.ToString()!.Contains("192.168.1.1") &&
+                    !v.ToString()!.Contains("10.0.0.1")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
 }
 

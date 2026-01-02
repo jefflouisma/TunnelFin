@@ -264,5 +264,141 @@ public class CircuitManagerTests
             await manager.CreateCircuitAsync(1);
         });
     }
+
+    [Fact]
+    public void AddPeer_Should_Add_Peer_To_Manager()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+        var peer = new Peer(new byte[32], 0x7F000001, 8000);
+
+        // Act
+        manager.AddPeer(peer);
+
+        // Assert
+        manager.Peers.Should().HaveCount(1);
+        manager.Peers.Should().Contain(peer);
+    }
+
+    [Fact]
+    public void GetCircuit_Should_Return_Circuit_By_Id()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { DefaultHopCount = 1 };
+        var manager = new CircuitManager(settings);
+        var peer = new Peer(new byte[32], 0x7F000001, 8000);
+        peer.IsHandshakeComplete = true;
+        peer.IsRelayCandidate = true;
+        manager.AddPeer(peer);
+
+        // Act
+        var circuit = manager.CreateCircuitAsync(1).Result;
+        var retrieved = manager.GetCircuit(circuit.IPv8CircuitId);
+
+        // Assert
+        retrieved.Should().NotBeNull();
+        retrieved.Should().BeSameAs(circuit);
+    }
+
+    [Fact]
+    public void GetCircuit_Should_Return_Null_For_Unknown_Id()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var circuit = manager.GetCircuit(999);
+
+        // Assert
+        circuit.Should().BeNull();
+    }
+
+    [Fact]
+    public void Constructor_Should_Throw_When_Settings_Is_Null()
+    {
+        // Arrange & Act
+        var act = () => new CircuitManager(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void CloseCircuit_Should_Not_Throw_For_Unknown_Circuit()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var act = () => manager.CloseCircuit(999);
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Throw_When_No_Peers_Available()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { DefaultHopCount = 1 };
+        var manager = new CircuitManager(settings);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await manager.CreateCircuitAsync(1);
+        });
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Throw_When_Insufficient_Relay_Candidates()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { DefaultHopCount = 3 };
+        var manager = new CircuitManager(settings);
+
+        // Add only 1 peer, but need 3 for circuit
+        var peer = new Peer(new byte[32], 0x7F000001, 8000);
+        peer.IsHandshakeComplete = true;
+        peer.IsRelayCandidate = true;
+        manager.AddPeer(peer);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await manager.CreateCircuitAsync(3);
+        });
+    }
+
+    [Fact]
+    public void HandleCreatedMessage_Should_Not_Throw_For_Unknown_Circuit()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var act = () => manager.HandleCreatedMessage(999, new byte[32], new byte[16]);
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void HandleExtendedMessage_Should_Not_Throw_For_Unknown_Circuit()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var manager = new CircuitManager(settings);
+
+        // Act
+        var act = () => manager.HandleExtendedMessage(999, new byte[32], new byte[16]);
+
+        // Assert
+        act.Should().NotThrow();
+    }
 }
 
