@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using TunnelFin.BitTorrent;
 using TunnelFin.Indexers;
 using TunnelFin.Models;
+using TunnelFin.Networking;
 using TunnelFin.Streaming;
 
 namespace TunnelFin.Jellyfin;
@@ -28,23 +29,60 @@ public class TunnelFinChannel : IChannel
     private readonly IIndexerManager _indexerManager;
     private readonly IStreamManager _streamManager;
     private readonly ITorrentEngine _torrentEngine;
+    private readonly NetworkAvailabilityService? _networkAvailabilityService;
     private readonly ILogger<TunnelFinChannel>? _logger;
+    private bool _isNetworkAvailable;
 
     public TunnelFinChannel(
         IIndexerManager indexerManager,
         IStreamManager streamManager,
         ITorrentEngine torrentEngine,
-        ILogger<TunnelFinChannel>? logger = null)
+        ILogger<TunnelFinChannel>? logger = null,
+        NetworkAvailabilityService? networkAvailabilityService = null)
     {
         _indexerManager = indexerManager ?? throw new ArgumentNullException(nameof(indexerManager));
         _streamManager = streamManager ?? throw new ArgumentNullException(nameof(streamManager));
         _torrentEngine = torrentEngine ?? throw new ArgumentNullException(nameof(torrentEngine));
         _logger = logger;
+        _networkAvailabilityService = networkAvailabilityService;
+        _isNetworkAvailable = false;
+
+        // Subscribe to network availability changes (T116)
+        if (_networkAvailabilityService != null)
+        {
+            _networkAvailabilityService.StatusChanged += OnNetworkAvailabilityChanged;
+        }
+    }
+
+    /// <summary>
+    /// Handles network availability status changes (T116).
+    /// Updates UI indicator (green/orange play button) based on circuit availability.
+    /// </summary>
+    private void OnNetworkAvailabilityChanged(object? sender, bool isAvailable)
+    {
+        _isNetworkAvailable = isAvailable;
+        var status = isAvailable ? "🟢 AVAILABLE" : "🟠 UNAVAILABLE";
+        _logger?.LogInformation("Network availability changed: {Status} ({CircuitCount} circuits)",
+            status,
+            _networkAvailabilityService?.AvailableCircuitCount ?? 0);
     }
 
     // IChannel properties
     public string Name => "TunnelFin";
-    public string Description => "Decentralized streaming via BitTorrent with Tribler anonymity";
+    public string Description
+    {
+        get
+        {
+            var baseDescription = "Decentralized streaming via BitTorrent with Tribler anonymity";
+            if (_networkAvailabilityService != null)
+            {
+                var status = _isNetworkAvailable ? "🟢 Network Available" : "🟠 Network Unavailable";
+                var circuitCount = _networkAvailabilityService.AvailableCircuitCount;
+                return $"{baseDescription} | {status} ({circuitCount} circuits)";
+            }
+            return baseDescription;
+        }
+    }
     public string DataVersion => "1.0.0";
     public string HomePageUrl => "https://github.com/jefflouisma/TunnelFin";
     public ChannelParentalRating ParentalRating => ChannelParentalRating.GeneralAudience;
