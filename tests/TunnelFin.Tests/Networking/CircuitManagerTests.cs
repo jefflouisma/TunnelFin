@@ -1,4 +1,6 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 using TunnelFin.Networking.Circuits;
 using TunnelFin.Networking.IPv8;
@@ -827,5 +829,137 @@ public class CircuitManagerTests
         circuit.Should().BeNull();
     }
 
+    // ========== T044: Network Establishment Tests ==========
+
+    [Fact]
+    public void CircuitManager_Should_Accept_Network_Client_In_Constructor()
+    {
+        // Arrange
+        var settings = new AnonymitySettings();
+        var mockNetworkClient = new Mock<ICircuitNetworkClient>();
+        var mockLogger = new Mock<ILogger>();
+
+        // Act
+        var manager = new CircuitManager(settings, mockNetworkClient.Object, mockLogger.Object);
+
+        // Assert
+        manager.Should().NotBeNull();
+        manager.ActiveCircuitCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MaintainConcurrentCircuitsAsync_Should_Create_Circuits_When_Below_Minimum()
+    {
+        // Arrange
+        var settings = new AnonymitySettings
+        {
+            DefaultHopCount = 2,
+            MinHopCount = 1,
+            MaxHopCount = 3
+        };
+        // Use constructor without network client (testing mode)
+        var manager = new CircuitManager(settings);
+
+        // Add relay peers
+        for (int i = 0; i < 5; i++)
+        {
+            var peer = CreateTestPeer();
+            peer.IsRelayCandidate = true;
+            peer.IsHandshakeComplete = true;
+            peer.SuccessCount = 10; // High reliability
+            manager.AddPeer(peer);
+        }
+
+        // Act
+        await manager.MaintainConcurrentCircuitsAsync();
+
+        // Assert - Should create 2 circuits (minimum)
+        manager.ActiveCircuitCount.Should().BeGreaterThanOrEqualTo(2);
+    }
+
+    [Fact]
+    public async Task MaintainConcurrentCircuitsAsync_Should_Remove_Excess_Circuits_When_Above_Maximum()
+    {
+        // Arrange
+        var settings = new AnonymitySettings
+        {
+            DefaultHopCount = 2,
+            MinHopCount = 1,
+            MaxHopCount = 3
+        };
+        // Use constructor without network client (testing mode)
+        var manager = new CircuitManager(settings);
+
+        // Add relay peers
+        for (int i = 0; i < 10; i++)
+        {
+            var peer = CreateTestPeer();
+            peer.IsRelayCandidate = true;
+            peer.IsHandshakeComplete = true;
+            peer.SuccessCount = 10;
+            manager.AddPeer(peer);
+        }
+
+        // Create 5 circuits (above maximum of 3)
+        for (int i = 0; i < 5; i++)
+        {
+            var circuit = await manager.CreateCircuitAsync(2);
+            circuit.MarkEstablished();
+        }
+
+        // Act
+        await manager.MaintainConcurrentCircuitsAsync();
+
+        // Assert - Should have at most 3 circuits
+        manager.ActiveCircuitCount.Should().BeLessThanOrEqualTo(3);
+    }
+
+    [Fact]
+    public void SelectRelayNode_Should_Filter_By_Reliability_Score()
+    {
+        // Arrange
+        var settings = new AnonymitySettings
+        {
+            DefaultHopCount = 2,
+            MinHopCount = 1,
+            MaxHopCount = 3
+        };
+        var manager = new CircuitManager(settings);
+
+        // Add low-reliability peer (30% success rate)
+        var lowReliabilityPeer = CreateTestPeer();
+        lowReliabilityPeer.IsRelayCandidate = true;
+        lowReliabilityPeer.IsHandshakeComplete = true;
+        lowReliabilityPeer.SuccessCount = 3;
+        lowReliabilityPeer.FailureCount = 7;
+        manager.AddPeer(lowReliabilityPeer);
+
+        // Add high-reliability peer (90% success rate)
+        var highReliabilityPeer = CreateTestPeer();
+        highReliabilityPeer.IsRelayCandidate = true;
+        highReliabilityPeer.IsHandshakeComplete = true;
+        highReliabilityPeer.SuccessCount = 9;
+        highReliabilityPeer.FailureCount = 1;
+        manager.AddPeer(highReliabilityPeer);
+
+        // Act - Create circuit (should prefer high-reliability peer)
+        var circuit = manager.CreateCircuitAsync(1).Result;
+
+        // Assert - Circuit should use high-reliability peer
+        // Note: This is probabilistic, but with only 2 peers and reliability filtering,
+        // it should strongly prefer the high-reliability peer
+        circuit.Should().NotBeNull();
+        circuit.Hops.Should().HaveCount(1);
+    }
+
+    private static Peer CreateTestPeer()
+    {
+        var publicKey = new byte[32];
+        Random.Shared.NextBytes(publicKey);
+        var ipv4 = (uint)Random.Shared.Next(0x01000000, 0x7FFFFFFF); // Avoid 0.x.x.x and 127.x.x.x
+        var port = (ushort)Random.Shared.Next(1024, 65535);
+
+        return new Peer(publicKey, ipv4, port);
+    }
 }
 

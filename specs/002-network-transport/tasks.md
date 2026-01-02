@@ -75,26 +75,26 @@ Four-message handshake over real network.
 - [x] T032 [US3] [SC-003] Extend `tests/TunnelFin.Tests/Networking/HandshakeTests.cs` - live handshake success rate validation
 - [x] T033 [US3] Create `tests/TunnelFin.Tests/Networking/IPv8/ProtocolVersionTests.cs` - version negotiation, rejection
 
-## Phase 4: Circuit Network Operations (US4)
+## Phase 4: Circuit Network Operations (US4) ✅
 
 Circuit establishment over real network connections.
 
-### T034-T037 - CircuitNetworkClient
-- [ ] T034 [US4] Create `src/TunnelFin/Networking/Circuits/ICircuitNetworkClient.cs` interface per contracts/transport-api.yaml
-- [ ] T035 [US4] [FR-014] Create `src/TunnelFin/Networking/Circuits/CircuitNetworkClient.cs` - CREATE message over UDP
-- [ ] T036 [US4] [FR-015] [FR-016] Implement SendExtendAsync: EXTEND through circuit, handle EXTENDED response
-- [ ] T037 [US4] [FR-018] Implement SendDestroyAsync: clean circuit teardown
+### T034-T037 - CircuitNetworkClient ✅
+- [x] T034 [US4] Create `src/TunnelFin/Networking/Circuits/ICircuitNetworkClient.cs` interface per contracts/transport-api.yaml
+- [x] T035 [US4] [FR-014] Create `src/TunnelFin/Networking/Circuits/CircuitNetworkClient.cs` - CREATE message over UDP
+- [x] T036 [US4] [FR-015] [FR-016] Implement SendExtendAsync: EXTEND through circuit, handle EXTENDED response
+- [x] T037 [US4] [FR-018] Implement SendDestroyAsync: clean circuit teardown
 
-### T038-T041 - Circuit Heartbeat and Response Handling
-- [ ] T038 [US4] [FR-017] Create `src/TunnelFin/Networking/Circuits/CircuitHeartbeat.cs` - 30s keepalive timer
-- [ ] T039 [US4] Create response types: `CreateResponse.cs`, `ExtendResponse.cs` in Circuits folder
-- [ ] T040 [US4] [FR-018a] Extend `src/TunnelFin/Networking/Circuits/CircuitManager.cs` - maintain 2-3 concurrent circuits
-- [ ] T041 [US4] [FR-018b] Implement relay reliability tracking in circuit selection
+### T038-T041 - Circuit Heartbeat and Response Handling ✅
+- [x] T038 [US4] [FR-017] Create `src/TunnelFin/Networking/Circuits/CircuitHeartbeat.cs` - 30s keepalive timer
+- [x] T039 [US4] Create response types: `CreateResponse.cs`, `ExtendResponse.cs` in Circuits folder
+- [x] T040 [US4] [FR-018a] Extend `src/TunnelFin/Networking/Circuits/CircuitManager.cs` - maintain 2-3 concurrent circuits
+- [x] T041 [US4] [FR-018b] Implement relay reliability tracking in circuit selection
 
-### T042-T044 - Circuit Network Tests
-- [ ] T042 [US4] Create `tests/TunnelFin.Tests/Networking/Circuits/CircuitNetworkClientTests.cs` - CREATE/EXTEND/DESTROY
-- [ ] T043 [US4] Create `tests/TunnelFin.Tests/Networking/Circuits/CircuitHeartbeatTests.cs` - keepalive, timeout detection
-- [ ] T044 [US4] [SC-004] [SC-007] Extend `tests/TunnelFin.Tests/Networking/CircuitManagerTests.cs` - network establishment
+### T042-T044 - Circuit Network Tests ✅
+- [x] T042 [US4] Create `tests/TunnelFin.Tests/Networking/Circuits/CircuitNetworkClientTests.cs` - CREATE/EXTEND/DESTROY
+- [x] T043 [US4] Create `tests/TunnelFin.Tests/Networking/Circuits/CircuitHeartbeatTests.cs` - keepalive, timeout detection
+- [x] T044 [US4] [SC-004] [SC-007] Extend `tests/TunnelFin.Tests/Networking/CircuitManagerTests.cs` - network establishment
 
 ## Phase 5: Traffic Routing (US5)
 
