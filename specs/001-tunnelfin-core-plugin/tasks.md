@@ -140,9 +140,9 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 
 - [X] T051 [P] [US2] Write unit tests for IndexerManager in tests/TunnelFin.Tests/Indexers/IndexerManagerTests.cs (concurrent searches, timeout handling, response aggregation per FR-016, FR-018)
 - [X] T052 [P] [US2] Write unit tests for built-in indexers in tests/TunnelFin.Tests/Indexers/BuiltInIndexersTests.cs (1337x, Nyaa, RARBG query parsing, result extraction)
-- [ ] T053 [P] [US2] Write unit tests for Torznab indexer in tests/TunnelFin.Tests/Indexers/TorznabIndexerTests.cs (custom endpoint support per FR-017)
-- [ ] T054 [P] [US2] Write unit tests for MetadataFetcher in tests/TunnelFin.Tests/Discovery/MetadataFetcherTests.cs (TMDB/AniList integration, exponential backoff per FR-030, failure caching per FR-031)
-- [ ] T055 [P] [US2] Write unit tests for Deduplicator in tests/TunnelFin.Tests/Discovery/DeduplicatorTests.cs (infohash, filename, smart hash deduplication per FR-025, SC-007)
+- [X] T053 [P] [US2] Write unit tests for Torznab indexer in tests/TunnelFin.Tests/Indexers/TorznabIndexerTests.cs (custom endpoint support per FR-017)
+- [X] T054 [P] [US2] Write unit tests for MetadataFetcher in tests/TunnelFin.Tests/Discovery/MetadataFetcherTests.cs (TMDB/AniList integration, exponential backoff per FR-030, failure caching per FR-031)
+- [X] T055 [P] [US2] Write unit tests for Deduplicator in tests/TunnelFin.Tests/Discovery/DeduplicatorTests.cs (infohash, filename, smart hash deduplication per FR-025, SC-007)
 - [ ] T056 [P] [US2] Write integration test for search workflow in tests/TunnelFin.Integration/SearchWorkflowTests.cs (end-to-end: query → indexers → deduplication → metadata → results)
 
 ### Implementation for User Story 2
@@ -153,17 +153,17 @@ Target: 80%+ code coverage for unit tests, integration tests for all Jellyfin AP
 - [X] T058 [P] [US2] Implement Indexer1337x in src/TunnelFin/Indexers/BuiltIn/Indexer1337x.cs (HTML parsing, result extraction per FR-016)
 - [X] T059 [P] [US2] Implement IndexerNyaa in src/TunnelFin/Indexers/BuiltIn/IndexerNyaa.cs (anime-specific indexer per FR-016)
 - [X] T060 [P] [US2] Implement IndexerRARBG in src/TunnelFin/Indexers/BuiltIn/IndexerRARBG.cs (general indexer per FR-016)
-- [ ] T061 [P] [US2] Implement TorznabIndexer in src/TunnelFin/Indexers/Torznab/TorznabIndexer.cs (custom indexer support per FR-017)
+- [X] T061 [P] [US2] Implement TorznabIndexer in src/TunnelFin/Indexers/Torznab/TorznabIndexer.cs (custom indexer support per FR-017)
 - [X] T062 [US2] Implement IndexerManager in src/TunnelFin/Indexers/IndexerManager.cs (concurrent search orchestration, max 5 concurrent per FR-018, SC-004)
 
 **Content Discovery & Aggregation (FR-025, FR-026, FR-029 to FR-032)**
 
 - [ ] T063 [P] [US2] Implement SearchEngine in src/TunnelFin/Discovery/SearchEngine.cs (query distribution, result aggregation, <5s timeout per SC-004)
-- [ ] T064 [P] [US2] Implement Deduplicator in src/TunnelFin/Discovery/Deduplicator.cs (infohash, filename, smart hash deduplication per FR-025, 90% success rate per SC-007)
-- [ ] T065 [P] [US2] Implement MetadataFetcher in src/TunnelFin/Discovery/MetadataFetcher.cs (TMDB/AniList integration per FR-029)
-- [ ] T066 [US2] Implement exponential backoff retry in MetadataFetcher (1s, 2s, 4s per FR-030)
-- [ ] T067 [US2] Implement failure caching in MetadataFetcher (5-minute cache per FR-031)
-- [ ] T068 [US2] Implement filename parsing fallback in MetadataFetcher (basic metadata extraction per FR-032)
+- [X] T064 [P] [US2] Implement Deduplicator in src/TunnelFin/Discovery/Deduplicator.cs (infohash, filename, smart hash deduplication per FR-025, 90% success rate per SC-007)
+- [X] T065 [P] [US2] Implement MetadataFetcher in src/TunnelFin/Discovery/MetadataFetcher.cs (TMDB/AniList integration per FR-029)
+- [X] T066 [US2] Implement exponential backoff retry in MetadataFetcher (1s, 2s, 4s per FR-030)
+- [X] T067 [US2] Implement failure caching in MetadataFetcher (5-minute cache per FR-031)
+- [X] T068 [US2] Implement filename parsing fallback in MetadataFetcher (basic metadata extraction per FR-032)
 - [ ] T069 [US2] Implement title/year/episode matching in MetadataFetcher (verification against TMDB/AniList per FR-026, 95% success rate per SC-008)
 
 **Jellyfin Integration for Discovery (FR-027, FR-028)**
