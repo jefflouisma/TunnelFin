@@ -576,5 +576,118 @@ public class CircuitManagerTests
         // Assert
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public async Task HandleCreatedMessage_Should_Process_Valid_Circuit()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { DefaultHopCount = 1 };
+        var manager = new CircuitManager(settings);
+        var peer = new Peer(new byte[32], 0x7F000001, 8000);
+        peer.IsHandshakeComplete = true;
+        peer.IsRelayCandidate = true;
+        manager.AddPeer(peer);
+
+        var circuit = await manager.CreateCircuitAsync(1);
+        var ephemeralKey = new byte[32];
+        var auth = new byte[16];
+
+        // Act
+        var act = () => manager.HandleCreatedMessage(circuit.IPv8CircuitId, ephemeralKey, auth);
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task HandleExtendedMessage_Should_Process_Valid_Circuit()
+    {
+        // Arrange
+        var settings = new AnonymitySettings { DefaultHopCount = 1 };
+        var manager = new CircuitManager(settings);
+        var peer = new Peer(new byte[32], 0x7F000001, 8000);
+        peer.IsHandshakeComplete = true;
+        peer.IsRelayCandidate = true;
+        manager.AddPeer(peer);
+
+        var circuit = await manager.CreateCircuitAsync(1);
+        var ephemeralKey = new byte[32];
+        var auth = new byte[16];
+
+        // Act
+        var act = () => manager.HandleExtendedMessage(circuit.IPv8CircuitId, ephemeralKey, auth);
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Prefer_High_Bandwidth_Relays()
+    {
+        // Arrange
+        var settings = new AnonymitySettings
+        {
+            DefaultHopCount = 1,
+            PreferHighBandwidthRelays = true
+        };
+        var manager = new CircuitManager(settings);
+
+        // Add peers with different bandwidth
+        var lowBandwidthPeer = new Peer(new byte[32], 0x7F000001, 8000);
+        lowBandwidthPeer.IsHandshakeComplete = true;
+        lowBandwidthPeer.IsRelayCandidate = true;
+        lowBandwidthPeer.EstimatedBandwidth = 1000;
+        manager.AddPeer(lowBandwidthPeer);
+
+        var highBandwidthPeer = new byte[32];
+        highBandwidthPeer[0] = 1;
+        var peer2 = new Peer(highBandwidthPeer, 0x7F000002, 8001);
+        peer2.IsHandshakeComplete = true;
+        peer2.IsRelayCandidate = true;
+        peer2.EstimatedBandwidth = 10000;
+        manager.AddPeer(peer2);
+
+        // Act
+        var circuit = await manager.CreateCircuitAsync(1);
+
+        // Assert
+        circuit.Should().NotBeNull();
+        circuit.State.Should().Be(CircuitState.Established);
+    }
+
+    [Fact]
+    public async Task CreateCircuitAsync_Should_Prefer_Low_Latency_Relays()
+    {
+        // Arrange
+        var settings = new AnonymitySettings
+        {
+            DefaultHopCount = 1,
+            PreferLowLatencyRelays = true
+        };
+        var manager = new CircuitManager(settings);
+
+        // Add peers with different latency
+        var highLatencyPeer = new Peer(new byte[32], 0x7F000001, 8000);
+        highLatencyPeer.IsHandshakeComplete = true;
+        highLatencyPeer.IsRelayCandidate = true;
+        highLatencyPeer.RttMs = 200;
+        manager.AddPeer(highLatencyPeer);
+
+        var lowLatencyPeer = new byte[32];
+        lowLatencyPeer[0] = 1;
+        var peer2 = new Peer(lowLatencyPeer, 0x7F000002, 8001);
+        peer2.IsHandshakeComplete = true;
+        peer2.IsRelayCandidate = true;
+        peer2.RttMs = 50;
+        manager.AddPeer(peer2);
+
+        // Act
+        var circuit = await manager.CreateCircuitAsync(1);
+
+        // Assert
+        circuit.Should().NotBeNull();
+        circuit.State.Should().Be(CircuitState.Established);
+    }
+
 }
 
