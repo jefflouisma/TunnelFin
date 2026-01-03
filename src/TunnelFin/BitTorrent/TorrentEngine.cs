@@ -19,7 +19,7 @@ namespace TunnelFin.BitTorrent;
 /// Wraps MonoTorrent's ClientEngine with TunnelFin-specific functionality.
 /// Implements ITorrentEngine interface for 003-core-integration.
 /// </summary>
-public class TorrentEngine : ITorrentEngine
+public class TorrentEngine : ITorrentEngine, IDisposable
 {
     private readonly ClientEngine _engine;
     private readonly string _downloadPath;
@@ -321,37 +321,49 @@ public class TorrentEngine : ITorrentEngine
     {
         var ranges = new List<(long Start, long End)>();
 
-        // Calculate file's piece range within the torrent
-        long fileStart = 0;
-        foreach (var f in manager.Torrent!.Files)
-        {
-            if (f == file)
-                break;
-            fileStart += f.Length;
-        }
+        if (manager.Torrent == null || manager.Bitfield == null)
+            return ranges;
 
-        long fileEnd = fileStart + file.Length;
+        // Use the file's own piece range (from ITorrentManagerFile)
+        // rather than calculating manually
+        int startPiece = file.StartPieceIndex;
+        int endPiece = file.EndPieceIndex;
         int pieceSize = manager.Torrent.PieceLength;
+        int bitfieldLength = manager.Bitfield.Length;
 
-        int startPiece = (int)(fileStart / pieceSize);
-        int endPiece = (int)((fileEnd - 1) / pieceSize);
+        // Ensure we don't exceed bitfield bounds
+        startPiece = Math.Max(0, startPiece);
+        endPiece = Math.Min(bitfieldLength - 1, endPiece);
+
+        if (startPiece > endPiece || startPiece >= bitfieldLength)
+            return ranges;
 
         // Scan BitField for contiguous ranges
         long? rangeStart = null;
+
         for (int i = startPiece; i <= endPiece; i++)
         {
+            // Calculate byte offset within file for this piece
+            long pieceStartByte = (long)i * pieceSize;
+            long pieceEndByte = Math.Min(pieceStartByte + pieceSize, (long)(endPiece + 1) * pieceSize);
+
+            // Convert to file-relative offsets
+            long fileStartOffset = file.StartPieceIndex * (long)pieceSize;
+            long offsetInFile = pieceStartByte - fileStartOffset;
+            offsetInFile = Math.Max(0, offsetInFile);
+
             if (manager.Bitfield[i])
             {
                 if (rangeStart == null)
                 {
-                    rangeStart = Math.Max(0, (long)i * pieceSize - fileStart);
+                    rangeStart = offsetInFile;
                 }
             }
             else
             {
                 if (rangeStart != null)
                 {
-                    long rangeEnd = Math.Min(file.Length, (long)i * pieceSize - fileStart);
+                    long rangeEnd = Math.Min(file.Length, offsetInFile);
                     ranges.Add((rangeStart.Value, rangeEnd));
                     rangeStart = null;
                 }

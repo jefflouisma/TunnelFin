@@ -16,30 +16,13 @@ namespace TunnelFin.Tests.Unit.BitTorrent;
 
 /// <summary>
 /// Unit tests for TorrentEngine - MonoTorrent integration layer.
-/// Tests: AddTorrentAsync, CreateStreamAsync, GetBufferStatus, RemoveTorrentAsync
+/// These tests do NOT require network connectivity.
+///
+/// For integration tests requiring BitTorrent network connectivity, see:
+/// tests/TunnelFin.Integration/BitTorrent/TorrentEngineIntegrationTests.cs
 /// </summary>
 public class TorrentEngineTests
 {
-    /// <summary>
-    /// T018: Verify TorrentEngine.AddTorrentAsync creates MonoTorrent manager and downloads metadata.
-    /// </summary>
-    [Fact(Skip = "Requires BitTorrent network connectivity and available seeders")]
-    public async Task AddTorrentAsync_ValidMagnetLink_ReturnsMetadata()
-    {
-        // Arrange
-        var engine = new TorrentEngine();
-        var magnetLink = "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny";
-
-        // Act
-        var metadata = await engine.AddTorrentAsync(magnetLink, CancellationToken.None);
-
-        // Assert
-        metadata.Should().NotBeNull();
-        metadata.InfoHash.Should().BeEquivalentTo("dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"); // Case-insensitive comparison
-        metadata.MagnetLink.Should().Be(magnetLink);
-        metadata.Files.Should().NotBeEmpty();
-    }
-
     /// <summary>
     /// T018: Verify AddTorrentAsync validates magnet link format.
     /// </summary>
@@ -54,69 +37,6 @@ public class TorrentEngineTests
         await Assert.ThrowsAsync<ArgumentException>(
             () => engine.AddTorrentAsync(invalidMagnetLink, CancellationToken.None)
         );
-    }
-
-    /// <summary>
-    /// T019: Verify TorrentEngine.CreateStreamAsync returns seekable stream.
-    /// </summary>
-    [Fact(Skip = "Requires BitTorrent network connectivity and available seeders")]
-    public async Task CreateStreamAsync_ValidInfoHash_ReturnsSeekableStream()
-    {
-        // Arrange
-        var engine = new TorrentEngine();
-        var magnetLink = "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny";
-        var metadata = await engine.AddTorrentAsync(magnetLink, CancellationToken.None);
-        var filePath = metadata.Files[0].Path;
-
-        // Act
-        var stream = await engine.CreateStreamAsync(metadata.InfoHash, filePath, prebuffer: true, CancellationToken.None);
-
-        // Assert
-        stream.Should().NotBeNull();
-        stream.CanSeek.Should().BeTrue();
-        stream.CanRead.Should().BeTrue();
-        stream.Length.Should().BeGreaterThan(0);
-    }
-
-    /// <summary>
-    /// T020: Verify TorrentEngine.GetBufferStatus tracks buffered ranges.
-    /// </summary>
-    [Fact(Skip = "Requires BitTorrent network connectivity and available seeders")]
-    public async Task GetBufferStatus_ActiveStream_ReturnsBufferStatus()
-    {
-        // Arrange
-        var engine = new TorrentEngine();
-        var magnetLink = "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny";
-        var metadata = await engine.AddTorrentAsync(magnetLink, CancellationToken.None);
-        var filePath = metadata.Files[0].Path;
-        await engine.CreateStreamAsync(metadata.InfoHash, filePath, prebuffer: true, CancellationToken.None);
-
-        // Act
-        var bufferStatus = engine.GetBufferStatus(metadata.InfoHash, filePath);
-
-        // Assert
-        bufferStatus.Should().NotBeNull();
-        bufferStatus!.BufferedRanges.Should().NotBeEmpty();
-        bufferStatus.CurrentBufferedBytes.Should().BeGreaterThan(0);
-    }
-
-    /// <summary>
-    /// T021: Verify TorrentEngine.RemoveTorrentAsync deletes cached data (FR-007a ephemeral requirement).
-    /// </summary>
-    [Fact(Skip = "Requires BitTorrent network connectivity and available seeders")]
-    public async Task RemoveTorrentAsync_ActiveTorrent_DeletesCachedData()
-    {
-        // Arrange
-        var engine = new TorrentEngine();
-        var magnetLink = "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny";
-        var metadata = await engine.AddTorrentAsync(magnetLink, CancellationToken.None);
-
-        // Act
-        await engine.RemoveTorrentAsync(metadata.InfoHash, CancellationToken.None);
-
-        // Assert
-        var retrievedMetadata = engine.GetTorrentMetadata(metadata.InfoHash);
-        retrievedMetadata.Should().BeNull();
     }
 
     /// <summary>
