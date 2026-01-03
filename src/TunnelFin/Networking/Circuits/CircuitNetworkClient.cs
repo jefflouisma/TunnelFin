@@ -95,9 +95,10 @@ public class CircuitNetworkClient : ICircuitNetworkClient, IDisposable
             message[0] = MSG_CREATE;
             Array.Copy(payload, 0, message, 1, payload.Length);
 
-            // Send to relay
-            var endpoint = new IPEndPoint(new IPAddress(BinaryPrimitives.ReadUInt32BigEndian(
-                BitConverter.GetBytes(relay.IPv4Address).Reverse().ToArray())), relay.Port);
+            // Send to relay - convert uint IPv4 address to bytes (big-endian)
+            var ipBytes = new byte[4];
+            BinaryPrimitives.WriteUInt32BigEndian(ipBytes, relay.IPv4Address);
+            var endpoint = new IPEndPoint(new IPAddress(ipBytes), relay.Port);
 
             await _transport.SendAsync(message, endpoint, cancellationToken);
             _logger.LogDebug("Sent CREATE message for circuit {CircuitId}, identifier={Identifier}", 
@@ -155,8 +156,9 @@ public class CircuitNetworkClient : ICircuitNetworkClient, IDisposable
             // Send through the circuit (to first hop)
             // Note: In production, this would be sent through the circuit, not directly
             // For now, we send directly to the relay for testing
-            var endpoint = new IPEndPoint(new IPAddress(BinaryPrimitives.ReadUInt32BigEndian(
-                BitConverter.GetBytes(nextRelay.IPv4Address).Reverse().ToArray())), nextRelay.Port);
+            var extendIpBytes = new byte[4];
+            BinaryPrimitives.WriteUInt32BigEndian(extendIpBytes, nextRelay.IPv4Address);
+            var endpoint = new IPEndPoint(new IPAddress(extendIpBytes), nextRelay.Port);
 
             await _transport.SendAsync(message, endpoint, cancellationToken);
             _logger.LogDebug("Sent EXTEND message for circuit {CircuitId}, identifier={Identifier}", 
