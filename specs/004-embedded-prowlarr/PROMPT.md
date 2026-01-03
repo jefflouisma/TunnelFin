@@ -1,22 +1,21 @@
 # Specify Prompt: 004-embedded-prowlarr
 
-## Usage
+## Status: ✅ spec.md Generated
 
-This feature directory was pre-created. To complete the Specify workflow:
+The `/speckit.specify` workflow has been completed. See `spec.md` in this directory.
+
+## Next Steps
 
 ```bash
-# 1. Switch to the feature branch
-git checkout -b 004-embedded-prowlarr
-
-# 2. Run /speckit.specify with the description below to generate spec.md
-# 3. Run /speckit.plan with tech choices to generate plan.md
-# 4. Run /speckit.tasks to generate tasks.md
-# 5. Run /speckit.implement to execute
+# Continue the Specify workflow:
+# 1. Run /speckit.plan with tech choices to generate plan.md
+# 2. Run /speckit.tasks to generate tasks.md
+# 3. Run /speckit.implement to execute
 ```
 
 ---
 
-## Feature Description (copy this to `/speckit.specify`)
+## Original Feature Description (used to generate spec.md)
 
 Embed Prowlarr's Cardigann indexer engine directly into TunnelFin, making it completely self-contained without requiring external Jackett/Prowlarr installations.
 
