@@ -25,11 +25,14 @@ jobs:
         dotnet-version: '9.0.x'
     
     - name: Restore dependencies
-      run: dotnet restore
-    
+      run: dotnet restore src/TunnelFin/TunnelFin.csproj && dotnet restore tests/TunnelFin.Tests/TunnelFin.Tests.csproj
+
     - name: Build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build src/TunnelFin/TunnelFin.csproj --configuration Release --no-restore
     
+    - name: Build Tests
+      run: dotnet build tests/TunnelFin.Tests/TunnelFin.Tests.csproj --configuration Release --no-restore
+
     - name: Test
       run: dotnet test tests/TunnelFin.Tests/TunnelFin.Tests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
     

@@ -56,11 +56,13 @@ jobs:
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
 
+    - name: Restore dependencies
+      run: |
+        dotnet restore src/TunnelFin/TunnelFin.csproj
+        dotnet restore tests/TunnelFin.Tests/TunnelFin.Tests.csproj
+
     - name: Run tests
       run: dotnet test tests/TunnelFin.Tests/TunnelFin.Tests.csproj --configuration Release --verbosity minimal
-
-    - name: Restore dependencies
-      run: dotnet restore src/TunnelFin/TunnelFin.csproj
 
     - name: Build
       run: dotnet build src/TunnelFin/TunnelFin.csproj -c Release --no-restore -p:Version=${{ steps.version.outputs.VERSION }}
