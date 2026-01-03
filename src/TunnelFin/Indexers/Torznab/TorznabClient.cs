@@ -81,6 +81,8 @@ public class TorznabClient
 
     /// <summary>
     /// Builds Torznab query URL with API key and search parameters.
+    /// Supports both Jackett-style (baseUrl/api) and Prowlarr-style (baseUrl/{id}/api) URLs.
+    /// If baseUrl already ends with /api, appends query params directly.
     /// </summary>
     private string BuildQueryUrl(IndexerConfig config, string query)
     {
@@ -88,7 +90,11 @@ public class TorznabClient
         var apiKey = config.ApiKey ?? string.Empty;
         var encodedQuery = Uri.EscapeDataString(query);
 
-        return $"{baseUrl}/api?t=search&q={encodedQuery}&apikey={apiKey}";
+        // If URL already contains /api path (Prowlarr-style), append query params directly
+        // Otherwise append /api (Jackett-style)
+        var separator = baseUrl.EndsWith("/api", StringComparison.OrdinalIgnoreCase) ? "?" : "/api?";
+
+        return $"{baseUrl}{separator}t=search&q={encodedQuery}&apikey={apiKey}";
     }
 
     /// <summary>
@@ -164,7 +170,14 @@ public class TorznabClient
                 {
                     var title = item.Element("title")?.Value;
                     var link = item.Element("link")?.Value;
+                    var guid = item.Element("guid")?.Value;
                     var pubDate = item.Element("pubDate")?.Value;
+
+                    // Prowlarr puts magnet link in <guid>, download URL in <link>
+                    // Prefer magnet link from guid if available
+                    var magnetLink = guid?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true
+                        ? guid
+                        : (link?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true ? link : null);
 
                     // Parse torznab:attr elements
                     var attrs = item.Elements(ns + "attr")
@@ -173,8 +186,8 @@ public class TorznabClient
                             a => a.Attribute("value")?.Value ?? string.Empty
                         );
 
-                    // Extract required fields
-                    if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(link))
+                    // Extract required fields - need title and either magnet or infohash
+                    if (string.IsNullOrWhiteSpace(title))
                         continue;
 
                     // Parse size (bytes)
@@ -192,19 +205,23 @@ public class TorznabClient
                     if (attrs.TryGetValue("peers", out var peersStr))
                         int.TryParse(peersStr, out leechers);
 
-                    // Extract InfoHash from magnet link
+                    // Extract InfoHash - prefer torznab:attr, fallback to magnet link parsing
                     string? infoHash = null;
-                    if (link.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                    if (attrs.TryGetValue("infohash", out var attrInfoHash) && !string.IsNullOrWhiteSpace(attrInfoHash))
                     {
-                        var urnIndex = link.IndexOf("urn:btih:", StringComparison.OrdinalIgnoreCase);
+                        infoHash = attrInfoHash.ToUpperInvariant();
+                    }
+                    else if (!string.IsNullOrWhiteSpace(magnetLink))
+                    {
+                        var urnIndex = magnetLink.IndexOf("urn:btih:", StringComparison.OrdinalIgnoreCase);
                         if (urnIndex >= 0)
                         {
                             var hashStart = urnIndex + 9;
-                            var hashEnd = link.IndexOf('&', hashStart);
+                            var hashEnd = magnetLink.IndexOf('&', hashStart);
                             if (hashEnd < 0)
-                                hashEnd = link.Length;
+                                hashEnd = magnetLink.Length;
 
-                            infoHash = link.Substring(hashStart, hashEnd - hashStart).ToUpperInvariant();
+                            infoHash = magnetLink.Substring(hashStart, hashEnd - hashStart).ToUpperInvariant();
                         }
                     }
 
@@ -216,7 +233,7 @@ public class TorznabClient
                     {
                         Title = title,
                         InfoHash = infoHash.ToLowerInvariant(),
-                        MagnetLink = link,
+                        MagnetLink = magnetLink ?? $"magnet:?xt=urn:btih:{infoHash}",
                         Size = size,
                         Seeders = seeders,
                         Leechers = leechers,

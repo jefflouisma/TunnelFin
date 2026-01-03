@@ -230,4 +230,108 @@ public class TorznabClientTests
         // Assert
         results.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task SearchAsync_ProwlarrStyleUrl_BuildsCorrectUrl()
+    {
+        // Arrange - Prowlarr uses /{indexerId}/api endpoint
+        string? capturedUrl = null;
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            )
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedUrl = req.RequestUri?.ToString())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel></channel>
+</rss>")
+            });
+
+        var httpClient = new HttpClient(mockHandler.Object);
+        var client = new TorznabClient(httpClient, _mockLogger.Object);
+
+        // Prowlarr-style URL ends with /api
+        var config = new IndexerConfig
+        {
+            Name = "Prowlarr - TPB",
+            Type = IndexerType.Torznab,
+            BaseUrl = "http://192.168.1.10:30696/7/api",
+            ApiKey = "bcd0a9996707444c8ed39a88990fb7aa"
+        };
+
+        // Act
+        await client.SearchAsync(config, "test query", CancellationToken.None);
+
+        // Assert - should NOT double the /api path
+        capturedUrl.Should().NotBeNull();
+        capturedUrl.Should().Contain("/7/api?t=search");
+        capturedUrl.Should().NotContain("/api/api");
+        capturedUrl.Should().Contain("q=test%20query");
+        capturedUrl.Should().Contain("apikey=bcd0a9996707444c8ed39a88990fb7aa");
+    }
+
+    [Fact]
+    public async Task SearchAsync_ProwlarrResponse_ParsesInfoHashFromAttribute()
+    {
+        // Arrange - Prowlarr returns infohash as torznab:attr, magnet in <guid>
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Big.Buck.Bunny.BDRip.XviD-MEDiC</title>
+      <guid>magnet:?xt=urn:btih:C39FE3EEFBDB62DA9C27EB6398FF4A7D2E26E7AB&amp;dn=Big.Buck.Bunny</guid>
+      <link>http://192.168.1.10:30696/7/download?apikey=xxx&amp;link=encoded</link>
+      <torznab:attr name=""size"" value=""183567936""/>
+      <torznab:attr name=""seeders"" value=""5""/>
+      <torznab:attr name=""peers"" value=""3""/>
+      <torznab:attr name=""infohash"" value=""C39FE3EEFBDB62DA9C27EB6398FF4A7D2E26E7AB""/>
+    </item>
+  </channel>
+</rss>";
+
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            )
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(xml)
+            });
+
+        var httpClient = new HttpClient(mockHandler.Object);
+        var client = new TorznabClient(httpClient, _mockLogger.Object);
+
+        var config = new IndexerConfig
+        {
+            Name = "Prowlarr - TPB",
+            Type = IndexerType.Torznab,
+            BaseUrl = "http://192.168.1.10:30696/7/api",
+            ApiKey = "test-key"
+        };
+
+        // Act
+        var results = await client.SearchAsync(config, "Big Buck Bunny", CancellationToken.None);
+
+        // Assert
+        results.Should().HaveCount(1);
+        var result = results.First();
+        result.Title.Should().Be("Big.Buck.Bunny.BDRip.XviD-MEDiC");
+        result.InfoHash.Should().Be("c39fe3eefbdb62da9c27eb6398ff4a7d2e26e7ab"); // lowercase
+        result.Size.Should().Be(183567936);
+        result.Seeders.Should().Be(5);
+        result.Leechers.Should().Be(3);
+        // Magnet should come from <guid>, not <link>
+        result.MagnetLink.Should().StartWith("magnet:?xt=urn:btih:");
+        result.MagnetLink.Should().Contain("C39FE3EEFBDB62DA9C27EB6398FF4A7D2E26E7AB");
+    }
 }
