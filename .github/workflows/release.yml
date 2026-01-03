@@ -2,71 +2,117 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.0.0)'
+        description: 'Version number (e.g., 1.0.0.5)'
         required: true
-        default: '1.0.0.0'
+        default: '1.0.0.5'
+      create_release:
+        description: 'Create a GitHub release'
+        required: true
+        default: 'true'
+        type: boolean
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+      with:
+        fetch-depth: 0
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '10.0.x'
-    
+        dotnet-version: '9.0.x'
+
+    - name: Determine version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          # Auto-increment: get latest tag and bump patch version
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0.0")
+          LATEST_VERSION=${LATEST_TAG#v}
+          IFS='.' read -ra PARTS <<< "$LATEST_VERSION"
+          MAJOR=${PARTS[0]:-1}
+          MINOR=${PARTS[1]:-0}
+          PATCH=${PARTS[2]:-0}
+          BUILD=$((${PARTS[3]:-0} + 1))
+          VERSION="${MAJOR}.${MINOR}.${PATCH}.${BUILD}"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
+    - name: Run tests
+      run: dotnet test tests/TunnelFin.Tests/TunnelFin.Tests.csproj --configuration Release --verbosity minimal
+
     - name: Restore dependencies
       run: dotnet restore src/TunnelFin/TunnelFin.csproj
-    
+
     - name: Build
-      run: dotnet build src/TunnelFin/TunnelFin.csproj -c Release --no-restore
-    
+      run: dotnet build src/TunnelFin/TunnelFin.csproj -c Release --no-restore -p:Version=${{ steps.version.outputs.VERSION }}
+
     - name: Publish
       run: dotnet publish src/TunnelFin/TunnelFin.csproj -c Release -o ./publish --no-build
-    
+
+    - name: List published files
+      run: ls -la publish/
+
     - name: Prepare plugin package
       run: |
         mkdir -p plugin_package/TunnelFin
-        # Copy TunnelFin and its dependencies (excluding Jellyfin assemblies)
+        # Copy TunnelFin main assembly and debug symbols
         cp publish/TunnelFin.dll plugin_package/TunnelFin/
-        cp publish/TunnelFin.pdb plugin_package/TunnelFin/
-        cp publish/MonoTorrent*.dll plugin_package/TunnelFin/
-        cp publish/NSec.Cryptography.dll plugin_package/TunnelFin/
-        cp publish/Polly*.dll plugin_package/TunnelFin/
-        cp publish/ReusableTasks.dll plugin_package/TunnelFin/
-        cp publish/BitFaster.Caching.dll plugin_package/TunnelFin/
-        cp publish/Mono.Nat.dll plugin_package/TunnelFin/
-    
+        cp publish/TunnelFin.pdb plugin_package/TunnelFin/ 2>/dev/null || true
+
+        # Copy all required dependencies (excluding Jellyfin/Microsoft assemblies that are provided by runtime)
+        for dll in MonoTorrent NSec.Cryptography Polly ReusableTasks BitFaster.Caching Mono.Nat HtmlAgilityPack; do
+          cp publish/${dll}*.dll plugin_package/TunnelFin/ 2>/dev/null || echo "Note: ${dll} not found, may not be required"
+        done
+
+        echo "Plugin package contents:"
+        ls -la plugin_package/TunnelFin/
+
     - name: Create ZIP
       run: |
-        VERSION=${{ github.event.inputs.version || github.ref_name }}
-        VERSION=${VERSION#v}  # Remove 'v' prefix if present
+        VERSION=${{ steps.version.outputs.VERSION }}
         cd plugin_package
         zip -r ../tunnelfin_${VERSION}.zip TunnelFin/
         cd ..
         echo "ZIP_NAME=tunnelfin_${VERSION}.zip" >> $GITHUB_ENV
-    
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
     - name: Calculate MD5 checksum
       run: |
         CHECKSUM=$(md5sum ${{ env.ZIP_NAME }} | cut -d' ' -f1)
         echo "CHECKSUM=$CHECKSUM" >> $GITHUB_ENV
         echo "MD5 Checksum: $CHECKSUM"
-    
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tunnelfin-plugin-${{ env.VERSION }}
+        path: ${{ env.ZIP_NAME }}
+
     - name: Update manifest.json
       run: |
-        VERSION=${{ github.event.inputs.version || github.ref_name }}
-        VERSION=${VERSION#v}
+        VERSION=${{ env.VERSION }}
         TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-        
-        # Update manifest with new version info
+
+        # Update manifest with new version info (prepend to versions array)
         jq --arg ver "$VERSION" \
            --arg checksum "${{ env.CHECKSUM }}" \
            --arg timestamp "$TIMESTAMP" \
@@ -78,41 +124,66 @@ jobs:
              sourceUrl: $url,
              checksum: $checksum,
              timestamp: $timestamp
-           }] + .[0].versions' manifest.json > manifest_new.json
+           }] + (.[0].versions // [])' manifest.json > manifest_new.json
         mv manifest_new.json manifest.json
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
+
+        echo "Updated manifest.json:"
+        cat manifest.json
+
+    - name: Create tag and release
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true' || github.event_name == 'push'
+      run: |
+        VERSION=${{ env.VERSION }}
+        TAG="v${VERSION}"
+
+        # Configure git
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Check if tag already exists
+        if git rev-parse "$TAG" >/dev/null 2>&1; then
+          echo "Tag $TAG already exists, skipping tag creation"
+        else
+          # Commit manifest changes first
+          git add manifest.json
+          git commit -m "chore: update manifest for v${VERSION}" || echo "No manifest changes to commit"
+          git push origin HEAD:main
+
+          # Create and push tag
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create GitHub Release
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true' || github.event_name == 'push'
+      uses: softprops/action-gh-release@v2
       with:
-        name: tunnelfin-plugin
-        path: ${{ env.ZIP_NAME }}
-    
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
+        tag_name: v${{ env.VERSION }}
+        name: TunnelFin v${{ env.VERSION }}
         files: ${{ env.ZIP_NAME }}
+        fail_on_unmatched_files: true
+        generate_release_notes: false
         body: |
-          ## TunnelFin v${{ github.ref_name }}
-          
+          ## TunnelFin v${{ env.VERSION }}
+
+          Privacy-first anonymous torrent streaming for Jellyfin via Tribler's IPv8 network.
+
           ### Installation
           Add this repository to Jellyfin:
           - **Repository Name:** TunnelFin
           - **Repository URL:** `https://raw.githubusercontent.com/${{ github.repository }}/main/manifest.json`
-          
+
+          Then go to Plugins → Catalog, find TunnelFin, and click Install.
+
+          ### Manual Installation
+          1. Download `tunnelfin_${{ env.VERSION }}.zip`
+          2. Extract to your Jellyfin plugins folder
+          3. Restart Jellyfin
+
           ### Checksum
           MD5: `${{ env.CHECKSUM }}`
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Commit manifest update
-      if: startsWith(github.ref, 'refs/tags/')
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add manifest.json
-        git commit -m "Update manifest for v${{ github.ref_name }}" || echo "No changes to commit"
-        git push origin HEAD:main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
