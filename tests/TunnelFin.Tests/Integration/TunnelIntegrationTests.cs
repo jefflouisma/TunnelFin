@@ -40,7 +40,7 @@ public class TunnelIntegrationTests : IDisposable
         _tunnelProxy = new TunnelProxy(_mockLogger.Object);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires real network connectivity to IPv8 bootstrap nodes")]
     public async Task TunnelProxy_Should_Create_Tunnel_Through_Circuit()
     {
         // Arrange
@@ -119,7 +119,7 @@ public class TunnelIntegrationTests : IDisposable
         tunnel.CanWrite.Should().BeTrue("Tunnel should support writing");
     }
 
-    [Fact]
+    [Fact(Skip = "Requires real network connectivity to IPv8 bootstrap nodes")]
     public async Task TunnelProxy_Should_Hide_Source_IP_Address()
     {
         // Arrange

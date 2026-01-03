@@ -7,8 +7,7 @@
 ## Prerequisites
 
 - **.NET SDK 10.0** or later
-- **Rancher Desktop** or **Docker Desktop** (for Jellyfin integration testing)
-- **kubectl** (for Kubernetes cluster management)
+- **Jellyfin server** (for integration testing)
 - **Git** (for version control and reference repositories)
 
 ## Initial Setup
@@ -61,14 +60,16 @@ Passed!  - Failed:     0, Passed:    XX, Skipped:     0, Total:    XX
 
 ### Integration Tests (Slower - Requires Jellyfin)
 
-**Prerequisites**: Jellyfin instance running in Kubernetes
+**Prerequisites**: Jellyfin instance running with TunnelFin plugin installed
 
 ```bash
-# Check Jellyfin is running
-kubectl -n jellyfin get pods
+# Set environment variables for your Jellyfin instance
+export JELLYFIN_URL="http://your-jellyfin-server:8096"
+export JELLYFIN_USERNAME="your-username"
+export JELLYFIN_PASSWORD="your-password"
 
-# Run integration tests
-dotnet test tests/TunnelFin.Integration
+# Run E2E tests
+cd tests/e2e && python3 jellyfin_e2e_test.py
 ```
 
 ### Code Coverage
@@ -105,43 +106,23 @@ dotnet test tests/TunnelFin.Tests
 dotnet test tests/TunnelFin.Tests
 ```
 
-### 2. Running Jellyfin Locally
-
-**Start Jellyfin** (if not already running):
+### 2. Deploy Plugin to Jellyfin
 
 ```bash
-# Deploy Jellyfin to Kubernetes
-kubectl apply -f k8s/jellyfin-deployment.yaml
+# Build plugin package
+./scripts/build-plugin.sh
 
-# Check status
-kubectl -n jellyfin get pods,svc
-
-# Get external IP
-kubectl -n jellyfin get svc jellyfin
-```
-
-**Access Jellyfin UI**:
-```
-http://192.168.64.6:8096
-```
-
-### 3. Deploy Plugin to Jellyfin
-
-```bash
-# Build plugin in Release mode
-dotnet build src/TunnelFin -c Release
-
-# Copy plugin DLL to Jellyfin pod
-kubectl -n jellyfin cp \
-  src/TunnelFin/bin/Release/net10.0/TunnelFin.dll \
-  jellyfin-xxxxxxxxx-xxxxx:/config/plugins/TunnelFin.dll
+# Copy plugin to Jellyfin plugins directory
+# Location varies by platform:
+# - Linux: ~/.local/share/jellyfin/plugins/
+# - macOS: ~/Library/Application Support/Jellyfin/plugins/
+# - Docker: /config/plugins/ (mount volume)
 
 # Restart Jellyfin to load plugin
-kubectl -n jellyfin rollout restart deployment jellyfin
 ```
 
 **Verify plugin loaded**:
-1. Navigate to Jellyfin UI: http://192.168.64.6:8096
+1. Navigate to your Jellyfin UI
 2. Go to Dashboard → Plugins
 3. Confirm "TunnelFin" appears in plugin list
 

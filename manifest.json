@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/assets/icon.png",
         "versions": [
             {
+                "version": "1.0.0.5",
+                "changelog": "v1.0.0.5 - Service registration fix:\n- Added IChannel registration for TunnelFinChannel\n- Registered ITorrentEngine, IStreamManager, IIndexerManager services\n- Fixed Jellyfin channel discovery\n- Channel should now appear in Jellyfin Channels section",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.5/tunnelfin_1.0.0.5.zip",
+                "checksum": "490c60d937c56f7bc4e54ca2a0cbd1cc",
+                "timestamp": "2026-01-03T07:30:00Z"
+            },
+            {
                 "version": "1.0.0.4",
                 "changelog": "v1.0.0.4 - Plugin loading fix:\n- Removed native runtime libraries that caused assembly loading errors\n- Cleaned up unnecessary dependencies from plugin package\n- Reduced package size from 25MB to 10MB\n\nPrevious features:\n- Anonymous torrent streaming via Tribler IPv8 network\n- Multi-hop circuit routing (1-3 hops)\n- Integrated content discovery with Torznab indexers\n- Advanced filtering (Required/Preferred/Excluded/Include)\n- Multi-criteria sorting with custom orders\n- Privacy-aware metrics and observability\n- 90%+ test coverage\n- Self-contained C# plugin",
                 "targetAbi": "10.11.0.0",

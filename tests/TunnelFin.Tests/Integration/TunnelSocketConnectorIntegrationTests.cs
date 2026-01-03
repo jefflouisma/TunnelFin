@@ -67,7 +67,7 @@ public class TunnelSocketConnectorIntegrationTests : IAsyncLifetime
         _protocol.Dispose();
     }
 
-    [Fact]
+    [Fact(Skip = "Requires real network connectivity to IPv8 bootstrap nodes")]
     public async Task ConnectAsync_WithRealCircuit_EstablishesConnection()
     {
         // Arrange
@@ -103,7 +103,7 @@ public class TunnelSocketConnectorIntegrationTests : IAsyncLifetime
         tunnelSocket.TunnelStream.Circuit.IPv8CircuitId.Should().Be(circuit.IPv8CircuitId);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires real network connectivity to IPv8 bootstrap nodes")]
     public async Task ConnectAsync_CircuitFailover_RetriesWithDifferentCircuit()
     {
         // Arrange

@@ -1,6 +1,12 @@
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Channels;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
+using TunnelFin.BitTorrent;
+using TunnelFin.Configuration;
+using TunnelFin.Indexers;
+using TunnelFin.Jellyfin;
+using TunnelFin.Streaming;
 
 namespace TunnelFin.Core;
 
@@ -18,16 +24,18 @@ public class ServiceRegistration : IPluginServiceRegistrator
     /// <param name="applicationHost">The Jellyfin application host.</param>
     public void RegisterServices(IServiceCollection services, IServerApplicationHost applicationHost)
     {
-        // Core services will be registered here as they are implemented
-        // Phase 3+ will add:
-        // - services.AddSingleton<ICircuitManager, CircuitManager>();
-        // - services.AddSingleton<ITorrentEngine, TorrentEngine>();
-        // - services.AddSingleton<ISearchService, SearchService>();
-        // - services.AddSingleton<IFilterService, FilterService>();
-        // - services.AddSingleton<IMetadataService, MetadataService>();
-        // - services.AddHttpClient<ITriblerClient, TriblerClient>();
-        
-        // For now, this is a placeholder that will be populated as services are implemented
+        // Configuration
+        services.AddSingleton<StreamingConfig>();
+
+        // HTTP client for indexers
+        services.AddHttpClient<IIndexerManager, IndexerManager>();
+
+        // Core services
+        services.AddSingleton<ITorrentEngine, TorrentEngine>();
+        services.AddSingleton<IStreamManager, StreamManager>();
+
+        // Jellyfin channel integration - this is how Jellyfin discovers the channel
+        services.AddSingleton<IChannel, TunnelFinChannel>();
     }
 }
 
