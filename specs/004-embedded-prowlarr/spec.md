@@ -14,7 +14,7 @@
 - Q: Should we port all Prowlarr code or just Cardigann? → A: Only Cardigann engine + definition update service. Skip Prowlarr's database, UI, API layers.
 - Q: How to handle Prowlarr's NzbDrone dependencies? → A: Extract only required classes, adapt to TunnelFin's DI container and logging.
 - Q: Definition storage location? → A: `{PluginDataPath}/Definitions/` for official, `{PluginDataPath}/Definitions/Custom/` for user-defined.
-- Q: How often to check for definition updates? → A: On plugin startup only (avoid background polling). Manual refresh button in settings.
+- Q: How often to check for definition updates? → A: On plugin startup only (same as Prowlarr's `ApplicationStartedEvent` handler). Manual refresh button in settings.
 - Q: Internal Torznab endpoint security? → A: Loopback only (127.0.0.1), no authentication required for internal calls.
 - Q: Handle indexers requiring cookies/captchas? → A: Support FlareSolverr proxy configuration for Cloudflare-protected sites.
 
@@ -130,7 +130,7 @@ A user searches and expects results from all enabled indexers aggregated and ded
 **Definition Management**
 
 - **FR-007**: System MUST download definitions from `https://indexers.prowlarr.com/master/11/package.zip`
-- **FR-008**: System MUST verify download integrity using SHA256 checksum
+- **FR-008**: System MUST fetch definition list from `https://indexers.prowlarr.com/master/11` (JSON array)
 - **FR-009**: System MUST extract and cache definitions in `{PluginDataPath}/Definitions/`
 - **FR-010**: System MUST load custom definitions from `{PluginDataPath}/Definitions/Custom/`
 - **FR-011**: System MUST track definition versions to detect updates
@@ -344,49 +344,55 @@ public class CardigannEngine
 
 **File**: `src/TunnelFin/Indexers/Cardigann/DefinitionUpdateService.cs`
 
+Based on Prowlarr's actual `IndexerDefinitionUpdateService`:
+
 ```csharp
 public class DefinitionUpdateService
 {
-    private const string ProwlarrCdnUrl = "https://indexers.prowlarr.com/master/11/package.zip";
+    private const string DefinitionBranch = "master";
+    private const int DefinitionVersion = 11;
+
+    // Prowlarr CDN endpoints (same as upstream)
+    // List: https://indexers.prowlarr.com/master/11 (JSON array)
+    // Package: https://indexers.prowlarr.com/master/11/package.zip
+    // Single: https://indexers.prowlarr.com/master/11/{id} (YAML)
+
     private readonly HttpClient _httpClient;
     private readonly string _definitionsPath;
     private readonly ILogger<DefinitionUpdateService> _logger;
 
-    public async Task<bool> CheckAndUpdateAsync(CancellationToken ct = default)
+    public async Task<List<CardigannMetaDefinition>> GetDefinitionListAsync(CancellationToken ct = default)
     {
-        var currentVersion = await GetCurrentVersionAsync();
-        var remoteVersion = await GetRemoteVersionAsync(ct);
-
-        if (remoteVersion <= currentVersion)
-        {
-            _logger.LogInformation("Definitions up to date (v{Version})", currentVersion);
-            return false;
-        }
-
-        _logger.LogInformation("Updating definitions from v{Current} to v{Remote}",
-            currentVersion, remoteVersion);
-
-        await DownloadAndExtractAsync(ct);
-        return true;
+        // Fetch JSON list of all available definitions
+        var url = $"https://indexers.prowlarr.com/{DefinitionBranch}/{DefinitionVersion}";
+        var response = await _httpClient.GetFromJsonAsync<List<CardigannMetaDefinition>>(url, ct);
+        return response ?? [];
     }
 
-    private async Task DownloadAndExtractAsync(CancellationToken ct)
+    public async Task UpdateLocalDefinitionsAsync(CancellationToken ct = default)
     {
-        using var response = await _httpClient.GetAsync(ProwlarrCdnUrl, ct);
-        response.EnsureSuccessStatusCode();
+        var packageUrl = $"https://indexers.prowlarr.com/{DefinitionBranch}/{DefinitionVersion}/package.zip";
+        var saveFile = Path.Combine(_definitionsPath, "indexers.zip");
 
-        var tempPath = Path.Combine(Path.GetTempPath(), "prowlarr-definitions.zip");
-        await using var fileStream = File.Create(tempPath);
-        await response.Content.CopyToAsync(fileStream, ct);
+        // Download package.zip
+        await using var response = await _httpClient.GetStreamAsync(packageUrl, ct);
+        await using var fileStream = File.Create(saveFile);
+        await response.CopyToAsync(fileStream, ct);
         fileStream.Close();
 
-        // Extract to definitions folder
-        var extractPath = Path.Combine(_definitionsPath, "Official");
-        if (Directory.Exists(extractPath))
-            Directory.Delete(extractPath, recursive: true);
+        // Extract (overwrites existing)
+        ZipFile.ExtractToDirectory(saveFile, _definitionsPath, overwriteFiles: true);
+        File.Delete(saveFile);
 
-        ZipFile.ExtractToDirectory(tempPath, extractPath);
-        File.Delete(tempPath);
+        _logger.LogInformation("Updated {Version} indexer definitions", DefinitionVersion);
+    }
+
+    public async Task<CardigannDefinition> GetSingleDefinitionAsync(string id, CancellationToken ct = default)
+    {
+        // Fetch individual YAML definition (fallback when not cached locally)
+        var url = $"https://indexers.prowlarr.com/{DefinitionBranch}/{DefinitionVersion}/{id}";
+        var yaml = await _httpClient.GetStringAsync(url, ct);
+        return _yamlDeserializer.Deserialize<CardigannDefinition>(yaml);
     }
 }
 ```
