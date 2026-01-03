@@ -23,8 +23,9 @@ namespace TunnelFin.Jellyfin;
 /// <summary>
 /// Jellyfin IChannel implementation for TunnelFin.
 /// Presents torrent search results as native Jellyfin library items.
+/// Implements IRequiresMediaInfoCallback for media source resolution.
 /// </summary>
-public class TunnelFinChannel : IChannel
+public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback
 {
     private readonly IIndexerManager _indexerManager;
     private readonly IStreamManager _streamManager;
@@ -293,43 +294,46 @@ public class TunnelFinChannel : IChannel
         };
     }
 
-    public async Task<IEnumerable<MediaSourceInfo>> GetChannelItemMediaInfo(string itemId, string? filePath, CancellationToken cancellationToken)
+    /// <summary>
+    /// IRequiresMediaInfoCallback implementation - provides media sources for channel items.
+    /// </summary>
+    public async Task<IEnumerable<MediaSourceInfo>> GetChannelItemMediaInfo(string id, CancellationToken cancellationToken)
     {
-        _logger?.LogInformation("GetChannelItemMediaInfo called for ItemId: {ItemId}, FilePath: {FilePath}", itemId, filePath);
+        _logger?.LogInformation("GetChannelItemMediaInfo called for Id: {Id}", id);
 
         try
         {
-            // ItemId can be either a magnet link or "infoHash:filePath" format
+            // Id can be either a magnet link or "infoHash:filePath" format
             string infoHash;
-            string actualFilePath;
+            string filePath;
 
-            if (itemId.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+            if (id.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
             {
                 // Extract InfoHash from magnet link
-                infoHash = ExtractInfoHashFromMagnet(itemId);
-                actualFilePath = filePath ?? string.Empty;
+                infoHash = ExtractInfoHashFromMagnet(id);
+                filePath = string.Empty;
 
                 // Add torrent if not already added (needed to get metadata)
-                await _torrentEngine.AddTorrentAsync(itemId, cancellationToken);
+                await _torrentEngine.AddTorrentAsync(id, cancellationToken);
             }
-            else if (itemId.Contains(':'))
+            else if (id.Contains(':') && !id.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
             {
                 // Format: "infoHash:filePath" (from multi-file navigation)
-                var parts = itemId.Split(':', 2);
+                var parts = id.Split(':', 2);
                 infoHash = parts[0];
-                actualFilePath = parts[1];
+                filePath = parts[1];
             }
             else
             {
                 // Plain InfoHash
-                infoHash = itemId;
-                actualFilePath = filePath ?? string.Empty;
+                infoHash = id;
+                filePath = string.Empty;
             }
 
-            _logger?.LogDebug("Resolved InfoHash: {InfoHash}, FilePath: {FilePath}", infoHash, actualFilePath);
+            _logger?.LogDebug("Resolved InfoHash: {InfoHash}, FilePath: {FilePath}", infoHash, filePath);
 
             // Create stream session and get URL
-            var session = await _streamManager.CreateSessionAsync(infoHash, actualFilePath, null, cancellationToken);
+            var session = await _streamManager.CreateSessionAsync(infoHash, filePath, null, cancellationToken);
             var streamUrl = _streamManager.GetStreamUrl(session.SessionId);
 
             var mediaSource = new MediaSourceInfo
@@ -347,7 +351,7 @@ public class TunnelFinChannel : IChannel
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error getting media info for ItemId: {ItemId}", itemId);
+            _logger?.LogError(ex, "Error getting media info for Id: {Id}", id);
             return Array.Empty<MediaSourceInfo>();
         }
     }

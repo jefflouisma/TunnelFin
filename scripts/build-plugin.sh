@@ -26,6 +26,14 @@ echo "📦 Packaging plugin..."
 cp publish/TunnelFin.dll plugin_package/TunnelFin/
 cp publish/TunnelFin.pdb plugin_package/TunnelFin/ 2>/dev/null || true
 
+# Copy and update meta.json with version
+META_FILE="$ROOT_DIR/src/TunnelFin/meta.json"
+if [ -f "$META_FILE" ]; then
+    # Update version in meta.json and copy
+    sed "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" "$META_FILE" > plugin_package/TunnelFin/meta.json
+    echo "✓ meta.json included"
+fi
+
 # MonoTorrent and dependencies
 cp publish/MonoTorrent*.dll plugin_package/TunnelFin/
 cp publish/Mono.Nat.dll plugin_package/TunnelFin/

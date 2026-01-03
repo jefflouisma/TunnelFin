@@ -1,7 +1,7 @@
 {
-  "passed": 4,
+  "passed": 2,
   "failed": 1,
-  "warnings": 2,
+  "warnings": 4,
   "skipped": 3,
   "total": 10,
   "overall": "FAILED",
@@ -18,8 +18,8 @@
     },
     {
       "name": "TunnelFin Plugin Installation",
-      "result": "PASSED",
-      "message": "TunnelFin v1.0.0.4 is active"
+      "result": "WARNING",
+      "message": "TunnelFin found but status is: NotSupported"
     },
     {
       "name": "TunnelFin Channel Discovery",
@@ -53,8 +53,8 @@
     },
     {
       "name": "Log Analysis for TunnelFin Errors",
-      "result": "PASSED",
-      "message": "No TunnelFin errors found in logs"
+      "result": "WARNING",
+      "message": "Found 1 TunnelFin-related errors in logs"
     }
   ]
 }
