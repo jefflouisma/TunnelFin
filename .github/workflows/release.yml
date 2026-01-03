@@ -1,0 +1,118 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0.0)'
+        required: true
+        default: '1.0.0.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore src/TunnelFin/TunnelFin.csproj
+    
+    - name: Build
+      run: dotnet build src/TunnelFin/TunnelFin.csproj -c Release --no-restore
+    
+    - name: Publish
+      run: dotnet publish src/TunnelFin/TunnelFin.csproj -c Release -o ./publish --no-build
+    
+    - name: Prepare plugin package
+      run: |
+        mkdir -p plugin_package/TunnelFin
+        # Copy TunnelFin and its dependencies (excluding Jellyfin assemblies)
+        cp publish/TunnelFin.dll plugin_package/TunnelFin/
+        cp publish/TunnelFin.pdb plugin_package/TunnelFin/
+        cp publish/MonoTorrent*.dll plugin_package/TunnelFin/
+        cp publish/NSec.Cryptography.dll plugin_package/TunnelFin/
+        cp publish/Polly*.dll plugin_package/TunnelFin/
+        cp publish/ReusableTasks.dll plugin_package/TunnelFin/
+        cp publish/BitFaster.Caching.dll plugin_package/TunnelFin/
+        cp publish/Mono.Nat.dll plugin_package/TunnelFin/
+    
+    - name: Create ZIP
+      run: |
+        VERSION=${{ github.event.inputs.version || github.ref_name }}
+        VERSION=${VERSION#v}  # Remove 'v' prefix if present
+        cd plugin_package
+        zip -r ../tunnelfin_${VERSION}.zip TunnelFin/
+        cd ..
+        echo "ZIP_NAME=tunnelfin_${VERSION}.zip" >> $GITHUB_ENV
+    
+    - name: Calculate MD5 checksum
+      run: |
+        CHECKSUM=$(md5sum ${{ env.ZIP_NAME }} | cut -d' ' -f1)
+        echo "CHECKSUM=$CHECKSUM" >> $GITHUB_ENV
+        echo "MD5 Checksum: $CHECKSUM"
+    
+    - name: Update manifest.json
+      run: |
+        VERSION=${{ github.event.inputs.version || github.ref_name }}
+        VERSION=${VERSION#v}
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        
+        # Update manifest with new version info
+        jq --arg ver "$VERSION" \
+           --arg checksum "${{ env.CHECKSUM }}" \
+           --arg timestamp "$TIMESTAMP" \
+           --arg url "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/tunnelfin_${VERSION}.zip" \
+           '.[0].versions = [{
+             version: $ver,
+             changelog: "Release v\($ver)",
+             targetAbi: "10.11.0.0",
+             sourceUrl: $url,
+             checksum: $checksum,
+             timestamp: $timestamp
+           }] + .[0].versions' manifest.json > manifest_new.json
+        mv manifest_new.json manifest.json
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tunnelfin-plugin
+        path: ${{ env.ZIP_NAME }}
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ env.ZIP_NAME }}
+        body: |
+          ## TunnelFin v${{ github.ref_name }}
+          
+          ### Installation
+          Add this repository to Jellyfin:
+          - **Repository Name:** TunnelFin
+          - **Repository URL:** `https://raw.githubusercontent.com/${{ github.repository }}/main/manifest.json`
+          
+          ### Checksum
+          MD5: `${{ env.CHECKSUM }}`
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Commit manifest update
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add manifest.json
+        git commit -m "Update manifest for v${{ github.ref_name }}" || echo "No changes to commit"
+        git push origin HEAD:main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

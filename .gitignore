@@ -149,4 +149,4 @@ ServiceFabricBackup/
 # Environment variables
 .env
 .env.*
-!.env.example
+!.env.examplecoverage/

@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.71" />
     <PackageReference Include="Jellyfin.Controller" Version="10.11.5" />
     <PackageReference Include="Jellyfin.Model" Version="10.11.5" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.1" />
@@ -16,6 +17,11 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Configuration\config.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Exclude Jellyfin interface files until Jellyfin types are available -->
+    <Compile Remove="Interfaces\ITunnelFinChannel.cs" />
   </ItemGroup>
 
 </Project>

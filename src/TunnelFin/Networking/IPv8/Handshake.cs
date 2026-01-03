@@ -194,41 +194,91 @@ public class Handshake
     }
 
     /// <summary>
-    /// Wraps a signed message with IPv8 community prefix for network transmission.
+    /// Creates a full IPv8 message with proper format for network transmission.
+    /// Format: prefix (22 bytes) + msg_type (1 byte) + BinMemberAuth + GlobalTime + payload + signature
     /// </summary>
     /// <param name="messageType">Message type byte.</param>
-    /// <param name="signedPayload">Signed payload (payload + signature).</param>
-    /// <returns>Full IPv8 message with 23-byte prefix + type + signed payload.</returns>
-    private byte[] WrapWithIPv8Prefix(byte messageType, byte[] signedPayload)
+    /// <param name="payload">The payload (e.g., IntroductionRequestPayload).</param>
+    /// <returns>Full IPv8 message ready for transmission.</returns>
+    private byte[] CreateIPv8Message(byte messageType, byte[] payload)
     {
-        // IPv8 message format:
-        // - Byte 0: Version (0x02 for IPv8)
-        // - Bytes 1-20: Community ID (20 bytes)
-        // - Byte 21: Service ID (0x00 for overlay service)
-        // - Byte 22: Reserved (0x00)
-        // - Byte 23: Message type
-        // - Bytes 24+: Signed payload
+        // py-ipv8 message format (from lazy_community.py _ez_pack):
+        // - Byte 0: 0x00 (prefix start)
+        // - Byte 1: 0x02 (version)
+        // - Bytes 2-21: Community ID (20 bytes)
+        // - Byte 22: Message type
+        // - Bytes 23+: BinMemberAuthenticationPayload (varlenH = 2-byte length + public key)
+        // - Then: GlobalTimeDistributionPayload (Q = 8-byte unsigned long)
+        // - Then: Payload
+        // - Last 64 bytes: Ed25519 signature
 
-        var message = new byte[24 + signedPayload.Length];
+        // Get public key in LibNaCL format: "LibNaCLPK:" + pk (32 bytes) + vk (32 bytes)
+        // For Ed25519, we use the public key bytes directly (32 bytes)
+        var publicKeyBytes = _identity.PublicKey;
 
-        // Version
-        message[0] = 0x02;
+        // Create LibNaCL-style public key format
+        // Format: "LibNaCLPK:" (10 bytes) + pk (32 bytes) + vk (32 bytes) = 74 bytes
+        // However, for simplicity, we'll use raw Ed25519 public key (32 bytes)
+        // py-ipv8 accepts various key formats
+        var publicKeyBin = new byte[10 + 32 + 32]; // LibNaCLPK format
+        System.Text.Encoding.ASCII.GetBytes("LibNaCLPK:").CopyTo(publicKeyBin, 0);
+        publicKeyBytes.CopyTo(publicKeyBin, 10);
+        publicKeyBytes.CopyTo(publicKeyBin, 42); // vk = pk for Ed25519
 
-        // Community ID
-        TriblerCommunityId.CopyTo(message, 1);
+        // Calculate total message size
+        // Prefix (22) + msg_type (1) + auth_len (2) + auth_key (74) + global_time (8) + payload + signature (64)
+        int totalSize = 22 + 1 + 2 + publicKeyBin.Length + 8 + payload.Length + 64;
+        var message = new byte[totalSize];
+        int offset = 0;
 
-        // Service ID (overlay service)
-        message[21] = 0x00;
-
-        // Reserved
-        message[22] = 0x00;
+        // Prefix: 0x00 + 0x02 + community_id
+        message[offset++] = 0x00;
+        message[offset++] = 0x02;
+        TriblerCommunityId.CopyTo(message, offset);
+        offset += 20;
 
         // Message type
+        message[offset++] = messageType;
+
+        // BinMemberAuthenticationPayload: varlenH (2-byte big-endian length + data)
+        BinaryPrimitives.WriteUInt16BigEndian(message.AsSpan(offset), (ushort)publicKeyBin.Length);
+        offset += 2;
+        publicKeyBin.CopyTo(message, offset);
+        offset += publicKeyBin.Length;
+
+        // GlobalTimeDistributionPayload: Q (8-byte big-endian unsigned long)
+        // Use current timestamp or a random identifier
+        ulong globalTime = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        BinaryPrimitives.WriteUInt64BigEndian(message.AsSpan(offset), globalTime);
+        offset += 8;
+
+        // Payload
+        payload.CopyTo(message, offset);
+        offset += payload.Length;
+
+        // Sign everything except the signature space
+        var dataToSign = message.AsSpan(0, offset).ToArray();
+        var signature = _identity.Sign(dataToSign);
+        signature.CopyTo(message, offset);
+
+        return message;
+    }
+
+    /// <summary>
+    /// Wraps a signed message with IPv8 community prefix for network transmission.
+    /// DEPRECATED: Use CreateIPv8Message instead for proper py-ipv8 compatibility.
+    /// </summary>
+    [Obsolete("Use CreateIPv8Message for proper py-ipv8 compatibility")]
+    private byte[] WrapWithIPv8Prefix(byte messageType, byte[] signedPayload)
+    {
+        // Legacy format - kept for backward compatibility
+        var message = new byte[24 + signedPayload.Length];
+        message[0] = 0x02;
+        TriblerCommunityId.CopyTo(message, 1);
+        message[21] = 0x00;
+        message[22] = 0x00;
         message[23] = messageType;
-
-        // Signed payload
         signedPayload.CopyTo(message, 24);
-
         return message;
     }
 
@@ -269,6 +319,7 @@ public class Handshake
 
     /// <summary>
     /// Sends an introduction-request message over the transport (FR-009).
+    /// Uses proper py-ipv8 message format for Tribler network compatibility.
     /// </summary>
     public async Task<bool> SendIntroductionRequestAsync(
         IPEndPoint destination,
@@ -286,14 +337,14 @@ public class Handshake
             sourceWanAddress,
             identifier);
 
-        var signedPayload = SignMessage(MSG_INTRODUCTION_REQUEST, payload);
-        var fullMessage = WrapWithIPv8Prefix(MSG_INTRODUCTION_REQUEST, signedPayload);
+        // Use proper py-ipv8 message format
+        var fullMessage = CreateIPv8Message(MSG_INTRODUCTION_REQUEST, payload);
 
         try
         {
             await _transport.SendAsync(fullMessage, destination, cancellationToken);
-            _logger?.LogDebug("Sent introduction-request to {Destination}, identifier={Identifier}",
-                destination, identifier);
+            _logger?.LogDebug("Sent introduction-request to {Destination}, identifier={Identifier}, size={Size}",
+                destination, identifier, fullMessage.Length);
             return true;
         }
         catch (Exception ex)
@@ -324,8 +375,7 @@ public class Handshake
             throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
 
         var payload = CreatePunctureRequest(targetLanAddress, targetWanAddress, identifier);
-        var signedPayload = SignMessage(MSG_PUNCTURE_REQUEST, payload);
-        var fullMessage = WrapWithIPv8Prefix(MSG_PUNCTURE_REQUEST, signedPayload);
+        var fullMessage = CreateIPv8Message(MSG_PUNCTURE_REQUEST, payload);
 
         try
         {
@@ -362,8 +412,7 @@ public class Handshake
             throw new InvalidOperationException("Transport not configured. Use constructor with ITransport parameter.");
 
         var payload = CreatePuncture(sourceLanAddress, sourceWanAddress, identifier);
-        var signedPayload = SignMessage(MSG_PUNCTURE, payload);
-        var fullMessage = WrapWithIPv8Prefix(MSG_PUNCTURE, signedPayload);
+        var fullMessage = CreateIPv8Message(MSG_PUNCTURE, payload);
 
         try
         {

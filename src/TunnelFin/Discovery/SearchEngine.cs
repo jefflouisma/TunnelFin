@@ -48,21 +48,33 @@ public class SearchEngine
 
         try
         {
-            // Step 1: Query all indexers (max 5 concurrent per FR-018)
-            var searchResponse = await _indexerManager.SearchAsync(query, contentType, cancellationToken);
-            _logger.LogDebug("Indexer search completed: {Count} results from {IndexerCount} indexers in {Duration}ms",
-                searchResponse.Results.Count, searchResponse.IndexersQueried.Count, searchResponse.SearchDuration.TotalMilliseconds);
+            // Step 1: Query all indexers (returns TorrentResult, not SearchResult)
+            var torrentResults = await _indexerManager.SearchAsync(query, cancellationToken);
+            _logger.LogDebug("Indexer search completed: {Count} results", torrentResults.Count);
 
-            if (searchResponse.Results.Count == 0)
+            if (torrentResults.Count == 0)
             {
                 _logger.LogInformation("No results found for query: {Query}", query);
                 return new List<SearchResult>();
             }
 
+            // Convert TorrentResult to SearchResult (old model)
+            var searchResults = torrentResults.Select(tr => new SearchResult
+            {
+                Title = tr.Title,
+                InfoHash = tr.InfoHash,
+                MagnetUri = tr.MagnetLink,
+                Size = tr.Size,
+                Seeders = tr.Seeders ?? 0,
+                Leechers = tr.Leechers ?? 0,
+                IndexerName = tr.IndexerName,
+                DiscoveredAt = tr.DiscoveredAt
+            }).ToList();
+
             // Step 2: Deduplicate results (FR-025, SC-007)
-            var deduplicated = _deduplicator.Deduplicate(searchResponse.Results);
+            var deduplicated = _deduplicator.Deduplicate(searchResults);
             _logger.LogDebug("Deduplication completed: {Original} → {Deduplicated} results",
-                searchResponse.Results.Count, deduplicated.Count);
+                searchResults.Count, deduplicated.Count);
 
             // Step 3: Fetch metadata for each result (FR-029, SC-008)
             // Fetch metadata in parallel with max 10 concurrent requests
