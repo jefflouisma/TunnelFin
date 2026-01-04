@@ -9,14 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/assets/icon.png",
         "versions": [
             {
-                "version": "1.0.0.38",
+                "version": "1.0.0.39",
                 "minJellyfinVersion": "10.8.0.0",
                 "category": "Streaming",
-                "changelog": "- Fix playback 500 errors by providing absolute URLs for FFmpeg",
+                "changelog": "- Fix client compatibility error by detecting container type dynamically",
                 "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.38/tunnelfin_1.0.0.38.zip",
-                "checksum": "03054ed21a42cc3d5836583ae2cd429b",
-                "timestamp": "2026-01-04T19:09:54Z"
+                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.39/tunnelfin_1.0.0.39.zip",
+                "checksum": "9b8c510111907a64e7065a5a491ebb52",
+                "timestamp": "2026-01-04T19:25:27Z"
             },
             {
                 "version": "1.0.0.37",
