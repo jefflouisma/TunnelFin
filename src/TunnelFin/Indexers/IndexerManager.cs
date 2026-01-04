@@ -136,10 +136,10 @@ public class IndexerManager : IIndexerManager
                 var infoHash = ExtractInfoHash(r);
                 var magnetLink = BuildMagnetLink(r);
 
-                if (string.IsNullOrWhiteSpace(infoHash) || string.IsNullOrWhiteSpace(magnetLink))
+                if (string.IsNullOrWhiteSpace(infoHash) && string.IsNullOrWhiteSpace(r.DownloadUrl))
                 {
                     _logger?.LogDebug(
-                        "Skipping Prowlarr result '{Title}' - no valid InfoHash or MagnetLink (InfoHash={InfoHash}, MagnetUrl={MagnetUrl}, DownloadUrl={DownloadUrl})",
+                        "Skipping Prowlarr result '{Title}' - no valid InfoHash, MagnetLink, or DownloadUrl (InfoHash={InfoHash}, MagnetUrl={MagnetUrl}, DownloadUrl={DownloadUrl})",
                         r.Title, r.InfoHash, r.MagnetUrl, r.DownloadUrl);
                     continue;
                 }
@@ -151,7 +151,7 @@ public class IndexerManager : IIndexerManager
                     Size = r.Size,
                     Seeders = r.Seeders,
                     Leechers = r.Leechers,
-                    MagnetLink = magnetLink,
+                    MagnetLink = !string.IsNullOrEmpty(magnetLink) ? magnetLink : r.DownloadUrl, // Fallback to DownloadUrl as MagnetLink for Id purposes
                     IndexerName = r.Indexer ?? "Prowlarr"
                 });
             }
