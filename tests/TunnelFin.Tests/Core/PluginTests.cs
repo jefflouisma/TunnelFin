@@ -174,9 +174,17 @@ public class PluginTests
 
         // Assert
         pages.Should().NotBeEmpty("Plugin should have at least one configuration page");
-        pages.Should().HaveCount(1, "Plugin should have exactly one configuration page");
-        pages[0].Name.Should().Be("TunnelFin");
-        pages[0].EmbeddedResourcePath.Should().Contain("Configuration.config.html");
+        pages.Should().HaveCount(2, "Plugin should have config and search pages");
+
+        // Verify main config page
+        var configPage = pages.FirstOrDefault(p => p.Name == "TunnelFin");
+        configPage.Should().NotBeNull();
+        configPage!.EmbeddedResourcePath.Should().Contain("Configuration.config.html");
+
+        // Verify search page (Phase 2: Plugin Configuration Search Page)
+        var searchPage = pages.FirstOrDefault(p => p.Name == "TunnelFin Search");
+        searchPage.Should().NotBeNull();
+        searchPage!.EmbeddedResourcePath.Should().Contain("Configuration.searchPage.html");
     }
 
     [Fact]

@@ -153,6 +153,7 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback, ISupportsL
     // Predefined search categories for quick access
     private static readonly (string Id, string Name, string SearchTerm, string Overview)[] SearchCategories = new[]
     {
+        ("search_help", "🔍 Search for Content...", "", "Click to learn how to search for any content"),
         ("cat_movies_popular", "🎬 Popular Movies", "1080p BluRay", "Search for popular HD movies"),
         ("cat_movies_4k", "🎬 4K Movies", "2160p UHD", "Search for 4K Ultra HD movies"),
         ("cat_tv_shows", "📺 TV Shows", "S01E01 720p", "Search for TV show episodes"),
@@ -180,6 +181,13 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback, ISupportsL
         var category = SearchCategories.FirstOrDefault(c => c.Id == folderId);
         if (!string.IsNullOrEmpty(category.Id))
         {
+            // Handle search help category specially
+            if (category.Id == "search_help")
+            {
+                _logger?.LogInformation("Showing search help");
+                return GetSearchHelpResult();
+            }
+
             _logger?.LogInformation("FolderId is category '{Name}', searching for: {SearchTerm}", category.Name, category.SearchTerm);
             return await SearchAndReturnResultsAsync(category.SearchTerm, cancellationToken);
         }
@@ -218,6 +226,69 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback, ISupportsL
             Type = ChannelItemType.Folder,
             FolderType = ChannelFolderType.Container
         }).ToList();
+
+        return new ChannelItemResult
+        {
+            Items = items,
+            TotalRecordCount = items.Count
+        };
+    }
+
+    /// <summary>
+    /// Returns help information for custom searching.
+    /// </summary>
+    private ChannelItemResult GetSearchHelpResult()
+    {
+        var networkStatus = _isNetworkAvailable ? "🟢 Anonymous Network Available" : "🟠 Direct Connection Only";
+
+        var items = new List<ChannelItemInfo>
+        {
+            new ChannelItemInfo
+            {
+                Id = "help_how_to_search",
+                Name = "📖 How to Search",
+                Overview = $@"To search for any content, use the URL parameter format:
+
+?folderId=search:your+search+term
+
+Examples:
+• search:inception 2010
+• search:breaking bad s01e01
+• search:big buck bunny 1080p
+
+Or use the TunnelFin Search page in Dashboard → Plugins → TunnelFin → Search
+
+Current Network Status: {networkStatus}",
+                Type = ChannelItemType.Folder,
+                FolderType = ChannelFolderType.Container
+            },
+            new ChannelItemInfo
+            {
+                Id = "help_network_status",
+                Name = networkStatus,
+                Overview = _isNetworkAvailable
+                    ? $"🟢 Your connection is routed through {_networkAvailabilityService?.AvailableCircuitCount ?? 0} anonymous circuits. Your IP address is hidden from peers."
+                    : "🟠 No anonymous circuits available. Streaming will expose your IP address to peers. Consider waiting for circuits to establish.",
+                Type = ChannelItemType.Folder,
+                FolderType = ChannelFolderType.Container
+            },
+            new ChannelItemInfo
+            {
+                Id = "search:big buck bunny",
+                Name = "🔍 Try: Big Buck Bunny",
+                Overview = "Click to search for 'Big Buck Bunny' - a free open source test video",
+                Type = ChannelItemType.Folder,
+                FolderType = ChannelFolderType.Container
+            },
+            new ChannelItemInfo
+            {
+                Id = "search:sintel",
+                Name = "🔍 Try: Sintel",
+                Overview = "Click to search for 'Sintel' - another free open source test video",
+                Type = ChannelItemType.Folder,
+                FolderType = ChannelFolderType.Container
+            }
+        };
 
         return new ChannelItemResult
         {
@@ -337,10 +408,12 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback, ISupportsL
     {
         var contentType = DetermineContentType(result.Category);
 
-        // Extract provider IDs for metadata enrichment (T089)
+        // Extract provider IDs for metadata enrichment (T089 + Phase 4)
         var providerIds = new Dictionary<string, string>();
-        var imdbId = ExtractImdbId(result.Title);
-        var tmdbId = ExtractTmdbId(result.Title);
+
+        // Prefer TMDB-enriched IDs, fallback to title extraction
+        var imdbId = result.ImdbId ?? ExtractImdbId(result.Title);
+        var tmdbId = result.TmdbId?.ToString() ?? ExtractTmdbId(result.Title);
 
         if (!string.IsNullOrEmpty(imdbId))
             providerIds["Imdb"] = imdbId;
@@ -348,11 +421,42 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback, ISupportsL
         if (!string.IsNullOrEmpty(tmdbId))
             providerIds["Tmdb"] = tmdbId;
 
-        // Build overview with zero seeders warning (T122)
-        var overview = $"Size: {FormatBytes(result.Size)} | Seeders: {result.Seeders ?? 0} | Leechers: {result.Leechers ?? 0}";
+        // Build overview with network status and torrent info (Search UX Phase 1)
+        var networkStatus = _isNetworkAvailable ? "🟢 Anonymous" : "🟠 Direct";
+        var overviewParts = new List<string>
+        {
+            networkStatus,
+            $"Size: {FormatBytes(result.Size)}",
+            $"Seeders: {result.Seeders ?? 0}",
+            $"Leechers: {result.Leechers ?? 0}"
+        };
+
+        // Add source indexer
+        if (!string.IsNullOrEmpty(result.IndexerName))
+            overviewParts.Add($"Source: {result.IndexerName}");
+
+        // Add TMDB rating and year (Phase 4)
+        if (result.TmdbRating.HasValue)
+            overviewParts.Add($"⭐ {result.TmdbRating:F1}");
+
+        if (result.Year.HasValue)
+            overviewParts.Add($"📅 {result.Year}");
+
+        var overview = string.Join(" | ", overviewParts);
+
+        // Add TMDB overview if available (Phase 4)
+        if (!string.IsNullOrEmpty(result.TmdbOverview))
+        {
+            var truncatedOverview = result.TmdbOverview.Length > 200
+                ? result.TmdbOverview[..200] + "..."
+                : result.TmdbOverview;
+            overview += $"\n{truncatedOverview}";
+        }
+
+        // Add zero seeders warning (T122)
         if (result.Seeders == 0)
         {
-            overview += " | ⚠️ WARNING: No seeders available - download may not start";
+            overview += "\n⚠️ WARNING: No seeders available - download may not start";
         }
 
         // Use magnet link as Id for multi-file navigation support (T090)
@@ -365,9 +469,9 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback, ISupportsL
             MediaType = ChannelMediaType.Video,
             ContentType = contentType,
             Overview = overview,
-            CommunityRating = CalculateCommunityRating(result.Seeders, result.Leechers),
+            CommunityRating = result.TmdbRating ?? CalculateCommunityRating(result.Seeders, result.Leechers),
             DateCreated = result.DiscoveredAt,
-            ImageUrl = null, // No poster URL in TorrentResult
+            ImageUrl = result.PosterUrl, // Use TMDB poster if available (Phase 4)
             MediaSources = new List<MediaSourceInfo>(),
             ProviderIds = providerIds
         };
