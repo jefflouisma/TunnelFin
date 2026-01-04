@@ -119,6 +119,21 @@ public class PluginConfiguration : BasePluginConfiguration
     public List<TorznabIndexerConfig> CustomIndexers { get; set; } = new();
 
     /// <summary>
+    /// Prowlarr URL for indexer aggregation (e.g., "http://192.168.1.10:9696")
+    /// </summary>
+    public string ProwlarrUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Prowlarr API key for authentication
+    /// </summary>
+    public string ProwlarrApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether Prowlarr integration is enabled
+    /// </summary>
+    public bool ProwlarrEnabled { get; set; } = false;
+
+    /// <summary>
     /// TMDB API key for metadata fetching (FR-029)
     /// </summary>
     public string? TmdbApiKey { get; set; }

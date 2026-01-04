@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using MonoTorrent;
 using MonoTorrent.Client;
 using MonoTorrent.Connections;
+using MonoTorrent.PortForwarding;
 using TunnelFin.Core;
 using TunnelFin.Models;
 
@@ -64,9 +65,14 @@ public class TorrentEngine : ITorrentEngine, IDisposable
             CacheDirectory = _downloadPath
         }.ToSettings();
 
+        // Configure Factories without port forwarding dependency
+        // This prevents loading MonoTorrent.PortForwarding.dll which conflicts with Jellyfin's Mono.Nat
+        // Use NullPortForwarder to avoid loading the PortForwarding assembly entirely
+        Factories factories = Factories.Default
+            .WithPortForwarderCreator(NullPortForwarderCreator);
+
         // Configure custom socket connector if provided (T107)
         // This enables circuit-routed peer connections for anonymity (FR-020)
-        Factories factories = Factories.Default;
         if (socketConnector != null)
         {
             factories = factories.WithSocketConnectorCreator(() => socketConnector);
@@ -408,6 +414,63 @@ public class TorrentEngine : ITorrentEngine, IDisposable
         catch
         {
             // Ignore cleanup errors
+        }
+    }
+
+    /// <summary>
+    /// Factory method that creates a NullPortForwarder.
+    /// This prevents loading MonoTorrent.PortForwarding.dll which conflicts with Jellyfin's Mono.Nat.
+    /// </summary>
+    private static IPortForwarder NullPortForwarderCreator()
+    {
+        return new NullPortForwarder();
+    }
+
+    /// <summary>
+    /// A no-op port forwarder that doesn't require the MonoTorrent.PortForwarding assembly.
+    /// This allows TunnelFin to run in Jellyfin without Mono.Nat assembly conflicts.
+    /// Port forwarding is not needed since TunnelFin uses circuit-routed connections (FR-020).
+    /// </summary>
+    private sealed class NullPortForwarder : IPortForwarder
+    {
+        public event EventHandler? MappingsChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public bool Active => false;
+
+        public Mappings Mappings => Mappings.Empty;
+
+        public Task RegisterMappingAsync(Mapping mapping)
+        {
+            // No-op: We don't forward ports
+            return Task.CompletedTask;
+        }
+
+        public Task UnregisterMappingAsync(Mapping mapping, CancellationToken token)
+        {
+            // No-op: We don't forward ports
+            return Task.CompletedTask;
+        }
+
+        public Task StartAsync(CancellationToken token)
+        {
+            // No-op: We don't forward ports
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken token)
+        {
+            // No-op: We don't forward ports
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(bool removeExistingMappings, CancellationToken token)
+        {
+            // No-op: We don't forward ports
+            return Task.CompletedTask;
         }
     }
 }

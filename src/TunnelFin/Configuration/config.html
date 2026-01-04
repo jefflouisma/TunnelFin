@@ -73,7 +73,7 @@
                     <!-- Content Discovery -->
                     <div class="verticalSection">
                         <h3 class="sectionTitle">Content Discovery</h3>
-                        
+
                         <div class="inputContainer">
                             <label class="inputLabel" for="maxConcurrentSearches">Max Concurrent Searches (1-10)</label>
                             <input type="number" id="maxConcurrentSearches" name="maxConcurrentSearches" min="1" max="10" step="1" class="emby-input" />
@@ -84,6 +84,41 @@
                             <label class="inputLabel" for="searchCacheDurationMinutes">Search Cache Duration (minutes)</label>
                             <input type="number" id="searchCacheDurationMinutes" name="searchCacheDurationMinutes" min="5" max="60" step="5" class="emby-input" />
                             <div class="fieldDescription">How long to cache search results.</div>
+                        </div>
+                    </div>
+
+                    <!-- Prowlarr Integration -->
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Prowlarr Integration</h3>
+                        <p class="sectionDescription">
+                            Connect to Prowlarr for centralized indexer management. Prowlarr aggregates multiple torrent indexers.
+                        </p>
+
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label>
+                                <input type="checkbox" id="prowlarrEnabled" name="prowlarrEnabled" is="emby-checkbox" />
+                                <span>Enable Prowlarr</span>
+                            </label>
+                            <div class="fieldDescription">Use Prowlarr as the primary indexer source.</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <label class="inputLabel" for="prowlarrUrl">Prowlarr URL</label>
+                            <input type="text" id="prowlarrUrl" name="prowlarrUrl" class="emby-input" placeholder="http://192.168.1.10:9696" />
+                            <div class="fieldDescription">Full URL to your Prowlarr instance (e.g., http://192.168.1.10:9696).</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <label class="inputLabel" for="prowlarrApiKey">Prowlarr API Key</label>
+                            <input type="password" id="prowlarrApiKey" name="prowlarrApiKey" class="emby-input" placeholder="Enter API key" />
+                            <div class="fieldDescription">API key from Prowlarr Settings → General → Security.</div>
+                        </div>
+
+                        <div>
+                            <button id="btnTestProwlarr" is="emby-button" type="button" class="raised emby-button">
+                                <span>Test Connection</span>
+                            </button>
+                            <span id="prowlarrTestResult" style="margin-left: 10px;"></span>
                         </div>
                     </div>
 
@@ -141,6 +176,13 @@
                 const searchCacheDurationMinutes = document.querySelector('#searchCacheDurationMinutes');
                 const loggingLevel = document.querySelector('#loggingLevel');
 
+                // Prowlarr elements
+                const prowlarrEnabled = document.querySelector('#prowlarrEnabled');
+                const prowlarrUrl = document.querySelector('#prowlarrUrl');
+                const prowlarrApiKey = document.querySelector('#prowlarrApiKey');
+                const btnTestProwlarr = document.querySelector('#btnTestProwlarr');
+                const prowlarrTestResult = document.querySelector('#prowlarrTestResult');
+
                 // Load configuration
                 async function loadConfig() {
                     Dashboard.showLoadingMsg();
@@ -151,11 +193,16 @@
                         enableBandwidthContribution.checked = cfg.EnableBandwidthContribution !== false;
                         allowNonAnonymousFallback.checked = cfg.AllowNonAnonymousFallback === true;
                         maxConcurrentStreams.value = cfg.MaxConcurrentStreams || 3;
-                        maxCacheSize.value = Math.round((cfg.MaxCacheSize || 10737418240) / 1073741824); // Convert bytes to GB
+                        maxCacheSize.value = Math.round((cfg.MaxCacheSize || 10737418240) / 1073741824);
                         minimumBufferSeconds.value = cfg.MinimumBufferSeconds || 10;
                         maxConcurrentSearches.value = cfg.MaxConcurrentSearches || 5;
                         searchCacheDurationMinutes.value = cfg.SearchCacheDurationMinutes || 10;
                         loggingLevel.value = cfg.LoggingLevel || 0;
+
+                        // Prowlarr settings
+                        prowlarrEnabled.checked = cfg.ProwlarrEnabled === true;
+                        prowlarrUrl.value = cfg.ProwlarrUrl || '';
+                        prowlarrApiKey.value = cfg.ProwlarrApiKey || '';
                     } catch (e) {
                         console.error('Failed to load configuration:', e);
                         Dashboard.alert('Failed to load configuration. Please try again.');
@@ -175,11 +222,16 @@
                         cfg.EnableBandwidthContribution = enableBandwidthContribution.checked;
                         cfg.AllowNonAnonymousFallback = allowNonAnonymousFallback.checked;
                         cfg.MaxConcurrentStreams = parseInt(maxConcurrentStreams.value) || 3;
-                        cfg.MaxCacheSize = (parseInt(maxCacheSize.value) || 10) * 1073741824; // Convert GB to bytes
+                        cfg.MaxCacheSize = (parseInt(maxCacheSize.value) || 10) * 1073741824;
                         cfg.MinimumBufferSeconds = parseInt(minimumBufferSeconds.value) || 10;
                         cfg.MaxConcurrentSearches = parseInt(maxConcurrentSearches.value) || 5;
                         cfg.SearchCacheDurationMinutes = parseInt(searchCacheDurationMinutes.value) || 10;
                         cfg.LoggingLevel = parseInt(loggingLevel.value) || 0;
+
+                        // Prowlarr settings
+                        cfg.ProwlarrEnabled = prowlarrEnabled.checked;
+                        cfg.ProwlarrUrl = prowlarrUrl.value.trim();
+                        cfg.ProwlarrApiKey = prowlarrApiKey.value.trim();
 
                         await window.ApiClient.updatePluginConfiguration(pluginId, cfg);
                         Dashboard.processPluginConfigurationUpdateResult();
@@ -191,9 +243,41 @@
                     }
                 }
 
+                // Test Prowlarr connection
+                async function testProwlarr() {
+                    const url = prowlarrUrl.value.trim();
+                    const apiKey = prowlarrApiKey.value.trim();
+
+                    if (!url || !apiKey) {
+                        prowlarrTestResult.textContent = '❌ URL and API key required';
+                        prowlarrTestResult.style.color = '#f44336';
+                        return;
+                    }
+
+                    prowlarrTestResult.textContent = '⏳ Testing...';
+                    prowlarrTestResult.style.color = '#fff';
+
+                    try {
+                        const testUrl = url.replace(/\/$/, '') + '/api/v1/indexer?apikey=' + apiKey;
+                        const response = await fetch(testUrl);
+                        if (response.ok) {
+                            const indexers = await response.json();
+                            prowlarrTestResult.textContent = '✅ Connected! Found ' + indexers.length + ' indexers';
+                            prowlarrTestResult.style.color = '#4caf50';
+                        } else {
+                            prowlarrTestResult.textContent = '❌ Error: ' + response.status;
+                            prowlarrTestResult.style.color = '#f44336';
+                        }
+                    } catch (e) {
+                        prowlarrTestResult.textContent = '❌ Connection failed: ' + e.message;
+                        prowlarrTestResult.style.color = '#f44336';
+                    }
+                }
+
                 // Event listeners
                 form.addEventListener('submit', saveConfig);
                 page.addEventListener('pageshow', loadConfig);
+                btnTestProwlarr.addEventListener('click', testProwlarr);
             })();
         </script>
     </div>

@@ -6,6 +6,22 @@
     "owner": "jefflouisma",
     "category": "General",
     "targetAbi": "10.11.0.0",
-    "version": "1.0.0.8"
+    "version": "1.0.0.17",
+    "assemblies": [
+        "TunnelFin.dll",
+        "MonoTorrent.dll",
+        "MonoTorrent.BEncoding.dll",
+        "MonoTorrent.Client.dll",
+        "MonoTorrent.Connections.dll",
+        "MonoTorrent.Dht.dll",
+        "MonoTorrent.Factories.dll",
+        "MonoTorrent.Messages.dll",
+        "MonoTorrent.PiecePicking.dll",
+        "MonoTorrent.PieceWriter.dll",
+        "MonoTorrent.Trackers.dll",
+        "ReusableTasks.dll",
+        "NSec.Cryptography.dll",
+        "HtmlAgilityPack.dll"
+    ]
 }
 

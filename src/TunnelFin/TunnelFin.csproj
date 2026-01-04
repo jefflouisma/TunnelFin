@@ -5,9 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Plugin version - must match meta.json -->
-    <Version>1.0.0.16</Version>
-    <AssemblyVersion>1.0.0.16</AssemblyVersion>
-    <FileVersion>1.0.0.16</FileVersion>
+    <Version>1.0.0.17</Version>
+    <AssemblyVersion>1.0.0.17</AssemblyVersion>
+    <FileVersion>1.0.0.17</FileVersion>
     <!-- Only copy non-Jellyfin dependencies to output -->
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
@@ -34,6 +34,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Configuration\config.html" />
+    <EmbeddedResource Include="Configuration\thumb.png" />
   </ItemGroup>
 
   <ItemGroup>

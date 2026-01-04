@@ -6,7 +6,7 @@
     "owner": "jefflouisma",
     "category": "General",
     "targetAbi": "10.11.0.0",
-    "version": "1.0.0.16",
+    "version": "1.0.0.17",
     "assemblies": [
         "TunnelFin.dll",
         "MonoTorrent.dll",

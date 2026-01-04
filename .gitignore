@@ -153,3 +153,13 @@ ServiceFabricBackup/
 
 # Coverage
 coverage/
+
+# Reference repositories (for development only)
+reference_repos/
+
+# Build artifacts (release zip files are in GitHub releases)
+tunnelfin_*.zip
+
+# Test results (generated)
+e2e_test_results.json
+tests/e2e/e2e_test_results.json
