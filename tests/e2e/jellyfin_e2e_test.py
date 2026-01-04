@@ -448,41 +448,39 @@ class TunnelFinE2ETestSuite:
         return test
 
     def test_channel_search(self, search_query: str = "big buck bunny") -> TestCase:
-        """Test 6: Search through TunnelFin channel."""
+        """Test 6: Search through TunnelFin API endpoint."""
         test = TestCase(
             name=f"TunnelFin Channel Search ('{search_query}')",
-            description="Test searching for content through the channel"
+            description="Test searching for content through the TunnelFin API"
         )
 
-        if not self.tunnelfin_channel_id:
-            test.result = TestResult.SKIPPED
-            test.message = "Channel not discovered, skipping search test"
-            return test
-
         try:
-            # Use folderId as search term (how TunnelFinChannel works)
-            items_response = self.client.get_channel_items(
-                self.tunnelfin_channel_id,
-                folder_id=search_query,
-                limit=10
+            # Use the TunnelFin API search endpoint instead of Jellyfin channel API
+            # (Jellyfin channel API validates folderId as GUID, can't use for search)
+            response = self.client.session.get(
+                f"{self.client.base_url}/TunnelFin/Search",
+                params={"query": search_query, "limit": 10},
+                headers={"X-Emby-Authorization": self.client._get_auth_header()}
             )
+            response.raise_for_status()
+            search_response = response.json()
 
-            items = items_response.get("Items", [])
-            total_count = items_response.get("TotalRecordCount", 0)
+            results = search_response.get("Results", [])
+            total_count = search_response.get("TotalResults", 0)
 
-            if items:
+            if results:
                 test.result = TestResult.PASSED
                 test.message = f"Found {total_count} results for '{search_query}'"
                 test.details = {
                     "total_results": total_count,
-                    "returned_items": len(items),
+                    "returned_items": len(results),
                     "first_results": [
                         {
-                            "name": item.get("Name"),
-                            "type": item.get("Type"),
-                            "id": item.get("Id"),
+                            "title": item.get("Title"),
+                            "info_hash": item.get("InfoHash"),
+                            "seeders": item.get("Seeders"),
                         }
-                        for item in items[:5]
+                        for item in results[:5]
                     ],
                 }
             else:
@@ -494,13 +492,13 @@ class TunnelFinE2ETestSuite:
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 test.result = TestResult.FAILED
-                test.message = "Channel items endpoint returned 404"
+                test.message = "TunnelFin API endpoint not found (404)"
             else:
                 test.result = TestResult.FAILED
                 test.message = f"HTTP error: {e.response.status_code}"
         except Exception as e:
             test.result = TestResult.FAILED
-            test.message = f"Error searching channel: {e}"
+            test.message = f"Error searching: {e}"
 
         return test
 
