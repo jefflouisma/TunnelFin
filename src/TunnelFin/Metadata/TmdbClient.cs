@@ -55,9 +55,12 @@ public class TmdbClient : ITmdbClient
         CancellationToken cancellationToken = default)
     {
         var activeApiKey = GetActiveApiKey();
+        var keyStatus = string.IsNullOrEmpty(activeApiKey) ? "Not Configured" : "Configured (Masked: " + activeApiKey[..Math.Min(4, activeApiKey.Length)] + "...)";
+        _logger?.LogInformation("TMDB Enrichment: Starting for {Count} results. Key status: {KeyStatus}", results.Count, keyStatus);
+
         if (string.IsNullOrEmpty(activeApiKey))
         {
-            _logger?.LogDebug("TMDB API key not configured, skipping metadata enrichment");
+            _logger?.LogWarning("TMDB API key not configured, skipping metadata enrichment");
             return results;
         }
 
