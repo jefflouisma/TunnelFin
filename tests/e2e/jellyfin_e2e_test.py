@@ -737,6 +737,401 @@ class TunnelFinE2ETestSuite:
 
         return test
 
+    # =========================================================================
+    # Search UX Tests (Phases 1-4)
+    # =========================================================================
+
+    def test_search_page_html_endpoint(self) -> TestCase:
+        """Test: Verify standalone search page HTML endpoint."""
+        test = TestCase(
+            name="Search Page HTML Endpoint",
+            description="Verify /TunnelFin/ returns standalone search UI HTML"
+        )
+
+        try:
+            response = self.client.session.get(
+                f"{self.client.base_url}/TunnelFin/",
+                headers={"X-Emby-Authorization": self.client._get_auth_header()}
+            )
+            response.raise_for_status()
+
+            content = response.text
+            content_type = response.headers.get("Content-Type", "")
+
+            # Verify it's HTML
+            if "text/html" not in content_type:
+                test.result = TestResult.FAILED
+                test.message = f"Expected text/html, got: {content_type}"
+                return test
+
+            # Check for expected search UI elements
+            expected_elements = [
+                "TunnelFin Search",  # Page title
+                "searchInput",        # Search input element
+                "searchResults",      # Results container
+                "networkStatus",      # Network status indicator
+            ]
+
+            missing_elements = []
+            for element in expected_elements:
+                if element not in content:
+                    missing_elements.append(element)
+
+            if missing_elements:
+                test.result = TestResult.WARNING
+                test.message = f"Search page missing elements: {missing_elements}"
+                test.details = {
+                    "content_length": len(content),
+                    "missing_elements": missing_elements,
+                }
+            else:
+                test.result = TestResult.PASSED
+                test.message = "Search page HTML returned with all expected elements"
+                test.details = {
+                    "content_length": len(content),
+                    "content_type": content_type,
+                }
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                test.result = TestResult.FAILED
+                test.message = "Search page endpoint not found (404)"
+            else:
+                test.result = TestResult.FAILED
+                test.message = f"HTTP error: {e.response.status_code}"
+        except Exception as e:
+            test.result = TestResult.FAILED
+            test.message = f"Error accessing search page: {e}"
+
+        return test
+
+    def test_plugin_configuration_pages(self) -> TestCase:
+        """Test: Verify plugin exposes both config and search pages."""
+        test = TestCase(
+            name="Plugin Configuration Pages",
+            description="Verify TunnelFin exposes config.html and searchPage.html"
+        )
+
+        try:
+            plugins = self.client.get_plugins()
+            tunnelfin = None
+
+            for plugin in plugins:
+                plugin_id = plugin.get("Id", "").upper()
+                if plugin_id == self.client.TUNNELFIN_PLUGIN_GUID.upper():
+                    tunnelfin = plugin
+                    break
+                if plugin.get("Name", "").lower() == "tunnelfin":
+                    tunnelfin = plugin
+                    break
+
+            if not tunnelfin:
+                test.result = TestResult.SKIPPED
+                test.message = "TunnelFin plugin not found"
+                return test
+
+            # Try to access the configuration pages via the plugin pages API
+            # Note: Jellyfin API for plugin pages may vary by version
+            config_page_url = f"{self.client.base_url}/web/configurationpage?name=TunnelFin"
+            search_page_url = f"{self.client.base_url}/web/configurationpage?name=TunnelFin%20Search"
+
+            config_response = self.client.session.get(config_page_url, allow_redirects=True)
+            search_response = self.client.session.get(search_page_url, allow_redirects=True)
+
+            pages_found = []
+            pages_missing = []
+
+            if config_response.status_code == 200:
+                pages_found.append("TunnelFin (config)")
+            else:
+                pages_missing.append("TunnelFin (config)")
+
+            if search_response.status_code == 200:
+                pages_found.append("TunnelFin Search")
+            else:
+                pages_missing.append("TunnelFin Search")
+
+            if len(pages_found) == 2:
+                test.result = TestResult.PASSED
+                test.message = f"Both plugin pages accessible: {pages_found}"
+            elif pages_found:
+                test.result = TestResult.WARNING
+                test.message = f"Found: {pages_found}, Missing: {pages_missing}"
+            else:
+                test.result = TestResult.WARNING
+                test.message = "Plugin pages not accessible via web API (may require admin UI)"
+
+            test.details = {
+                "pages_found": pages_found,
+                "pages_missing": pages_missing,
+                "config_status": config_response.status_code,
+                "search_status": search_response.status_code,
+            }
+
+        except Exception as e:
+            test.result = TestResult.FAILED
+            test.message = f"Error checking plugin pages: {e}"
+
+        return test
+
+    def test_network_status_endpoint(self) -> TestCase:
+        """Test: Verify network status endpoint returns anonymity info."""
+        test = TestCase(
+            name="Network Status Endpoint",
+            description="Verify /TunnelFin/Status returns network anonymity status"
+        )
+
+        try:
+            response = self.client.session.get(
+                f"{self.client.base_url}/TunnelFin/Status",
+                headers={"X-Emby-Authorization": self.client._get_auth_header()}
+            )
+            response.raise_for_status()
+
+            status = response.json()
+
+            # Check for expected status fields
+            expected_fields = ["IsAnonymous", "CircuitCount", "PeerCount"]
+            present_fields = [f for f in expected_fields if f in status]
+            missing_fields = [f for f in expected_fields if f not in status]
+
+            is_anonymous = status.get("IsAnonymous", False)
+            circuit_count = status.get("CircuitCount", 0)
+            peer_count = status.get("PeerCount", 0)
+
+            if missing_fields:
+                test.result = TestResult.WARNING
+                test.message = f"Status response missing fields: {missing_fields}"
+            else:
+                anonymity_indicator = "🟢 Anonymous" if is_anonymous else "🟠 Direct"
+                test.result = TestResult.PASSED
+                test.message = f"Network status: {anonymity_indicator} (Circuits: {circuit_count}, Peers: {peer_count})"
+
+            test.details = {
+                "is_anonymous": is_anonymous,
+                "circuit_count": circuit_count,
+                "peer_count": peer_count,
+                "present_fields": present_fields,
+                "missing_fields": missing_fields,
+                "raw_status": status,
+            }
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                test.result = TestResult.FAILED
+                test.message = "Status endpoint not found (404)"
+            else:
+                test.result = TestResult.FAILED
+                test.message = f"HTTP error: {e.response.status_code}"
+        except Exception as e:
+            test.result = TestResult.FAILED
+            test.message = f"Error getting network status: {e}"
+
+        return test
+
+    def test_search_results_with_tmdb_metadata(self, search_query: str = "inception") -> TestCase:
+        """Test: Verify search results include TMDB metadata enrichment."""
+        test = TestCase(
+            name=f"TMDB Metadata Enrichment ('{search_query}')",
+            description="Verify search results include TMDB poster, rating, and metadata"
+        )
+
+        try:
+            response = self.client.session.get(
+                f"{self.client.base_url}/TunnelFin/Search",
+                params={"query": search_query, "limit": 10},
+                headers={"X-Emby-Authorization": self.client._get_auth_header()}
+            )
+            response.raise_for_status()
+            search_response = response.json()
+
+            results = search_response.get("Results", [])
+
+            if not results:
+                test.result = TestResult.WARNING
+                test.message = f"No results for '{search_query}' - cannot verify TMDB enrichment"
+                return test
+
+            # Check TMDB fields in results
+            tmdb_fields = ["TmdbId", "ImdbId", "PosterUrl", "TmdbRating", "Year", "TmdbOverview"]
+            results_with_tmdb = []
+            results_without_tmdb = []
+
+            for result in results:
+                has_tmdb = any(result.get(field) for field in tmdb_fields)
+                if has_tmdb:
+                    results_with_tmdb.append({
+                        "title": result.get("Title"),
+                        "tmdb_id": result.get("TmdbId"),
+                        "imdb_id": result.get("ImdbId"),
+                        "poster_url": result.get("PosterUrl", "")[:50] + "..." if result.get("PosterUrl") else None,
+                        "rating": result.get("TmdbRating"),
+                        "year": result.get("Year"),
+                    })
+                else:
+                    results_without_tmdb.append(result.get("Title"))
+
+            enrichment_rate = len(results_with_tmdb) / len(results) * 100 if results else 0
+
+            if enrichment_rate >= 50:
+                test.result = TestResult.PASSED
+                test.message = f"TMDB enrichment: {len(results_with_tmdb)}/{len(results)} results ({enrichment_rate:.0f}%)"
+            elif results_with_tmdb:
+                test.result = TestResult.WARNING
+                test.message = f"Partial TMDB enrichment: {len(results_with_tmdb)}/{len(results)} results"
+            else:
+                test.result = TestResult.WARNING
+                test.message = "No TMDB metadata found in results (TMDB API key may not be configured)"
+
+            test.details = {
+                "total_results": len(results),
+                "results_with_tmdb": len(results_with_tmdb),
+                "enrichment_rate": f"{enrichment_rate:.1f}%",
+                "sample_enriched": results_with_tmdb[:3],
+                "unenriched_titles": results_without_tmdb[:5],
+            }
+
+        except requests.exceptions.HTTPError as e:
+            test.result = TestResult.FAILED
+            test.message = f"HTTP error: {e.response.status_code}"
+        except Exception as e:
+            test.result = TestResult.FAILED
+            test.message = f"Error testing TMDB enrichment: {e}"
+
+        return test
+
+    def test_search_results_network_indicator(self, search_query: str = "big buck bunny") -> TestCase:
+        """Test: Verify search results include network status indicator."""
+        test = TestCase(
+            name=f"Search Results Network Indicator ('{search_query}')",
+            description="Verify results show 🟢 Anonymous or 🟠 Direct indicators"
+        )
+
+        try:
+            response = self.client.session.get(
+                f"{self.client.base_url}/TunnelFin/Search",
+                params={"query": search_query, "limit": 10},
+                headers={"X-Emby-Authorization": self.client._get_auth_header()}
+            )
+            response.raise_for_status()
+            search_response = response.json()
+
+            results = search_response.get("Results", [])
+
+            if not results:
+                test.result = TestResult.WARNING
+                test.message = f"No results for '{search_query}' - cannot verify network indicator"
+                return test
+
+            # Check for network-related fields
+            results_with_indicator = []
+            for result in results:
+                # Check for IsAnonymous field or network indicator in title/overview
+                is_anon = result.get("IsAnonymous")
+                source = result.get("Source", "")
+                title = result.get("Title", "")
+
+                has_indicator = (
+                    is_anon is not None or
+                    "🟢" in title or "🟠" in title or
+                    "Anonymous" in str(result) or "Direct" in str(result)
+                )
+
+                if has_indicator:
+                    results_with_indicator.append({
+                        "title": title,
+                        "is_anonymous": is_anon,
+                        "source": source,
+                    })
+
+            if results_with_indicator:
+                test.result = TestResult.PASSED
+                test.message = f"Network indicators present in {len(results_with_indicator)}/{len(results)} results"
+            else:
+                # Check if the search response itself has network status
+                is_anonymous = search_response.get("IsAnonymous")
+                if is_anonymous is not None:
+                    indicator = "🟢 Anonymous" if is_anonymous else "🟠 Direct"
+                    test.result = TestResult.PASSED
+                    test.message = f"Network status in response: {indicator}"
+                else:
+                    test.result = TestResult.WARNING
+                    test.message = "No network indicators found (may be shown only in UI)"
+
+            test.details = {
+                "total_results": len(results),
+                "results_with_indicator": len(results_with_indicator),
+                "sample_results": results_with_indicator[:3],
+                "response_is_anonymous": search_response.get("IsAnonymous"),
+            }
+
+        except requests.exceptions.HTTPError as e:
+            test.result = TestResult.FAILED
+            test.message = f"HTTP error: {e.response.status_code}"
+        except Exception as e:
+            test.result = TestResult.FAILED
+            test.message = f"Error testing network indicators: {e}"
+
+        return test
+
+    def test_channel_items_help_category(self) -> TestCase:
+        """Test: Verify TunnelFin channel shows search help category."""
+        test = TestCase(
+            name="Channel Search Help Category",
+            description="Verify channel items include search help/instructions category"
+        )
+
+        if not self.tunnelfin_channel_id:
+            test.result = TestResult.SKIPPED
+            test.message = "Channel not discovered, skipping help category test"
+            return test
+
+        try:
+            # Get channel items without a search query (root level)
+            items_response = self.client.get_channel_items(
+                self.tunnelfin_channel_id,
+                folder_id=None,
+                start_index=0,
+                limit=20
+            )
+
+            items = items_response.get("Items", [])
+
+            # Look for help/instructions item
+            help_items = []
+            for item in items:
+                name = item.get("Name", "").lower()
+                item_type = item.get("Type", "")
+                # Check for help-related keywords
+                if any(keyword in name for keyword in ["search", "help", "instructions", "🔍"]):
+                    help_items.append({
+                        "name": item.get("Name"),
+                        "type": item_type,
+                        "id": item.get("Id"),
+                    })
+
+            if help_items:
+                test.result = TestResult.PASSED
+                test.message = f"Found {len(help_items)} help/instruction item(s)"
+                test.details = {
+                    "help_items": help_items,
+                    "total_root_items": len(items),
+                }
+            else:
+                # Help category may only appear when there are no results
+                test.result = TestResult.WARNING
+                test.message = "No help category found at root level (may require specific context)"
+                test.details = {
+                    "total_items": len(items),
+                    "item_names": [i.get("Name") for i in items[:10]],
+                }
+
+        except Exception as e:
+            test.result = TestResult.FAILED
+            test.message = f"Error getting channel items: {e}"
+
+        return test
+
     def run_all_tests(self) -> Dict[str, Any]:
         """Run all E2E tests and return summary."""
         print("\n" + "=" * 60)
@@ -764,6 +1159,15 @@ class TunnelFinE2ETestSuite:
             self.add_result(self.test_channel_search())
             self.add_result(self.test_channel_search("sintel"))  # Second search test
             self.add_result(self.test_global_search_integration())
+
+            # Search UX Tests (Phases 1-4)
+            self.add_result(self.test_search_page_html_endpoint())
+            self.add_result(self.test_plugin_configuration_pages())
+            self.add_result(self.test_network_status_endpoint())
+            self.add_result(self.test_search_results_with_tmdb_metadata())
+            self.add_result(self.test_search_results_network_indicator())
+            self.add_result(self.test_channel_items_help_category())
+
             self.add_result(self.test_check_logs_for_errors())
 
         # Summary
