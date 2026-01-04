@@ -14,7 +14,7 @@
                 "category": "Streaming",
                 "changelog": "- Fix playback 500 errors by providing absolute URLs for FFmpeg",
                 "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/tunnelfin_1.0.0.38.zip",
+                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.38/tunnelfin_1.0.0.38.zip",
                 "checksum": "03054ed21a42cc3d5836583ae2cd429b",
                 "timestamp": "2026-01-04T19:09:54Z"
             },
