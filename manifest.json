@@ -9,6 +9,22 @@
         "imageUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/assets/icon.png",
         "versions": [
             {
+                "version": "1.0.0.14",
+                "changelog": "v1.0.0.14 - Assembly conflict fix:\n- Excluded MonoTorrent.PortForwarding.dll to avoid Mono.Nat conflict with Jellyfin\n- Using NullPortForwarder (port forwarding not needed for anonymous tunnel routing)\n- Fixed plugin load failure on Jellyfin 10.11.5",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.14/tunnelfin_1.0.0.14.zip",
+                "checksum": "af5e28a499aa66b8d23255956fa4f1b1",
+                "timestamp": "2026-01-04T02:30:00Z"
+            },
+            {
+                "version": "1.0.0.9",
+                "changelog": "v1.0.0.9 - Service registration fix:\n- Added IChannel registration for TunnelFinChannel\n- Registered ITorrentEngine, IStreamManager, IIndexerManager services\n- Channel should now appear in Jellyfin UI",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.9/tunnelfin_1.0.0.9.zip",
+                "checksum": "dc1f5cdb1aa4be56b91ad079d48ce301",
+                "timestamp": "2026-01-04T02:20:49Z"
+            },
+            {
                 "version": "1.0.0.8",
                 "changelog": "v1.0.0.8 - SDK version fix:\n- Downgraded Jellyfin SDK from 10.11.5 to 10.11.4 to match server version\n- Fixed assembly version mismatch causing plugin load failure\n- Plugin should now load correctly on Jellyfin 10.11.4",
                 "targetAbi": "10.11.0.0",

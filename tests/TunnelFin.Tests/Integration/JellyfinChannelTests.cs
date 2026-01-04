@@ -111,6 +111,8 @@ public class JellyfinChannelTests
 
         var infoHash = "dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c";
         var filePath = "video.mkv";
+        // Use the combined format for multi-file torrents: "infoHash:filePath"
+        var itemId = $"{infoHash}:{filePath}";
 
         // Mock the torrent engine to return a stream
         var mockStream = new MemoryStream(new byte[1024]);
@@ -130,8 +132,8 @@ public class JellyfinChannelTests
                 LastUpdated = DateTime.UtcNow
             });
 
-        // Act
-        var mediaSources = await channel.GetChannelItemMediaInfo(infoHash, filePath, CancellationToken.None);
+        // Act - use the new signature with combined itemId
+        var mediaSources = await channel.GetChannelItemMediaInfo(itemId, CancellationToken.None);
 
         // Assert
         mediaSources.Should().NotBeNull();

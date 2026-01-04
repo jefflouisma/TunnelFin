@@ -101,7 +101,7 @@ public class TunnelFinChannelTests
             .Returns(streamUrl);
 
         // Act
-        var result = await _channel.GetChannelItemMediaInfo(infoHash, null, CancellationToken.None);
+        var result = await _channel.GetChannelItemMediaInfo(infoHash, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();

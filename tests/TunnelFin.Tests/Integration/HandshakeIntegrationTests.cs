@@ -26,7 +26,7 @@ public class HandshakeIntegrationTests : IDisposable
         _identity = new NetworkIdentity();
     }
 
-    [Fact]
+    [Fact(Skip = "Requires real network connectivity to IPv8 bootstrap nodes")]
     public async Task Handshake_Should_Complete_With_Real_Peer()
     {
         // Arrange
@@ -59,7 +59,7 @@ public class HandshakeIntegrationTests : IDisposable
         success.Should().BeTrue("Handshake should send introduction-request successfully");
     }
 
-    [Fact]
+    [Fact(Skip = "Requires real network connectivity to IPv8 bootstrap nodes")]
     public async Task Handshake_Should_Exchange_Messages_With_Bootstrap_Node()
     {
         // Arrange

@@ -1,0 +1,11 @@
+{
+    "guid": "a7f8b3c2-1d4e-4a5b-9c6d-7e8f9a0b1c2d",
+    "name": "TunnelFin",
+    "description": "Privacy-first anonymous torrent streaming for Jellyfin via Tribler's IPv8 network",
+    "overview": "Anonymous torrent streaming with multi-hop circuits",
+    "owner": "jefflouisma",
+    "category": "General",
+    "targetAbi": "10.11.0.0",
+    "version": "1.0.0.6"
+}
+

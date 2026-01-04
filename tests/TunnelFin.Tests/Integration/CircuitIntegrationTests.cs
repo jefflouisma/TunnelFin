@@ -39,7 +39,7 @@ public class CircuitIntegrationTests : IDisposable
         _circuitManager = new CircuitManager(_settings);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires real network connectivity to IPv8 bootstrap nodes")]
     public async Task CircuitManager_Should_Create_Circuit_Through_Real_Network()
     {
         // Arrange
@@ -114,7 +114,7 @@ public class CircuitIntegrationTests : IDisposable
         circuit.IsEstablished.Should().BeTrue("Circuit should be marked as established");
     }
 
-    [Fact]
+    [Fact(Skip = "Requires real network connectivity to IPv8 bootstrap nodes")]
     public async Task CircuitManager_Should_Maintain_Minimum_Concurrent_Circuits()
     {
         // Arrange
@@ -187,7 +187,7 @@ public class CircuitIntegrationTests : IDisposable
             "Should maintain minimum concurrent circuits");
     }
 
-    [Fact]
+    [Fact(Skip = "Requires real network connectivity to IPv8 bootstrap nodes")]
     public async Task CircuitManager_Should_Recover_Failed_Circuits()
     {
         // Arrange

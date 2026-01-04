@@ -1,0 +1,60 @@
+{
+  "passed": 2,
+  "failed": 1,
+  "warnings": 4,
+  "skipped": 3,
+  "total": 10,
+  "overall": "FAILED",
+  "test_cases": [
+    {
+      "name": "Server Connection",
+      "result": "PASSED",
+      "message": "Connected to jellyfin-7d5c895687-zd2pl v10.11.4"
+    },
+    {
+      "name": "User Authentication",
+      "result": "PASSED",
+      "message": "Authenticated as 'root' (Admin: True)"
+    },
+    {
+      "name": "TunnelFin Plugin Installation",
+      "result": "WARNING",
+      "message": "TunnelFin found but status is: NotSupported"
+    },
+    {
+      "name": "TunnelFin Channel Discovery",
+      "result": "FAILED",
+      "message": "TunnelFin channel not found"
+    },
+    {
+      "name": "TunnelFin Channel Features",
+      "result": "SKIPPED",
+      "message": "Channel not discovered, skipping feature test"
+    },
+    {
+      "name": "TunnelFin Channel Search ('big buck bunny')",
+      "result": "SKIPPED",
+      "message": "Channel not discovered, skipping search test"
+    },
+    {
+      "name": "TunnelFin Channel Search ('sintel')",
+      "result": "SKIPPED",
+      "message": "Channel not discovered, skipping search test"
+    },
+    {
+      "name": "TunnelFin Plugin Configuration",
+      "result": "WARNING",
+      "message": "Plugin configuration not found (plugin may not be installed)"
+    },
+    {
+      "name": "Global Search Integration",
+      "result": "WARNING",
+      "message": "No TunnelFin results in global search (total hints: 0)"
+    },
+    {
+      "name": "Log Analysis for TunnelFin Errors",
+      "result": "WARNING",
+      "message": "Found 1 TunnelFin-related errors in logs"
+    }
+  ]
+}
