@@ -4,13 +4,30 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Plugin version - must match meta.json -->
+    <Version>1.0.0.16</Version>
+    <AssemblyVersion>1.0.0.16</AssemblyVersion>
+    <FileVersion>1.0.0.16</FileVersion>
+    <!-- Only copy non-Jellyfin dependencies to output -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="HtmlAgilityPack" Version="1.11.71" />
-    <PackageReference Include="Jellyfin.Controller" Version="10.11.4" />
-    <PackageReference Include="Jellyfin.Model" Version="10.11.4" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+    <!-- Jellyfin SDK - these are provided by server, do NOT copy to output -->
+    <PackageReference Include="Jellyfin.Controller" Version="10.11.5">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Model" Version="10.11.5">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <!-- Microsoft.Extensions.Http - provided by Jellyfin server -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.11">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
     <PackageReference Include="MonoTorrent" Version="3.0.2" />
     <PackageReference Include="NSec.Cryptography" Version="25.4.0" />
   </ItemGroup>
