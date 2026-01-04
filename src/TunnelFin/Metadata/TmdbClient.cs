@@ -26,6 +26,7 @@ public class TmdbClient : ITmdbClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<TmdbClient>? _logger;
+    private string? TmdbApiKey => Core.Plugin.Instance?.Configuration?.TmdbApiKey ?? Environment.GetEnvironmentVariable("TMDB_API_KEY");
     private readonly string? _apiKey;
     private const string BaseUrl = "https://api.themoviedb.org/3";
     private const string ImageBaseUrl = "https://image.tmdb.org/t/p/w500";
@@ -40,22 +41,21 @@ public class TmdbClient : ITmdbClient
         _httpClient = httpClient;
         _logger = logger;
         
-        // Priority: 1. Constructor arg, 2. Plugin config, 3. Environment variable
-        _apiKey = apiKey 
-                  ?? Core.Plugin.Instance?.Configuration?.TmdbApiKey 
-                  ?? Environment.GetEnvironmentVariable("TMDB_API_KEY");
-                  
-        if (string.IsNullOrEmpty(_apiKey))
+        // Note: apiKey constructor arg is kept for compatibility but preferred source is TmdbApiKey property
+        if (!string.IsNullOrEmpty(apiKey))
         {
-            _logger?.LogWarning("TMDB API key is not configured. Metadata enrichment will be disabled.");
+            _apiKey = apiKey;
         }
     }
+
+    private string? GetActiveApiKey() => _apiKey ?? TmdbApiKey;
 
     public async Task<IReadOnlyList<TorrentResult>> EnrichResultsAsync(
         IReadOnlyList<TorrentResult> results,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(_apiKey))
+        var activeApiKey = GetActiveApiKey();
+        if (string.IsNullOrEmpty(activeApiKey))
         {
             _logger?.LogDebug("TMDB API key not configured, skipping metadata enrichment");
             return results;
@@ -67,7 +67,7 @@ public class TmdbClient : ITmdbClient
         {
             try
             {
-                var enriched = await EnrichSingleResultAsync(result, cancellationToken);
+                var enriched = await EnrichSingleResultAsync(result, activeApiKey, cancellationToken);
                 enrichedResults.Add(enriched);
             }
             catch (Exception ex)
@@ -80,14 +80,14 @@ public class TmdbClient : ITmdbClient
         return enrichedResults;
     }
 
-    private async Task<TorrentResult> EnrichSingleResultAsync(TorrentResult result, CancellationToken ct)
+    private async Task<TorrentResult> EnrichSingleResultAsync(TorrentResult result, string apiKey, CancellationToken ct)
     {
         var (cleanTitle, year) = ParseTitle(result.Title);
         var isTV = TvPattern.IsMatch(result.Title);
 
         var searchUrl = isTV
-            ? $"{BaseUrl}/search/tv?api_key={_apiKey}&query={Uri.EscapeDataString(cleanTitle)}"
-            : $"{BaseUrl}/search/movie?api_key={_apiKey}&query={Uri.EscapeDataString(cleanTitle)}";
+            ? $"{BaseUrl}/search/tv?api_key={apiKey}&query={Uri.EscapeDataString(cleanTitle)}"
+            : $"{BaseUrl}/search/movie?api_key={apiKey}&query={Uri.EscapeDataString(cleanTitle)}";
 
         if (year.HasValue && !isTV)
             searchUrl += $"&year={year}";
@@ -122,8 +122,8 @@ public class TmdbClient : ITmdbClient
         if (result.TmdbId.HasValue)
         {
             var externalUrl = isTV
-                ? $"{BaseUrl}/tv/{result.TmdbId}/external_ids?api_key={_apiKey}"
-                : $"{BaseUrl}/movie/{result.TmdbId}/external_ids?api_key={_apiKey}";
+                ? $"{BaseUrl}/tv/{result.TmdbId}/external_ids?api_key={apiKey}"
+                : $"{BaseUrl}/movie/{result.TmdbId}/external_ids?api_key={apiKey}";
 
             var extResponse = await _httpClient.GetAsync(externalUrl, ct);
             if (extResponse.IsSuccessStatusCode)
