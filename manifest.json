@@ -9,11 +9,11 @@
         "imageUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/assets/icon.png",
         "versions": [
             {
-                "version": "1.0.0.36",
-                "changelog": "v1.0.0.36 - Phase 4: Seeder filtering and playback fixes:\n- Filter out results with 0 seeders\n- Added missing streaming API endpoint (play/ route)\n- Fixed null filePath handling (auto-pick largest file)\n- Implemented robust MIME type detection for better client compatibility\n- Fixed API controller dependency injection and route conflicts",
+                "version": "1.0.0.37",
+                "changelog": "v1.0.0.37 - Phase 4: Final routing and stability fixes:\n- Fixed default HttpStreamingPrefix to match API route (/TunnelFin)\n- Resolved 404/500 errors during playback caused by prefix mismatch\n- Unified streaming route to /TunnelFin/play/{sessionId}",
                 "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/003-core-integration/tunnelfin_1.0.0.36.zip",
-                "checksum": "a8ee770a570daed813327095b565baae",
+                "sourceUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/003-core-integration/tunnelfin_1.0.0.37.zip",
+                "checksum": "4230e6236d2f939bde819b9c06384d0d",
                 "timestamp": "2026-01-04T08:21:00Z"
             },
             {
