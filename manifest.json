@@ -9,6 +9,16 @@
         "imageUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/assets/icon.png",
         "versions": [
             {
+                "version": "1.0.0.38",
+                "minJellyfinVersion": "10.8.0.0",
+                "category": "Streaming",
+                "changelog": "- Fix playback 500 errors by providing absolute URLs for FFmpeg",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/tunnelfin_1.0.0.38.zip",
+                "checksum": "03054ed21a42cc3d5836583ae2cd429b",
+                "timestamp": "2026-01-04T19:09:54Z"
+            },
+            {
                 "version": "1.0.0.37",
                 "changelog": "v1.0.0.37 - Phase 4: Final routing and stability fixes:\n- Fixed default HttpStreamingPrefix to match API route (/TunnelFin)\n- Resolved 404/500 errors during playback caused by prefix mismatch\n- Unified streaming route to /TunnelFin/play/{sessionId}",
                 "targetAbi": "10.11.0.0",
