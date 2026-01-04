@@ -97,11 +97,16 @@ public class TmdbClient : ITmdbClient
 
         var response = await _httpClient.GetAsync(searchUrl, ct);
         if (!response.IsSuccessStatusCode)
+        {
+            _logger?.LogWarning("TMDB Search failed with status {StatusCode} for query '{Query}'", response.StatusCode, cleanTitle);
             return result;
+        }
 
         var json = await response.Content.ReadAsStringAsync(ct);
         using var doc = JsonDocument.Parse(json);
         var resultsArray = doc.RootElement.GetProperty("results");
+
+        _logger?.LogInformation("TMDB Search for '{Title}': Found {Count} results", cleanTitle, resultsArray.GetArrayLength());
 
         if (resultsArray.GetArrayLength() == 0)
             return result;
