@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/assets/icon.png",
         "versions": [
             {
+                "version": "1.0.0.20",
+                "changelog": "v1.0.0.20 - Local build deployment",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.20/tunnelfin_1.0.0.20.zip",
+                "checksum": "07edd25de07c27d7a884be745b8c55e9",
+                "timestamp": "2026-01-04T06:12:51Z"
+            },
+            {
                 "version": "1.0.0.19",
                 "changelog": "v1.0.0.19 - Local build deployment",
                 "targetAbi": "10.11.0.0",
