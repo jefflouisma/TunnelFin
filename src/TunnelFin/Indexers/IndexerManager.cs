@@ -293,6 +293,13 @@ public class IndexerManager : IIndexerManager
         _logger?.LogInformation("Merged {Count} unique results from {SourceCount} sources for query '{Query}'",
             merged.Count, tasks.Count, query);
 
+        // Debug: Log first 3 results to see what we're trying to enrich
+        foreach (var r in merged.Take(3))
+        {
+            _logger?.LogInformation("Pre-enrichment result: '{Title}' (InfoHash: {InfoHash}, Magnet: {IsMagnet})", 
+                r.Title, r.InfoHash, !string.IsNullOrEmpty(r.MagnetLink) && r.MagnetLink.StartsWith("magnet:"));
+        }
+
         // Enrich results with TMDB metadata (Phase 4)
         try
         {
