@@ -9,6 +9,16 @@
         "imageUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/assets/icon.png",
         "versions": [
             {
+                "version": "1.0.0.41",
+                "minJellyfinVersion": "10.8.0.0",
+                "category": "Streaming",
+                "changelog": "- Add dummy MediaStream metadata to unblock transcoding initialization",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.41/tunnelfin_1.0.0.41.zip",
+                "checksum": "dd1827218e049fc321447a63c60a5a06",
+                "timestamp": "2026-01-04T19:35:45Z"
+            },
+            {
                 "version": "1.0.0.40",
                 "minJellyfinVersion": "10.8.0.0",
                 "category": "Streaming",
