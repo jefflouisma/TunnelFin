@@ -541,7 +541,8 @@ def deploy_local(root_dir: Path, version: str, zip_path: Path, checksum: str) ->
         sys.exit(1)
 
     # Use jsdelivr CDN - it purges cache automatically on git push (unlike raw.githubusercontent.com)
-    repo_url = "https://cdn.jsdelivr.net/gh/jefflouisma/TunnelFin@main/manifest.json"
+    # Use raw.githubusercontent.com for immediate updates, bypassing jsDelivr cache
+    repo_url = "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/manifest.json"
     release_tag = f"v{version}"
 
     # Step 1: Update manifest.json
