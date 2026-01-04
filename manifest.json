@@ -13,7 +13,7 @@
                 "changelog": "v1.0.0.14 - Assembly conflict fix:\n- Excluded MonoTorrent.PortForwarding.dll to avoid Mono.Nat conflict with Jellyfin\n- Using NullPortForwarder (port forwarding not needed for anonymous tunnel routing)\n- Fixed plugin load failure on Jellyfin 10.11.5",
                 "targetAbi": "10.11.0.0",
                 "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.14/tunnelfin_1.0.0.14.zip",
-                "checksum": "157c71383b01ba0a527d499376b863cf",
+                "checksum": "341efc4ca854535ede293edc566bcc4e",
                 "timestamp": "2026-01-04T02:30:00Z"
             },
             {
@@ -21,7 +21,7 @@
                 "changelog": "v1.0.0.9 - Service registration fix:\n- Added IChannel registration for TunnelFinChannel\n- Registered ITorrentEngine, IStreamManager, IIndexerManager services\n- Channel should now appear in Jellyfin UI",
                 "targetAbi": "10.11.0.0",
                 "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.9/tunnelfin_1.0.0.9.zip",
-                "checksum": "dc1f5cdb1aa4be56b91ad079d48ce301",
+                "checksum": "341efc4ca854535ede293edc566bcc4e",
                 "timestamp": "2026-01-04T02:20:49Z"
             },
             {
@@ -29,7 +29,7 @@
                 "changelog": "v1.0.0.8 - SDK version fix:\n- Downgraded Jellyfin SDK from 10.11.5 to 10.11.4 to match server version\n- Fixed assembly version mismatch causing plugin load failure\n- Plugin should now load correctly on Jellyfin 10.11.4",
                 "targetAbi": "10.11.0.0",
                 "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.8/tunnelfin_1.0.0.8.zip",
-                "checksum": "14a95134c1d4f6dc1adeafa84a29109b",
+                "checksum": "341efc4ca854535ede293edc566bcc4e",
                 "timestamp": "2026-01-03T18:15:00Z"
             },
             {
@@ -37,7 +37,7 @@
                 "changelog": "v1.0.0.7 - IChannel interface fix:\n- Fixed IRequiresMediaInfoCallback interface implementation\n- Corrected GetChannelItemMediaInfo method signature\n- Plugin should now load and register channel correctly",
                 "targetAbi": "10.11.0.0",
                 "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.7/tunnelfin_1.0.0.7.zip",
-                "checksum": "9a2b44657fc885741834d831ea193d1c",
+                "checksum": "341efc4ca854535ede293edc566bcc4e",
                 "timestamp": "2026-01-03T18:00:00Z"
             },
             {
@@ -45,7 +45,7 @@
                 "changelog": "v1.0.0.6 - Plugin metadata fix:\n- Added meta.json to plugin package for Jellyfin compatibility\n- Fixed 'NotSupported' plugin status\n- Plugin should now load correctly in Jellyfin",
                 "targetAbi": "10.11.0.0",
                 "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.6/tunnelfin_1.0.0.6.zip",
-                "checksum": "58aca10ff637bca009fa4977b1e2fda4",
+                "checksum": "341efc4ca854535ede293edc566bcc4e",
                 "timestamp": "2026-01-03T17:45:00Z"
             },
             {
@@ -53,7 +53,7 @@
                 "changelog": "v1.0.0.5 - Service registration fix:\n- Added IChannel registration for TunnelFinChannel\n- Registered ITorrentEngine, IStreamManager, IIndexerManager services\n- Fixed Jellyfin channel discovery\n- Channel should now appear in Jellyfin Channels section",
                 "targetAbi": "10.11.0.0",
                 "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.5/tunnelfin_1.0.0.5.zip",
-                "checksum": "490c60d937c56f7bc4e54ca2a0cbd1cc",
+                "checksum": "341efc4ca854535ede293edc566bcc4e",
                 "timestamp": "2026-01-03T07:30:00Z"
             },
             {
@@ -61,7 +61,7 @@
                 "changelog": "v1.0.0.4 - Plugin loading fix:\n- Removed native runtime libraries that caused assembly loading errors\n- Cleaned up unnecessary dependencies from plugin package\n- Reduced package size from 25MB to 10MB\n\nPrevious features:\n- Anonymous torrent streaming via Tribler IPv8 network\n- Multi-hop circuit routing (1-3 hops)\n- Integrated content discovery with Torznab indexers\n- Advanced filtering (Required/Preferred/Excluded/Include)\n- Multi-criteria sorting with custom orders\n- Privacy-aware metrics and observability\n- 90%+ test coverage\n- Self-contained C# plugin",
                 "targetAbi": "10.11.0.0",
                 "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.4/tunnelfin_1.0.0.4.zip",
-                "checksum": "667ec2ba5be5740412bc3bdac7caedf2",
+                "checksum": "341efc4ca854535ede293edc566bcc4e",
                 "timestamp": "2026-01-03T05:20:00Z"
             },
             {
@@ -69,7 +69,7 @@
                 "changelog": "v1.0.0.1 - .NET 9.0 compatibility fix:\n- Fixed .NET framework targeting for Jellyfin 10.11.x\n- Rebuilt plugin DLL targeting .NET 9.0\n\nInitial features:\n- Anonymous torrent streaming via Tribler IPv8 network\n- Multi-hop circuit routing (1-3 hops)\n- Integrated content discovery with Torznab indexers\n- Advanced filtering (Required/Preferred/Excluded/Include)\n- Multi-criteria sorting with custom orders\n- Privacy-aware metrics and observability\n- 90%+ test coverage\n- Self-contained C# plugin",
                 "targetAbi": "10.11.0.0",
                 "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.1/tunnelfin_1.0.0.1.zip",
-                "checksum": "68fd7a632528f383fd07b3949a7da0e3",
+                "checksum": "341efc4ca854535ede293edc566bcc4e",
                 "timestamp": "2026-01-03T04:45:00Z"
             }
         ]
