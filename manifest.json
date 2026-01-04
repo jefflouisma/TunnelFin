@@ -12,7 +12,7 @@
                 "version": "1.0.0.35",
                 "changelog": "v1.0.0.35 - Phase 4: Seeder filtering and playback fixes:\n- Filter out results with 0 seeders\n- Added missing streaming API endpoint\n- Fixed null filePath handling (auto-pick largest file)\n- Implemented robust MIME type detection for better client compatibility",
                 "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.35/tunnelfin_1.0.0.35.zip",
+                "sourceUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/003-core-integration/tunnelfin_1.0.0.35.zip",
                 "checksum": "5db404ace2aa8d497038d292a7e657f1",
                 "timestamp": "2026-01-04T08:21:00Z"
             },
