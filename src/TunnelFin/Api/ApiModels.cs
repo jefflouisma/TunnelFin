@@ -7,6 +7,7 @@ public class SearchResponse
 {
     public string Query { get; set; } = string.Empty;
     public int TotalResults { get; set; }
+    public bool IsAnonymous { get; set; }
     public List<TorrentSearchResult> Results { get; set; } = new();
 }
 
@@ -23,6 +24,14 @@ public class TorrentSearchResult
     public string? Category { get; set; }
     public string MagnetLink { get; set; } = string.Empty;
     public string? IndexerName { get; set; }
+
+    // TMDB metadata enrichment fields
+    public int? TmdbId { get; set; }
+    public string? ImdbId { get; set; }
+    public string? PosterUrl { get; set; }
+    public double? TmdbRating { get; set; }
+    public int? Year { get; set; }
+    public string? TmdbOverview { get; set; }
 }
 
 /// <summary>
@@ -44,5 +53,17 @@ public class HealthResponse
     public string Status { get; set; } = string.Empty;
     public string Version { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
+}
+
+/// <summary>
+/// Network anonymity status response.
+/// </summary>
+public class NetworkStatusResponse
+{
+    public bool IsAnonymous { get; set; }
+    public int CircuitCount { get; set; }
+    public int PeerCount { get; set; }
+    public string NetworkStatus { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
 }
 

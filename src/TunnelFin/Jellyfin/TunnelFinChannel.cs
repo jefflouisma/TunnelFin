@@ -490,14 +490,14 @@ Current Network Status: {networkStatus}",
             string infoHash;
             string filePath;
 
-            if (id.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+            if (id.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase) || 
+                id.StartsWith("http:", StringComparison.OrdinalIgnoreCase) || 
+                id.StartsWith("https:", StringComparison.OrdinalIgnoreCase))
             {
-                // Extract InfoHash from magnet link
-                infoHash = ExtractInfoHashFromMagnet(id);
-                filePath = string.Empty;
-
                 // Add torrent if not already added (needed to get metadata)
-                await _torrentEngine.AddTorrentAsync(id, cancellationToken);
+                var metadata = await _torrentEngine.AddTorrentAsync(id, cancellationToken);
+                infoHash = metadata.InfoHash;
+                filePath = string.Empty;
             }
             else if (id.Contains(':') && !id.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
             {

@@ -122,6 +122,35 @@
                         </div>
                     </div>
 
+                    <!-- TMDB Integration -->
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">TMDB Integration</h3>
+                        <p class="sectionDescription">
+                            Connect to The Movie Database (TMDB) for rich metadata including posters, ratings, and descriptions.
+                        </p>
+
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label>
+                                <input type="checkbox" id="tmdbEnabled" name="tmdbEnabled" is="emby-checkbox" />
+                                <span>Enable TMDB Metadata</span>
+                            </label>
+                            <div class="fieldDescription">Enrich search results with TMDB posters, ratings, and metadata.</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <label class="inputLabel" for="tmdbApiKey">TMDB API Key</label>
+                            <input type="password" id="tmdbApiKey" name="tmdbApiKey" class="emby-input" placeholder="Enter TMDB API key" />
+                            <div class="fieldDescription">API key from <a href="https://www.themoviedb.org/settings/api" target="_blank">TMDB Settings</a> → API → API Key (v3 auth).</div>
+                        </div>
+
+                        <div>
+                            <button id="btnTestTmdb" is="emby-button" type="button" class="raised emby-button">
+                                <span>Test Connection</span>
+                            </button>
+                            <span id="tmdbTestResult" style="margin-left: 10px;"></span>
+                        </div>
+                    </div>
+
                     <!-- Filter Profiles -->
                     <div class="verticalSection">
                         <h3 class="sectionTitle">Filter Profiles</h3>
@@ -183,6 +212,12 @@
                 const btnTestProwlarr = document.querySelector('#btnTestProwlarr');
                 const prowlarrTestResult = document.querySelector('#prowlarrTestResult');
 
+                // TMDB elements
+                const tmdbEnabled = document.querySelector('#tmdbEnabled');
+                const tmdbApiKey = document.querySelector('#tmdbApiKey');
+                const btnTestTmdb = document.querySelector('#btnTestTmdb');
+                const tmdbTestResult = document.querySelector('#tmdbTestResult');
+
                 // Load configuration
                 async function loadConfig() {
                     Dashboard.showLoadingMsg();
@@ -203,6 +238,10 @@
                         prowlarrEnabled.checked = cfg.ProwlarrEnabled === true;
                         prowlarrUrl.value = cfg.ProwlarrUrl || '';
                         prowlarrApiKey.value = cfg.ProwlarrApiKey || '';
+
+                        // TMDB settings
+                        tmdbEnabled.checked = cfg.TmdbEnabled === true;
+                        tmdbApiKey.value = cfg.TmdbApiKey || '';
                     } catch (e) {
                         console.error('Failed to load configuration:', e);
                         Dashboard.alert('Failed to load configuration. Please try again.');
@@ -232,6 +271,10 @@
                         cfg.ProwlarrEnabled = prowlarrEnabled.checked;
                         cfg.ProwlarrUrl = prowlarrUrl.value.trim();
                         cfg.ProwlarrApiKey = prowlarrApiKey.value.trim();
+
+                        // TMDB settings
+                        cfg.TmdbEnabled = tmdbEnabled.checked;
+                        cfg.TmdbApiKey = tmdbApiKey.value.trim();
 
                         await window.ApiClient.updatePluginConfiguration(pluginId, cfg);
                         Dashboard.processPluginConfigurationUpdateResult();
@@ -274,10 +317,43 @@
                     }
                 }
 
+                // Test TMDB connection
+                async function testTmdb() {
+                    const apiKey = tmdbApiKey.value.trim();
+
+                    if (!apiKey) {
+                        tmdbTestResult.textContent = '❌ API key required';
+                        tmdbTestResult.style.color = '#f44336';
+                        return;
+                    }
+
+                    tmdbTestResult.textContent = '⏳ Testing...';
+                    tmdbTestResult.style.color = '#fff';
+
+                    try {
+                        const testUrl = 'https://api.themoviedb.org/3/configuration?api_key=' + apiKey;
+                        const response = await fetch(testUrl);
+                        if (response.ok) {
+                            tmdbTestResult.textContent = '✅ Connected to TMDB!';
+                            tmdbTestResult.style.color = '#4caf50';
+                        } else if (response.status === 401) {
+                            tmdbTestResult.textContent = '❌ Invalid API key';
+                            tmdbTestResult.style.color = '#f44336';
+                        } else {
+                            tmdbTestResult.textContent = '❌ Error: ' + response.status;
+                            tmdbTestResult.style.color = '#f44336';
+                        }
+                    } catch (e) {
+                        tmdbTestResult.textContent = '❌ Connection failed: ' + e.message;
+                        tmdbTestResult.style.color = '#f44336';
+                    }
+                }
+
                 // Event listeners
                 form.addEventListener('submit', saveConfig);
                 page.addEventListener('pageshow', loadConfig);
                 btnTestProwlarr.addEventListener('click', testProwlarr);
+                btnTestTmdb.addEventListener('click', testTmdb);
             })();
         </script>
     </div>

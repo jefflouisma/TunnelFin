@@ -39,9 +39,10 @@ public class IndexerManager : IIndexerManager
     // TMDB client for metadata enrichment
     private readonly ITmdbClient _tmdbClient;
 
-    public IndexerManager(HttpClient httpClient, ILogger<IndexerManager>? logger = null, ITmdbClient? tmdbClient = null)
+    public IndexerManager(HttpClient httpClient, ITmdbClient tmdbClient, ILogger<IndexerManager>? logger = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _tmdbClient = tmdbClient ?? throw new ArgumentNullException(nameof(tmdbClient));
         _logger = logger;
         _indexers = new ConcurrentDictionary<Guid, IndexerConfig>();
         _indexerHealth = new ConcurrentDictionary<string, (int, DateTime)>();
@@ -51,9 +52,6 @@ public class IndexerManager : IIndexerManager
         _scraperNyaa = new ScraperNyaa(httpClient, logger as ILogger<ScraperNyaa>);
         _scraperTorrentGalaxy = new ScraperTorrentGalaxy(httpClient, logger as ILogger<ScraperTorrentGalaxy>);
         _scraperEZTV = new ScraperEZTV(httpClient, logger as ILogger<ScraperEZTV>);
-
-        // Initialize TMDB client (uses TmdbApiKey from environment or plugin config)
-        _tmdbClient = tmdbClient ?? new TmdbClient(httpClient, logger as ILogger<TmdbClient>);
     }
 
     /// <summary>
@@ -131,20 +129,37 @@ public class IndexerManager : IIndexerManager
 
             _logger?.LogInformation("Prowlarr returned {Count} results for query '{Query}'", results.Count, query);
 
-            return results
-                .Where(r => !string.IsNullOrWhiteSpace(r.InfoHash) || !string.IsNullOrWhiteSpace(r.MagnetUrl))
-                .Select(r => new TorrentResult
+            // Filter and transform results, logging any that are skipped
+            var validResults = new List<TorrentResult>();
+            foreach (var r in results)
+            {
+                var infoHash = ExtractInfoHash(r);
+                var magnetLink = BuildMagnetLink(r);
+
+                if (string.IsNullOrWhiteSpace(infoHash) || string.IsNullOrWhiteSpace(magnetLink))
                 {
-                    InfoHash = ExtractInfoHash(r),
+                    _logger?.LogDebug(
+                        "Skipping Prowlarr result '{Title}' - no valid InfoHash or MagnetLink (InfoHash={InfoHash}, MagnetUrl={MagnetUrl}, DownloadUrl={DownloadUrl})",
+                        r.Title, r.InfoHash, r.MagnetUrl, r.DownloadUrl);
+                    continue;
+                }
+
+                validResults.Add(new TorrentResult
+                {
+                    InfoHash = infoHash,
                     Title = r.Title ?? "Unknown",
                     Size = r.Size,
                     Seeders = r.Seeders,
                     Leechers = r.Leechers,
-                    MagnetLink = BuildMagnetLink(r),
+                    MagnetLink = magnetLink,
                     IndexerName = r.Indexer ?? "Prowlarr"
-                })
-                .Where(r => !string.IsNullOrWhiteSpace(r.InfoHash) && !string.IsNullOrWhiteSpace(r.MagnetLink))
-                .ToList();
+                });
+            }
+
+            _logger?.LogInformation("Prowlarr: {ValidCount}/{TotalCount} results have valid magnet links for query '{Query}'",
+                validResults.Count, results.Count, query);
+
+            return validResults;
         }
         catch (Exception ex)
         {
@@ -155,13 +170,21 @@ public class IndexerManager : IIndexerManager
 
     /// <summary>
     /// Extracts info hash from Prowlarr result (from InfoHash field or magnet link).
+    /// Returns empty string if no valid 40-character hex info hash can be extracted.
     /// </summary>
     private static string ExtractInfoHash(ProwlarrSearchResult result)
     {
+        // Try InfoHash field first - validate it's a proper 40-char hex string
         if (!string.IsNullOrWhiteSpace(result.InfoHash))
-            return result.InfoHash.ToUpperInvariant();
+        {
+            var hash = result.InfoHash.Trim().ToUpperInvariant();
+            if (IsValidInfoHash(hash))
+                return hash;
+        }
 
-        if (!string.IsNullOrWhiteSpace(result.MagnetUrl))
+        // Try extracting from MagnetUrl (only if it's actually a magnet link)
+        if (!string.IsNullOrWhiteSpace(result.MagnetUrl) &&
+            result.MagnetUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
         {
             // Extract from magnet:?xt=urn:btih:HASH
             var match = System.Text.RegularExpressions.Regex.Match(
@@ -177,15 +200,20 @@ public class IndexerManager : IIndexerManager
 
     /// <summary>
     /// Builds a magnet link from Prowlarr result.
+    /// Only returns valid magnet links - never download URLs.
     /// </summary>
     private static string BuildMagnetLink(ProwlarrSearchResult result)
     {
-        // Use existing magnet URL if available
-        if (!string.IsNullOrWhiteSpace(result.MagnetUrl))
+        // Use existing magnet URL if available AND it's actually a magnet link
+        // (Some indexers put download URLs in the MagnetUrl field)
+        if (!string.IsNullOrWhiteSpace(result.MagnetUrl) &&
+            result.MagnetUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+        {
             return result.MagnetUrl;
+        }
 
         // Build from info hash and title
-        if (!string.IsNullOrWhiteSpace(result.InfoHash))
+        if (!string.IsNullOrWhiteSpace(result.InfoHash) && IsValidInfoHash(result.InfoHash))
         {
             var hash = result.InfoHash.ToUpperInvariant();
             var title = Uri.EscapeDataString(result.Title ?? "Unknown");
@@ -193,6 +221,17 @@ public class IndexerManager : IIndexerManager
         }
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// Validates that an info hash is a proper 40-character hex string.
+    /// </summary>
+    private static bool IsValidInfoHash(string? hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash) || hash.Length != 40)
+            return false;
+
+        return hash.All(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'));
     }
 
     /// <summary>

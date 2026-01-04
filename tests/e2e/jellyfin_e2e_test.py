@@ -593,6 +593,58 @@ class TunnelFinE2ETestSuite:
 
         return test
 
+    def test_configure_tmdb(self) -> TestCase:
+        """Test: Configure TMDB integration via plugin configuration API."""
+        test = TestCase(
+            name="Configure TMDB Integration",
+            description="Configure TMDB API key for metadata enrichment"
+        )
+
+        # Get TMDB API key from environment
+        tmdb_api_key = os.environ.get("TMDB_API_KEY", "").strip()
+
+        if not tmdb_api_key:
+            test.result = TestResult.SKIPPED
+            test.message = "TMDB_API_KEY not set in environment"
+            return test
+
+        try:
+            # Get current configuration
+            config = self.client.get_plugin_configuration(self.client.TUNNELFIN_PLUGIN_GUID)
+
+            # Update TMDB settings
+            config["TmdbEnabled"] = True
+            config["TmdbApiKey"] = tmdb_api_key
+
+            # Save configuration
+            self.client.update_plugin_configuration(self.client.TUNNELFIN_PLUGIN_GUID, config)
+
+            # Verify it was saved
+            updated_config = self.client.get_plugin_configuration(self.client.TUNNELFIN_PLUGIN_GUID)
+
+            if updated_config.get("TmdbEnabled") and updated_config.get("TmdbApiKey") == tmdb_api_key:
+                test.result = TestResult.PASSED
+                test.message = "TMDB configured successfully"
+                test.details = {
+                    "tmdb_enabled": updated_config.get("TmdbEnabled"),
+                    "tmdb_api_key_set": bool(updated_config.get("TmdbApiKey")),
+                }
+            else:
+                test.result = TestResult.FAILED
+                test.message = "TMDB configuration was not persisted correctly"
+                test.details = {
+                    "enabled": updated_config.get("TmdbEnabled"),
+                    "api_key_set": bool(updated_config.get("TmdbApiKey")),
+                }
+        except requests.exceptions.HTTPError as e:
+            test.result = TestResult.FAILED
+            test.message = f"HTTP error configuring TMDB: {e.response.status_code}"
+        except Exception as e:
+            test.result = TestResult.FAILED
+            test.message = f"Error configuring TMDB: {e}"
+
+        return test
+
     def test_prowlarr_connectivity(self) -> TestCase:
         """Test: Verify Prowlarr is reachable and returns indexers."""
         test = TestCase(
@@ -1150,9 +1202,10 @@ class TunnelFinE2ETestSuite:
             self.add_result(self.test_plugin_installed())
             self.add_result(self.test_plugin_configuration())
 
-            # Configure Prowlarr before search tests
+            # Configure Prowlarr and TMDB before search tests
             self.add_result(self.test_prowlarr_connectivity())
             self.add_result(self.test_configure_prowlarr())
+            self.add_result(self.test_configure_tmdb())
 
             self.add_result(self.test_channel_discovery())
             self.add_result(self.test_channel_features())

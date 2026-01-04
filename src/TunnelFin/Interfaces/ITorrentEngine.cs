@@ -15,12 +15,12 @@ namespace TunnelFin.BitTorrent;
 public interface ITorrentEngine
 {
     /// <summary>
-    /// Adds a torrent from a magnet link and begins downloading metadata.
+    /// Adds a torrent from a magnet link or an HTTP/HTTPS URL and begins downloading metadata.
     /// </summary>
-    /// <param name="magnetLink">Magnet URI (magnet:?xt=urn:btih:...)</param>
+    /// <param name="torrentId">Magnet URI or .torrent file URL</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>TorrentMetadata once metadata is downloaded</returns>
-    Task<TorrentMetadata> AddTorrentAsync(string magnetLink, CancellationToken cancellationToken);
+    Task<TorrentMetadata> AddTorrentAsync(string torrentId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Creates a seekable stream for a specific file within a torrent.

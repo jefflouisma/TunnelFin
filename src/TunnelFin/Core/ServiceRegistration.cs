@@ -6,6 +6,7 @@ using TunnelFin.BitTorrent;
 using TunnelFin.Configuration;
 using TunnelFin.Indexers;
 using TunnelFin.Jellyfin;
+using TunnelFin.Metadata;
 using TunnelFin.Streaming;
 
 namespace TunnelFin.Core;
@@ -27,8 +28,9 @@ public class ServiceRegistration : IPluginServiceRegistrator
         // Configuration
         services.AddSingleton<StreamingConfig>();
 
-        // HTTP client for indexers
+        // HTTP clients
         services.AddHttpClient<IIndexerManager, IndexerManager>();
+        services.AddHttpClient<ITmdbClient, TmdbClient>();
 
         // Core services
         services.AddSingleton<ITorrentEngine, TorrentEngine>();

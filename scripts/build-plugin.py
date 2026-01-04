@@ -224,12 +224,27 @@ class JellyfinDeployer:
         self.session.post(f"{self.base_url}/Repositories", json=repos)
 
     def ensure_repository(self, repo_url: str) -> None:
-        """Ensure TunnelFin repository is configured."""
+        """Ensure TunnelFin repository is configured with correct URL."""
         print("   📋 Checking plugin repositories...")
         repos = self.get_repositories()
 
-        if any("TunnelFin" in r.get("Name", "") for r in repos):
-            print("   ✓ TunnelFin repository already configured")
+        # Find existing TunnelFin repo
+        existing_idx = None
+        for i, r in enumerate(repos):
+            if "TunnelFin" in r.get("Name", ""):
+                existing_idx = i
+                break
+
+        if existing_idx is not None:
+            # Check if URL needs updating
+            if repos[existing_idx].get("Url") != repo_url:
+                print(f"   🔄 Updating TunnelFin repository URL to jsdelivr CDN...")
+                repos[existing_idx]["Url"] = repo_url
+                repos[existing_idx]["Enabled"] = True
+                self.set_repositories(repos)
+                print("   ✓ Repository URL updated")
+            else:
+                print("   ✓ TunnelFin repository already configured")
         else:
             print("   📥 Adding TunnelFin repository...")
             repos.append({"Name": "TunnelFin", "Url": repo_url, "Enabled": True})
@@ -273,8 +288,151 @@ class JellyfinDeployer:
     def restart_server(self) -> None:
         """Restart Jellyfin server."""
         print("   🔄 Restarting Jellyfin server...")
-        self.session.post(f"{self.base_url}/System/Restart")
+        try:
+            self.session.post(f"{self.base_url}/System/Restart", timeout=5)
+        except Exception:
+            # Connection may be refused/reset during restart - this is expected
+            pass
         print("   ✓ Restart initiated")
+
+    def wait_for_server(self, timeout: int = 90) -> bool:
+        """Wait for server to come back online after restart."""
+        start = time.time()
+        print(f"      Waiting for server (up to {timeout}s)...", end="", flush=True)
+        while time.time() - start < timeout:
+            try:
+                resp = self.session.get(f"{self.base_url}/System/Info/Public", timeout=5)
+                if resp.status_code == 200:
+                    elapsed = int(time.time() - start)
+                    print(f" ready ({elapsed}s)")
+                    return True
+            except Exception:
+                pass
+            print(".", end="", flush=True)
+            time.sleep(2)
+        print(" timeout!")
+        return False
+
+    def wait_for_plugin_state(self, plugin_name: str, expected_state: str, timeout: int = 60) -> bool:
+        """Wait for a plugin to reach expected state (e.g., 'Active', 'Deleted')."""
+        start = time.time()
+        print(f"      Waiting for plugin state '{expected_state}' (up to {timeout}s)...", end="", flush=True)
+        while time.time() - start < timeout:
+            try:
+                plugins = self.get_plugins()
+                plugin = next((p for p in plugins if p.get("Name", "").lower() == plugin_name.lower()), None)
+
+                if expected_state == "Deleted":
+                    if plugin is None:
+                        elapsed = int(time.time() - start)
+                        print(f" done ({elapsed}s)")
+                        return True
+                elif plugin and plugin.get("Status") == expected_state:
+                    elapsed = int(time.time() - start)
+                    print(f" done ({elapsed}s)")
+                    return True
+            except Exception:
+                pass
+            print(".", end="", flush=True)
+            time.sleep(2)
+        print(" timeout!")
+        return False
+
+    def wait_for_plugin_version(self, plugin_name: str, version: str, timeout: int = 60) -> bool:
+        """Wait for a specific plugin version to be installed and active."""
+        start = time.time()
+        print(f"      Waiting for v{version} to be active (up to {timeout}s)...", end="", flush=True)
+        while time.time() - start < timeout:
+            try:
+                plugins = self.get_plugins()
+                for p in plugins:
+                    if p.get("Name", "").lower() == plugin_name.lower():
+                        if p.get("Version") == version and p.get("Status") == "Active":
+                            elapsed = int(time.time() - start)
+                            print(f" done ({elapsed}s)")
+                            return True
+            except Exception:
+                pass
+            print(".", end="", flush=True)
+            time.sleep(2)
+        print(" timeout!")
+        return False
+
+    def re_authenticate(self) -> bool:
+        """Re-authenticate after server restart."""
+        self.session.headers["X-Emby-Authorization"] = self._get_auth_header()
+        try:
+            response = self.session.post(
+                f"{self.base_url}/Users/AuthenticateByName",
+                json={"Username": self.username, "Pw": self.password}
+            )
+            response.raise_for_status()
+            data = response.json()
+            self.access_token = data.get("AccessToken")
+            self.session.headers["X-Emby-Authorization"] = self._get_auth_header()
+            return True
+        except Exception:
+            return False
+
+
+def wait_for_cdn_update(manifest_url: str, expected_checksum: str, version: str, timeout: int = 90) -> bool:
+    """Wait for jsdelivr CDN to serve updated manifest AND zip file is downloadable."""
+    start = time.time()
+    release_tag = f"v{version}"
+    zip_url = f"https://github.com/jefflouisma/TunnelFin/releases/download/{release_tag}/tunnelfin_{version}.zip"
+
+    print(f"      Verifying release artifacts are available (up to {timeout}s)...")
+
+    # First, purge jsdelivr cache explicitly
+    purge_url = manifest_url.replace("cdn.jsdelivr.net", "purge.jsdelivr.net")
+    try:
+        requests.get(purge_url, timeout=10)
+        print("      Purged jsdelivr cache")
+    except Exception:
+        pass
+
+    # Phase 1: Wait for manifest to have correct checksum
+    print(f"      Checking manifest for checksum {expected_checksum[:8]}...", end="", flush=True)
+    manifest_ready = False
+    while time.time() - start < timeout * 0.6:
+        try:
+            # Use cache-busting for jsdelivr
+            url = f"{manifest_url}"
+            resp = requests.get(url, timeout=10, headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
+            if resp.status_code == 200:
+                manifest = resp.json()
+                if manifest and len(manifest) > 0:
+                    versions = manifest[0].get("versions", [])
+                    if versions and versions[0].get("checksum") == expected_checksum:
+                        elapsed = int(time.time() - start)
+                        print(f" ready ({elapsed}s)")
+                        manifest_ready = True
+                        break
+        except Exception:
+            pass
+        print(".", end="", flush=True)
+        time.sleep(2)
+
+    if not manifest_ready:
+        print(" timeout!")
+        return False
+
+    # Phase 2: Verify zip file is downloadable (HEAD request)
+    print(f"      Verifying zip is downloadable...", end="", flush=True)
+    while time.time() - start < timeout:
+        try:
+            resp = requests.head(zip_url, timeout=10, allow_redirects=True)
+            if resp.status_code == 200:
+                elapsed = int(time.time() - start)
+                print(f" ready ({elapsed}s)")
+                return True
+        except Exception:
+            pass
+        print(".", end="", flush=True)
+        time.sleep(2)
+
+    print(" timeout!")
+    return False
 
 
 def update_manifest(root_dir: Path, version: str, checksum: str) -> None:
@@ -338,7 +496,7 @@ def deploy_via_repo(root_dir: Path, version: str, branch: str = None) -> None:
         result = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=root_dir, check=False)
         branch = result.stdout.strip() if result.returncode == 0 else "main"
 
-    repo_url = f"https://raw.githubusercontent.com/jefflouisma/TunnelFin/{branch}/manifest.json"
+    repo_url = f"https://cdn.jsdelivr.net/gh/jefflouisma/TunnelFin@{branch}/manifest.json"
     print(f"   📋 Using manifest from branch: {branch}")
 
     deployer = JellyfinDeployer(jellyfin_url, username, password)
@@ -382,7 +540,8 @@ def deploy_local(root_dir: Path, version: str, zip_path: Path, checksum: str) ->
         print("   Required: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD")
         sys.exit(1)
 
-    repo_url = "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/manifest.json"
+    # Use jsdelivr CDN - it purges cache automatically on git push (unlike raw.githubusercontent.com)
+    repo_url = "https://cdn.jsdelivr.net/gh/jefflouisma/TunnelFin@main/manifest.json"
     release_tag = f"v{version}"
 
     # Step 1: Update manifest.json
@@ -428,28 +587,59 @@ def deploy_local(root_dir: Path, version: str, zip_path: Path, checksum: str) ->
             run_command(["git", "push", "origin", f"{current_branch}:main"], cwd=root_dir)
     print("   ✓ Manifest pushed to main")
 
-    # Step 4: Wait for GitHub CDN to update
-    print("   ⏳ Waiting for GitHub CDN to update (5s)...")
-    time.sleep(5)
+    # Step 4: Wait for GitHub CDN to update (verify manifest AND zip are available)
+    print("   ⏳ Verifying GitHub CDN has updated...")
+    if not wait_for_cdn_update(repo_url, checksum, version, timeout=120):
+        print("   ❌ CDN not ready - Jellyfin install will likely fail!")
+        print("   💡 Try running again in a minute, or manually install from Jellyfin UI")
 
-    # Step 5: Deploy via Jellyfin API
+    # Step 5: Deploy via Jellyfin API (two-phase: uninstall+restart, then install+restart)
     deployer = JellyfinDeployer(jellyfin_url, username, password)
     if not deployer.authenticate():
         sys.exit(1)
 
     deployer.ensure_repository(repo_url)
 
+    # Phase 1: Uninstall existing plugin and restart to clean up
     print("   🔍 Checking for existing installation...")
     plugin_id = deployer.find_tunnelfin_plugin()
     if plugin_id:
         deployer.uninstall_plugin(plugin_id)
+        deployer.restart_server()
+        if not deployer.wait_for_server(timeout=90):
+            print("   ⚠️  Server didn't respond, continuing anyway...")
+        else:
+            deployer.re_authenticate()
+            # Wait for plugin to actually be removed
+            deployer.wait_for_plugin_state("TunnelFin", "Deleted", timeout=30)
 
+    # Phase 2: Install new version and restart
     deployer.install_plugin(repo_url, version)
     deployer.restart_server()
+    if not deployer.wait_for_server(timeout=90):
+        print("   ⚠️  Server didn't respond, continuing anyway...")
+    else:
+        deployer.re_authenticate()
+
+    # Wait for plugin to become active with correct version
+    print("   🔍 Verifying installation...")
+    if deployer.wait_for_plugin_version("TunnelFin", version, timeout=60):
+        print(f"   ✅ TunnelFin v{version} is Active!")
+    else:
+        # Final check
+        plugin_id = deployer.find_tunnelfin_plugin()
+        if plugin_id:
+            plugins = deployer.get_plugins()
+            for p in plugins:
+                if p.get("Id") == plugin_id:
+                    installed_version = p.get("Version")
+                    status = p.get("Status")
+                    print(f"   ⚠️  TunnelFin v{installed_version} status: {status}")
+        else:
+            print("   ⚠️  TunnelFin not found after install")
 
     print()
-    print("✅ Local build deployed!")
-    print("   Jellyfin is restarting. Plugin will be available in ~30 seconds.")
+    print("✅ Deployment complete!")
     print(f"   Check {jellyfin_url}/web/index.html#!/dashboard/plugins for status.")
 
 
@@ -457,7 +647,7 @@ def print_manual_install_instructions(version: str, checksum: str) -> None:
     """Print manual installation instructions."""
     print()
     print("To install in Jellyfin:")
-    print("1. Add repository: https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/manifest.json")
+    print("1. Add repository: https://cdn.jsdelivr.net/gh/jefflouisma/TunnelFin@main/manifest.json")
     print("2. Or manually copy plugin_package/TunnelFin/ to your Jellyfin plugins directory")
     print(f"3. Or run: python scripts/build-plugin.py {version} --deploy        (from GitHub repo)")
     print(f"4. Or run: python scripts/build-plugin.py {version} --deploy-local  (direct deploy)")
@@ -465,39 +655,60 @@ def print_manual_install_instructions(version: str, checksum: str) -> None:
     print(f"Update manifest.json checksum to: {checksum}")
 
 
+def parse_version(version_str: str) -> tuple:
+    """Parse version string into comparable tuple."""
+    version_str = version_str.lstrip('v')
+    parts = version_str.split('.')
+    try:
+        return tuple(int(p) for p in parts[:4])
+    except ValueError:
+        return (0, 0, 0, 0)
+
+
 def get_next_version(root_dir: Path) -> str:
-    """Get the next version by bumping patch from the latest git tag."""
+    """Get the next version by bumping from the latest git tag OR GitHub release."""
+    versions = []
+
+    # Check git tags
     result = run_command(
         ["git", "tag", "--sort=-v:refname"],
         cwd=root_dir,
         check=False
     )
+    if result.returncode == 0 and result.stdout.strip():
+        for tag in result.stdout.strip().split('\n'):
+            if tag.startswith('v'):
+                versions.append(parse_version(tag))
 
-    if result.returncode != 0 or not result.stdout.strip():
+    # Check GitHub releases (may have releases without tags)
+    result = run_command(
+        ["gh", "release", "list", "--limit", "20", "--json", "tagName"],
+        cwd=root_dir,
+        check=False
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        try:
+            releases = json.loads(result.stdout)
+            for rel in releases:
+                tag = rel.get("tagName", "")
+                if tag.startswith('v'):
+                    versions.append(parse_version(tag))
+        except json.JSONDecodeError:
+            pass
+
+    if not versions:
         return "1.0.0.0"
 
-    # Get first tag (latest by version sort)
-    latest_tag = result.stdout.strip().split('\n')[0]
+    # Get highest version
+    latest = max(versions)
 
-    # Strip 'v' prefix if present
-    version_str = latest_tag.lstrip('v')
+    # Bump the last component
+    parts = list(latest)
+    while len(parts) < 4:
+        parts.append(0)
+    parts[3] += 1
 
-    # Parse version parts (handle both x.y.z and x.y.z.w formats)
-    parts = version_str.split('.')
-    try:
-        if len(parts) >= 4:
-            # Bump the 4th component (build number)
-            parts[3] = str(int(parts[3]) + 1)
-        elif len(parts) == 3:
-            # Bump patch and add build number
-            parts[2] = str(int(parts[2]) + 1)
-            parts.append("0")
-        else:
-            return "1.0.0.0"
-
-        return '.'.join(parts[:4])
-    except ValueError:
-        return "1.0.0.0"
+    return '.'.join(str(p) for p in parts[:4])
 
 
 def main():

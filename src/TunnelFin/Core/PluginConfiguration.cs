@@ -134,6 +134,11 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool ProwlarrEnabled { get; set; } = false;
 
     /// <summary>
+    /// Whether TMDB integration is enabled
+    /// </summary>
+    public bool TmdbEnabled { get; set; } = false;
+
+    /// <summary>
     /// TMDB API key for metadata fetching (FR-029)
     /// </summary>
     public string? TmdbApiKey { get; set; }

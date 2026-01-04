@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Net.Http;
 using Microsoft.Extensions.Logging;
 using MonoTorrent;
 using MonoTorrent.Client;
@@ -28,6 +29,7 @@ public class TorrentEngine : ITorrentEngine, IDisposable
     private readonly ConcurrentDictionary<string, TorrentMetadata> _metadata;
     private readonly ILogger<TorrentEngine>? _logger;
     private readonly DiskSpaceChecker _diskSpaceChecker;
+    private readonly IHttpClientFactory _httpClientFactory;
     private ISocketConnector? _socketConnector;
 
     /// <summary>
@@ -37,10 +39,12 @@ public class TorrentEngine : ITorrentEngine, IDisposable
     /// <param name="socketConnector">Optional custom socket connector for circuit-routed connections (T107)</param>
     /// <param name="logger">Optional logger for diagnostic output</param>
     public TorrentEngine(
+        IHttpClientFactory httpClientFactory,
         string? downloadPath = null,
         ISocketConnector? socketConnector = null,
         ILogger<TorrentEngine>? logger = null)
     {
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _downloadPath = downloadPath ?? Path.Combine(Path.GetTempPath(), "TunnelFin", "Cache");
         _managers = new ConcurrentDictionary<string, TorrentManager>();
         _metadata = new ConcurrentDictionary<string, TorrentMetadata>();
@@ -83,44 +87,72 @@ public class TorrentEngine : ITorrentEngine, IDisposable
     }
 
     /// <summary>
-    /// Adds a torrent from a magnet link and begins downloading metadata.
+    /// Adds a torrent from a magnet link or an HTTP/HTTPS URL and begins downloading metadata.
     /// </summary>
-    public async Task<TorrentMetadata> AddTorrentAsync(string magnetLink, CancellationToken cancellationToken)
+    public async Task<TorrentMetadata> AddTorrentAsync(string torrentId, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(magnetLink))
-            throw new ArgumentException("Magnet link cannot be empty", nameof(magnetLink));
+        if (string.IsNullOrWhiteSpace(torrentId))
+            throw new ArgumentException("Torrent ID/Link cannot be empty", nameof(torrentId));
 
-        if (!magnetLink.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Invalid magnet link format", nameof(magnetLink));
+        byte[] torrentData;
+        string? magnetLink = null;
+        string infoHash;
 
-        // Parse magnet link
-        var magnet = MagnetLink.Parse(magnetLink);
-        var infoHash = magnet.InfoHashes.V1OrV2.ToHex();
-
-        _logger?.LogInformation("Adding torrent {InfoHash} from magnet link", infoHash);
-
-        // Check if already added
-        if (_managers.ContainsKey(infoHash))
+        if (torrentId.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
         {
-            _logger?.LogDebug("Torrent {InfoHash} already exists, returning cached metadata", infoHash);
-            return _metadata[infoHash];
+            magnetLink = torrentId;
+            var magnet = MagnetLink.Parse(magnetLink);
+            infoHash = magnet.InfoHashes.V1OrV2.ToHex();
+            
+            _logger?.LogInformation("Adding torrent {InfoHash} from magnet link", infoHash);
+
+            // Check if already added
+            if (_managers.ContainsKey(infoHash))
+            {
+                _logger?.LogDebug("Torrent {InfoHash} already exists, returning cached metadata", infoHash);
+                return _metadata[infoHash];
+            }
+
+            // Download metadata with 90s timeout (FR-007)
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(90));
+
+            _logger?.LogDebug("Downloading metadata for {InfoHash} (timeout: 90s)", infoHash);
+            torrentData = (await _engine.DownloadMetadataAsync(magnet, cts.Token)).ToArray();
+        }
+        else if (torrentId.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger?.LogInformation("Downloading torrent file from {Url}", torrentId);
+            torrentData = await DownloadTorrentBytesAsync(torrentId, cancellationToken);
+            
+            var torrent = Torrent.Load(torrentData);
+            infoHash = torrent.InfoHashes.V1OrV2.ToHex();
+            
+            _logger?.LogInformation("Loaded torrent {InfoHash} from URL", infoHash);
+            
+            // Generate a magnet link if it was a file, for metadata storage
+            magnetLink = $"magnet:?xt=urn:btih:{infoHash}&dn={Uri.EscapeDataString(torrent.Name ?? "torrent")}";
+            
+            if (_managers.ContainsKey(infoHash))
+            {
+                _logger?.LogDebug("Torrent {InfoHash} already exists, returning cached metadata", infoHash);
+                return _metadata[infoHash];
+            }
+        }
+        else
+        {
+            throw new ArgumentException("Invalid torrent format (must be magnet: or http(s)://)", nameof(torrentId));
         }
 
-        // Download metadata with 90s timeout (FR-007)
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(90));
-
-        _logger?.LogDebug("Downloading metadata for {InfoHash} (timeout: 90s)", infoHash);
-        var torrentData = await _engine.DownloadMetadataAsync(magnet, cts.Token);
-        var torrent = Torrent.Load(torrentData.ToArray());
-        _logger?.LogInformation("Downloaded metadata for {InfoHash}: {Name}, {Size} bytes, {FileCount} files",
-            infoHash, torrent.Name, torrent.Size, torrent.Files.Count);
+        var finalTorrent = Torrent.Load(torrentData);
+        _logger?.LogInformation("Initializing torrent {InfoHash}: {Name}, {Size} bytes, {FileCount} files",
+            infoHash, finalTorrent.Name, finalTorrent.Size, finalTorrent.Files.Count);
 
         // Check disk space before starting download (T121)
-        if (!_diskSpaceChecker.HasSufficientSpace(_downloadPath, torrent.Size))
+        if (!_diskSpaceChecker.HasSufficientSpace(_downloadPath, finalTorrent.Size))
         {
             var availableSpace = _diskSpaceChecker.GetAvailableSpace(_downloadPath);
-            var requiredSpace = torrent.Size * 2;
+            var requiredSpace = finalTorrent.Size * 2;
             var message = DiskSpaceChecker.GetInsufficientSpaceMessage(availableSpace, requiredSpace);
             _logger?.LogWarning("{Message} for torrent {InfoHash}", message, infoHash);
             throw new InvalidOperationException(message);
@@ -134,15 +166,8 @@ public class TorrentEngine : ITorrentEngine, IDisposable
             MaximumUploadRate = 0     // Unlimited
         }.ToSettings();
 
-        var manager = await _engine.AddStreamingAsync(torrent, _downloadPath, torrentSettings);
+        var manager = await _engine.AddStreamingAsync(finalTorrent, _downloadPath, torrentSettings);
         
-        // Apply custom socket connector if configured
-        if (_socketConnector != null)
-        {
-            // Note: MonoTorrent 3.0.2 socket connector integration would go here
-            // This requires accessing internal MonoTorrent APIs or using reflection
-        }
-
         // Start the torrent
         await manager.StartAsync();
 
@@ -150,12 +175,35 @@ public class TorrentEngine : ITorrentEngine, IDisposable
         _managers[infoHash] = manager;
 
         // Create metadata
-        var metadata = ConvertToMetadata(torrent, magnetLink);
+        var metadata = ConvertToMetadata(finalTorrent, magnetLink);
         _metadata[infoHash] = metadata;
 
         _logger?.LogInformation("Successfully added torrent {InfoHash}, started downloading", infoHash);
 
         return metadata;
+    }
+
+    private async Task<byte[]> DownloadTorrentBytesAsync(string url, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = _httpClientFactory.CreateClient("TorrentDownloader");
+            client.Timeout = TimeSpan.FromSeconds(30);
+            
+            var response = await client.GetAsync(url, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            
+            var data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            if (data == null || data.Length == 0)
+                throw new InvalidOperationException("Downloaded torrent file is empty");
+                
+            return data;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to download torrent file from {Url}", url);
+            throw;
+        }
     }
 
     /// <summary>

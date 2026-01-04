@@ -39,7 +39,16 @@ public class TmdbClient : ITmdbClient
     {
         _httpClient = httpClient;
         _logger = logger;
-        _apiKey = apiKey ?? Environment.GetEnvironmentVariable("TMDB_API_KEY");
+        
+        // Priority: 1. Constructor arg, 2. Plugin config, 3. Environment variable
+        _apiKey = apiKey 
+                  ?? Core.Plugin.Instance?.Configuration?.TmdbApiKey 
+                  ?? Environment.GetEnvironmentVariable("TMDB_API_KEY");
+                  
+        if (string.IsNullOrEmpty(_apiKey))
+        {
+            _logger?.LogWarning("TMDB API key is not configured. Metadata enrichment will be disabled.");
+        }
     }
 
     public async Task<IReadOnlyList<TorrentResult>> EnrichResultsAsync(

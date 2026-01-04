@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v9.0": {
-      "TunnelFin/1.0.0.17": {
+      "TunnelFin/1.0.0.25": {
         "dependencies": {
           "HtmlAgilityPack": "1.11.71",
           "Jellyfin.Controller": "10.11.5",
@@ -389,7 +389,7 @@
     }
   },
   "libraries": {
-    "TunnelFin/1.0.0.17": {
+    "TunnelFin/1.0.0.25": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

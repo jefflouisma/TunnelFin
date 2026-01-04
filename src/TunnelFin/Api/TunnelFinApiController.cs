@@ -148,6 +148,32 @@ public class TunnelFinApiController : ControllerBase
     }
 
     /// <summary>
+    /// Get network anonymity status.
+    /// Returns information about Tribler network connectivity and anonymity circuits.
+    /// </summary>
+    [HttpGet("Status")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<NetworkStatusResponse> Status()
+    {
+        // TODO: Wire up to actual Tribler/IPv8 network status when implemented
+        // For now, return realistic mock data based on configuration
+        var isAnonymous = false; // Will be true when Tribler circuits are established
+        var circuitCount = 0;    // Number of active anonymity circuits
+        var peerCount = 0;       // Connected IPv8 peers
+
+        return Ok(new NetworkStatusResponse
+        {
+            IsAnonymous = isAnonymous,
+            CircuitCount = circuitCount,
+            PeerCount = peerCount,
+            NetworkStatus = isAnonymous ? "Anonymous" : "Direct",
+            Message = isAnonymous
+                ? $"Connected via {circuitCount} anonymity circuit(s)"
+                : "Direct connection (Tribler network not available)"
+        });
+    }
+
+    /// <summary>
     /// Standalone search web UI (Search UX Phase 3).
     /// Provides a full-featured search page accessible at /TunnelFin/.
     /// </summary>
@@ -208,24 +234,24 @@ public class TunnelFinApiController : ControllerBase
 <body>
     <div class="container">
         <header>
-            <h1>🎬 <span>TunnelFin</span></h1>
-            <div id="network-status" class="network-status direct">🟠 Checking network...</div>
+            <h1>🎬 <span>TunnelFin Search</span></h1>
+            <div id="networkStatus" class="network-status direct">🟠 Checking network...</div>
         </header>
         <div class="search-box">
-            <input type="text" id="query" class="search-input" placeholder="Search for movies, TV shows, anime..." autofocus>
+            <input type="text" id="searchInput" class="search-input" placeholder="Search for movies, TV shows, anime..." autofocus>
             <button id="search" class="search-btn">Search</button>
         </div>
-        <div id="results"></div>
+        <div id="searchResults"></div>
         <div class="help-text">
             <p>TunnelFin streams torrents through Jellyfin with privacy protection.</p>
             <p>🟢 = Anonymous (IP hidden) | 🟠 = Direct (IP visible)</p>
         </div>
     </div>
     <script>
-        const queryInput = document.getElementById('query');
+        const queryInput = document.getElementById('searchInput');
         const searchBtn = document.getElementById('search');
-        const resultsDiv = document.getElementById('results');
-        const networkStatusDiv = document.getElementById('network-status');
+        const resultsDiv = document.getElementById('searchResults');
+        const networkStatusDiv = document.getElementById('networkStatus');
         let isAnonymous = false;
 
         async function checkNetwork() {
