@@ -136,6 +136,14 @@ class JellyfinClient:
         response.raise_for_status()
         return response.json()
 
+    def update_plugin_configuration(self, plugin_id: str, config: Dict[str, Any]) -> None:
+        """Update plugin configuration."""
+        response = self.session.post(
+            f"{self.base_url}/Plugins/{plugin_id}/Configuration",
+            json=config
+        )
+        response.raise_for_status()
+
     def get_channels(self) -> Dict[str, Any]:
         """Get available channels."""
         params = {}
@@ -530,6 +538,110 @@ class TunnelFinE2ETestSuite:
 
         return test
 
+    def test_configure_prowlarr(self) -> TestCase:
+        """Test: Configure Prowlarr integration via plugin configuration API."""
+        test = TestCase(
+            name="Configure Prowlarr Integration",
+            description="Configure Prowlarr URL and API key for indexer aggregation"
+        )
+
+        # Get Prowlarr credentials from environment
+        prowlarr_url = os.environ.get("PROWLARR_URL", "").strip()
+        prowlarr_api_key = os.environ.get("PROWLARR_API_KEY", "").strip()
+
+        if not prowlarr_url or not prowlarr_api_key:
+            test.result = TestResult.SKIPPED
+            test.message = "PROWLARR_URL and PROWLARR_API_KEY not set in environment"
+            return test
+
+        try:
+            # Get current configuration
+            config = self.client.get_plugin_configuration(self.client.TUNNELFIN_PLUGIN_GUID)
+
+            # Update Prowlarr settings
+            config["ProwlarrEnabled"] = True
+            config["ProwlarrUrl"] = prowlarr_url
+            config["ProwlarrApiKey"] = prowlarr_api_key
+
+            # Save configuration
+            self.client.update_plugin_configuration(self.client.TUNNELFIN_PLUGIN_GUID, config)
+
+            # Verify it was saved
+            updated_config = self.client.get_plugin_configuration(self.client.TUNNELFIN_PLUGIN_GUID)
+
+            if updated_config.get("ProwlarrEnabled") and updated_config.get("ProwlarrUrl") == prowlarr_url:
+                test.result = TestResult.PASSED
+                test.message = f"Prowlarr configured successfully: {prowlarr_url}"
+                test.details = {
+                    "prowlarr_url": prowlarr_url,
+                    "prowlarr_enabled": updated_config.get("ProwlarrEnabled"),
+                }
+            else:
+                test.result = TestResult.FAILED
+                test.message = "Configuration was not persisted correctly"
+                test.details = {
+                    "expected_url": prowlarr_url,
+                    "actual_url": updated_config.get("ProwlarrUrl"),
+                    "enabled": updated_config.get("ProwlarrEnabled"),
+                }
+        except requests.exceptions.HTTPError as e:
+            test.result = TestResult.FAILED
+            test.message = f"HTTP error configuring Prowlarr: {e.response.status_code}"
+        except Exception as e:
+            test.result = TestResult.FAILED
+            test.message = f"Error configuring Prowlarr: {e}"
+
+        return test
+
+    def test_prowlarr_connectivity(self) -> TestCase:
+        """Test: Verify Prowlarr is reachable and returns indexers."""
+        test = TestCase(
+            name="Prowlarr Connectivity",
+            description="Verify Prowlarr API is accessible and returns indexers"
+        )
+
+        prowlarr_url = os.environ.get("PROWLARR_URL", "").strip()
+        prowlarr_api_key = os.environ.get("PROWLARR_API_KEY", "").strip()
+
+        if not prowlarr_url or not prowlarr_api_key:
+            test.result = TestResult.SKIPPED
+            test.message = "PROWLARR_URL and PROWLARR_API_KEY not set"
+            return test
+
+        try:
+            # Test Prowlarr API directly
+            indexer_url = f"{prowlarr_url.rstrip('/')}/api/v1/indexer?apikey={prowlarr_api_key}"
+            response = requests.get(indexer_url, timeout=10)
+            response.raise_for_status()
+
+            indexers = response.json()
+            enabled_indexers = [i for i in indexers if i.get("enable", False)]
+
+            if enabled_indexers:
+                test.result = TestResult.PASSED
+                test.message = f"Prowlarr has {len(enabled_indexers)} enabled indexers"
+                test.details = {
+                    "total_indexers": len(indexers),
+                    "enabled_indexers": len(enabled_indexers),
+                    "indexer_names": [i.get("name") for i in enabled_indexers[:5]],
+                }
+            else:
+                test.result = TestResult.WARNING
+                test.message = f"Prowlarr connected but no enabled indexers found ({len(indexers)} total)"
+                test.details = {"total_indexers": len(indexers)}
+
+        except requests.exceptions.ConnectionError:
+            test.result = TestResult.FAILED
+            test.message = f"Cannot connect to Prowlarr at {prowlarr_url}"
+        except requests.exceptions.HTTPError as e:
+            test.result = TestResult.FAILED
+            test.message = f"Prowlarr API error: {e.response.status_code}"
+        except Exception as e:
+            test.result = TestResult.FAILED
+            test.message = f"Error testing Prowlarr: {e}"
+
+        return test
+
     def test_global_search_integration(self) -> TestCase:
         """Test 8: Verify TunnelFin integrates with Jellyfin global search."""
         test = TestCase(
@@ -641,11 +753,16 @@ class TunnelFinE2ETestSuite:
         # Only continue if authentication succeeded
         if self.test_cases[-1].result == TestResult.PASSED:
             self.add_result(self.test_plugin_installed())
+            self.add_result(self.test_plugin_configuration())
+
+            # Configure Prowlarr before search tests
+            self.add_result(self.test_prowlarr_connectivity())
+            self.add_result(self.test_configure_prowlarr())
+
             self.add_result(self.test_channel_discovery())
             self.add_result(self.test_channel_features())
             self.add_result(self.test_channel_search())
             self.add_result(self.test_channel_search("sintel"))  # Second search test
-            self.add_result(self.test_plugin_configuration())
             self.add_result(self.test_global_search_integration())
             self.add_result(self.test_check_logs_for_errors())
 

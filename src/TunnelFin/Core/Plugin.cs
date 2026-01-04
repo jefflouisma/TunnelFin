@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -11,7 +13,7 @@ namespace TunnelFin.Core;
 /// TunnelFin Plugin - Privacy-first torrent streaming for Jellyfin (T009)
 /// Enables anonymous torrent streaming through Tribler anonymity network
 /// </summary>
-public class Plugin : BasePlugin<PluginConfiguration>
+public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
     /// <summary>
     /// Plugin GUID - unique identifier for TunnelFin
@@ -54,15 +56,28 @@ public class Plugin : BasePlugin<PluginConfiguration>
         "Features include multi-hop onion routing, integrated content discovery, advanced filtering, and seamless Jellyfin integration.";
 
     /// <summary>
+    /// Gets the plugin thumb image stream for the UI.
+    /// </summary>
+    public Stream? GetThumbImage()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        return assembly.GetManifestResourceStream("TunnelFin.Configuration.thumb.png");
+    }
+
+    /// <summary>
+    /// Gets the thumb image format.
+    /// </summary>
+    public MediaBrowser.Model.Drawing.ImageFormat ThumbImageFormat => MediaBrowser.Model.Drawing.ImageFormat.Png;
+
+    /// <summary>
     /// Gets the plugin configuration pages (T083)
     /// </summary>
     public IEnumerable<PluginPageInfo> GetPages()
     {
-        var prefix = GetType().Namespace;
         yield return new PluginPageInfo
         {
-            Name = "TunnelFin",
-            EmbeddedResourcePath = prefix + ".Configuration.config.html"
+            Name = Name,
+            EmbeddedResourcePath = "TunnelFin.Configuration.config.html"
         };
     }
 

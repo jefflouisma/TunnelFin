@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -10,12 +11,14 @@ using TunnelFin.Configuration;
 using TunnelFin.Indexers.HtmlScrapers;
 using TunnelFin.Indexers.Torznab;
 using TunnelFin.Models;
+using IndexerConfig = TunnelFin.Configuration.IndexerConfig;
 
 namespace TunnelFin.Indexers;
 
 /// <summary>
 /// Aggregates multiple indexers (Torznab and HTML scrapers) for content discovery.
 /// Handles parallel queries, result merging, deduplication, and rate limiting.
+/// Supports Prowlarr integration for centralized indexer management.
 /// </summary>
 public class IndexerManager : IIndexerManager
 {
@@ -23,6 +26,8 @@ public class IndexerManager : IIndexerManager
     private readonly ILogger<IndexerManager>? _logger;
     private readonly ConcurrentDictionary<Guid, IndexerConfig> _indexers;
     private readonly ConcurrentDictionary<string, (int FailureCount, DateTime CooldownUntil)> _indexerHealth;
+    private List<ProwlarrIndexer>? _prowlarrIndexers;
+    private DateTime _prowlarrIndexersLastFetch = DateTime.MinValue;
 
     // Built-in scrapers
     private readonly Scraper1337x _scraper1337x;
@@ -45,6 +50,145 @@ public class IndexerManager : IIndexerManager
     }
 
     /// <summary>
+    /// Gets Prowlarr configuration from the plugin.
+    /// </summary>
+    private (bool Enabled, string Url, string ApiKey) GetProwlarrConfig()
+    {
+        var config = Core.Plugin.Instance?.Configuration;
+        if (config == null)
+            return (false, string.Empty, string.Empty);
+
+        return (config.ProwlarrEnabled, config.ProwlarrUrl, config.ProwlarrApiKey);
+    }
+
+    /// <summary>
+    /// Fetches available indexers from Prowlarr.
+    /// </summary>
+    private async Task<List<ProwlarrIndexer>> FetchProwlarrIndexersAsync(CancellationToken cancellationToken)
+    {
+        var (enabled, url, apiKey) = GetProwlarrConfig();
+
+        if (!enabled || string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(apiKey))
+            return new List<ProwlarrIndexer>();
+
+        // Cache indexers for 5 minutes
+        if (_prowlarrIndexers != null && DateTime.UtcNow - _prowlarrIndexersLastFetch < TimeSpan.FromMinutes(5))
+            return _prowlarrIndexers;
+
+        try
+        {
+            var indexerUrl = $"{url.TrimEnd('/')}/api/v1/indexer?apikey={apiKey}";
+            _logger?.LogDebug("Fetching Prowlarr indexers from {Url}", indexerUrl);
+
+            var response = await _httpClient.GetStringAsync(indexerUrl, cancellationToken);
+            var indexers = JsonSerializer.Deserialize<List<ProwlarrIndexer>>(response, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new List<ProwlarrIndexer>();
+
+            // Filter to only enabled indexers that support search
+            _prowlarrIndexers = indexers.Where(i => i.Enable && i.SupportsSearch).ToList();
+            _prowlarrIndexersLastFetch = DateTime.UtcNow;
+
+            _logger?.LogInformation("Fetched {Count} enabled Prowlarr indexers", _prowlarrIndexers.Count);
+            return _prowlarrIndexers;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to fetch Prowlarr indexers");
+            return _prowlarrIndexers ?? new List<ProwlarrIndexer>();
+        }
+    }
+
+    /// <summary>
+    /// Searches via Prowlarr API.
+    /// </summary>
+    private async Task<IReadOnlyList<TorrentResult>> SearchProwlarrAsync(string query, CancellationToken cancellationToken)
+    {
+        var (enabled, url, apiKey) = GetProwlarrConfig();
+
+        if (!enabled || string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(apiKey))
+            return Array.Empty<TorrentResult>();
+
+        try
+        {
+            // Use Prowlarr's search endpoint which searches all enabled indexers
+            var searchUrl = $"{url.TrimEnd('/')}/api/v1/search?query={Uri.EscapeDataString(query)}&type=search&apikey={apiKey}";
+            _logger?.LogDebug("Searching Prowlarr: {Url}", searchUrl);
+
+            var response = await _httpClient.GetStringAsync(searchUrl, cancellationToken);
+            var results = JsonSerializer.Deserialize<List<ProwlarrSearchResult>>(response, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new List<ProwlarrSearchResult>();
+
+            _logger?.LogInformation("Prowlarr returned {Count} results for query '{Query}'", results.Count, query);
+
+            return results
+                .Where(r => !string.IsNullOrWhiteSpace(r.InfoHash) || !string.IsNullOrWhiteSpace(r.MagnetUrl))
+                .Select(r => new TorrentResult
+                {
+                    InfoHash = ExtractInfoHash(r),
+                    Title = r.Title ?? "Unknown",
+                    Size = r.Size,
+                    Seeders = r.Seeders,
+                    Leechers = r.Leechers,
+                    MagnetLink = BuildMagnetLink(r),
+                    IndexerName = r.Indexer ?? "Prowlarr"
+                })
+                .Where(r => !string.IsNullOrWhiteSpace(r.InfoHash) && !string.IsNullOrWhiteSpace(r.MagnetLink))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to search Prowlarr for query '{Query}'", query);
+            return Array.Empty<TorrentResult>();
+        }
+    }
+
+    /// <summary>
+    /// Extracts info hash from Prowlarr result (from InfoHash field or magnet link).
+    /// </summary>
+    private static string ExtractInfoHash(ProwlarrSearchResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.InfoHash))
+            return result.InfoHash.ToUpperInvariant();
+
+        if (!string.IsNullOrWhiteSpace(result.MagnetUrl))
+        {
+            // Extract from magnet:?xt=urn:btih:HASH
+            var match = System.Text.RegularExpressions.Regex.Match(
+                result.MagnetUrl,
+                @"btih:([a-fA-F0-9]{40})",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success)
+                return match.Groups[1].Value.ToUpperInvariant();
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Builds a magnet link from Prowlarr result.
+    /// </summary>
+    private static string BuildMagnetLink(ProwlarrSearchResult result)
+    {
+        // Use existing magnet URL if available
+        if (!string.IsNullOrWhiteSpace(result.MagnetUrl))
+            return result.MagnetUrl;
+
+        // Build from info hash and title
+        if (!string.IsNullOrWhiteSpace(result.InfoHash))
+        {
+            var hash = result.InfoHash.ToUpperInvariant();
+            var title = Uri.EscapeDataString(result.Title ?? "Unknown");
+            return $"magnet:?xt=urn:btih:{hash}&dn={title}";
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>
     /// Searches all enabled indexers in parallel, merges results, deduplicates by InfoHash, and sorts by seeders.
     /// </summary>
     public async Task<IReadOnlyList<TorrentResult>> SearchAsync(string query, CancellationToken cancellationToken)
@@ -56,21 +200,37 @@ public class IndexerManager : IIndexerManager
 
         var tasks = new List<Task<IReadOnlyList<TorrentResult>>>();
 
-        // Query all enabled indexers in parallel
-        foreach (var indexer in _indexers.Values.Where(i => i.Enabled))
+        // Check if Prowlarr is enabled - if so, use it as the primary source
+        var (prowlarrEnabled, _, _) = GetProwlarrConfig();
+        if (prowlarrEnabled)
         {
-            // Check if indexer is in cooldown
-            if (_indexerHealth.TryGetValue(indexer.Id.ToString(), out var health))
+            _logger?.LogDebug("Using Prowlarr as primary indexer source");
+            tasks.Add(SearchProwlarrAsync(query, cancellationToken));
+        }
+        else
+        {
+            // Query all enabled indexers in parallel (fallback mode)
+            foreach (var indexer in _indexers.Values.Where(i => i.Enabled))
             {
-                if (health.CooldownUntil > DateTime.UtcNow)
+                // Check if indexer is in cooldown
+                if (_indexerHealth.TryGetValue(indexer.Id.ToString(), out var health))
                 {
-                    _logger?.LogDebug("Skipping indexer {IndexerName} (in cooldown until {CooldownUntil})",
-                        indexer.Name, health.CooldownUntil);
-                    continue;
+                    if (health.CooldownUntil > DateTime.UtcNow)
+                    {
+                        _logger?.LogDebug("Skipping indexer {IndexerName} (in cooldown until {CooldownUntil})",
+                            indexer.Name, health.CooldownUntil);
+                        continue;
+                    }
                 }
-            }
 
-            tasks.Add(SearchIndexerInternalAsync(indexer, query, cancellationToken));
+                tasks.Add(SearchIndexerInternalAsync(indexer, query, cancellationToken));
+            }
+        }
+
+        if (tasks.Count == 0)
+        {
+            _logger?.LogWarning("No indexers available for search. Configure Prowlarr or add indexers.");
+            return Array.Empty<TorrentResult>();
         }
 
         // Wait for all queries to complete
@@ -84,7 +244,7 @@ public class IndexerManager : IIndexerManager
             .OrderByDescending(r => r.Seeders ?? 0) // Sort by seeders descending
             .ToList();
 
-        _logger?.LogInformation("Merged {Count} unique results from {IndexerCount} indexers for query '{Query}'",
+        _logger?.LogInformation("Merged {Count} unique results from {SourceCount} sources for query '{Query}'",
             merged.Count, tasks.Count, query);
 
         return merged;
@@ -248,5 +408,32 @@ public class IndexerManager : IIndexerManager
             return false;
         }
     }
+}
+
+/// <summary>
+/// Represents a Prowlarr indexer from the API response.
+/// </summary>
+internal class ProwlarrIndexer
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public bool Enable { get; set; }
+    public bool SupportsSearch { get; set; }
+    public string Protocol { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Represents a search result from Prowlarr's search API.
+/// </summary>
+internal class ProwlarrSearchResult
+{
+    public string? Title { get; set; }
+    public string? InfoHash { get; set; }
+    public string? MagnetUrl { get; set; }
+    public string? DownloadUrl { get; set; }
+    public long Size { get; set; }
+    public int Seeders { get; set; }
+    public int Leechers { get; set; }
+    public string? Indexer { get; set; }
 }
 
