@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/jefflouisma/TunnelFin/main/assets/icon.png",
         "versions": [
             {
+                "version": "1.0.0.16",
+                "changelog": "v1.0.0.16 - API search endpoint:\n- Search via /TunnelFin/Search API endpoint\n- Fixed version display in Jellyfin UI\n- E2E tests updated to use API endpoint",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://github.com/jefflouisma/TunnelFin/releases/download/v1.0.0.16/tunnelfin_1.0.0.16.zip",
+                "checksum": "379fffbf5a9089144b9cdb5c0e76d38c",
+                "timestamp": "2026-01-04T03:15:00Z"
+            },
+            {
                 "version": "1.0.0.15",
                 "changelog": "v1.0.0.15 - Channel improvements:\n- Fixed channel root to show helpful search instructions\n- Added support for encoded search queries via folderId\n- Improved logging for GetChannelItems",
                 "targetAbi": "10.11.0.0",
