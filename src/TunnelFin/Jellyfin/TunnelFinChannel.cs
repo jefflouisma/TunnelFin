@@ -24,8 +24,9 @@ namespace TunnelFin.Jellyfin;
 /// Jellyfin IChannel implementation for TunnelFin.
 /// Presents torrent search results as native Jellyfin library items.
 /// Implements IRequiresMediaInfoCallback for media source resolution.
+/// Implements ISupportsLatestMedia to show recent content in Jellyfin's "Latest" section.
 /// </summary>
-public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback
+public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback, ISupportsLatestMedia
 {
     private readonly IIndexerManager _indexerManager;
     private readonly IStreamManager _streamManager;
@@ -124,6 +125,43 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback
         return Array.Empty<ImageType>();
     }
 
+    /// <summary>
+    /// ISupportsLatestMedia implementation - returns recent/popular content for Jellyfin's "Latest" section.
+    /// Searches for popular open-source test content that's likely to have seeders.
+    /// </summary>
+    public async Task<IEnumerable<ChannelItemInfo>> GetLatestMedia(ChannelLatestMediaSearch request, CancellationToken cancellationToken)
+    {
+        _logger?.LogInformation("GetLatestMedia called for user: {UserId}", request.UserId);
+
+        try
+        {
+            // Search for popular open-source content that's likely to be available
+            var results = await _indexerManager.SearchAsync("big buck bunny", cancellationToken);
+
+            _logger?.LogInformation("GetLatestMedia found {Count} results", results.Count);
+
+            // Return top 10 results
+            return results.Take(10).Select(ToChannelItem);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error getting latest media");
+            return Array.Empty<ChannelItemInfo>();
+        }
+    }
+
+    // Predefined search categories for quick access
+    private static readonly (string Id, string Name, string SearchTerm, string Overview)[] SearchCategories = new[]
+    {
+        ("cat_movies_popular", "🎬 Popular Movies", "1080p BluRay", "Search for popular HD movies"),
+        ("cat_movies_4k", "🎬 4K Movies", "2160p UHD", "Search for 4K Ultra HD movies"),
+        ("cat_tv_shows", "📺 TV Shows", "S01E01 720p", "Search for TV show episodes"),
+        ("cat_documentaries", "🎥 Documentaries", "documentary 1080p", "Search for documentaries"),
+        ("cat_anime", "🎌 Anime", "anime 1080p", "Search for anime content"),
+        ("cat_big_buck_bunny", "🐰 Big Buck Bunny (Test)", "big buck bunny", "Open source test content - Big Buck Bunny"),
+        ("cat_sintel", "🐉 Sintel (Test)", "sintel 1080p", "Open source test content - Sintel"),
+    };
+
     public async Task<ChannelItemResult> GetChannelItems(InternalChannelItemQuery query, CancellationToken cancellationToken)
     {
         // FolderId is used for navigation - can be a GUID, magnet link, or encoded search query
@@ -131,25 +169,19 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback
 
         _logger?.LogInformation("GetChannelItems called with FolderId: {FolderId}", folderId);
 
-        // If no FolderId, return empty result (root level shows nothing without search)
+        // If no FolderId, return root level with search categories
         if (string.IsNullOrWhiteSpace(folderId))
         {
-            _logger?.LogDebug("Empty folder ID, returning channel root with search instructions");
-            return new ChannelItemResult
-            {
-                Items = new List<ChannelItemInfo>
-                {
-                    new ChannelItemInfo
-                    {
-                        Id = "search_instructions",
-                        Name = "🔍 Use the search bar above to find torrents",
-                        Overview = "TunnelFin searches configured indexers for torrent content. Enter a search term in Jellyfin's search bar to find movies, TV shows, and other content.",
-                        Type = ChannelItemType.Folder,
-                        FolderType = ChannelFolderType.Container
-                    }
-                },
-                TotalRecordCount = 1
-            };
+            _logger?.LogDebug("Empty folder ID, returning search categories");
+            return GetRootCategories();
+        }
+
+        // Check if FolderId is a search category
+        var category = SearchCategories.FirstOrDefault(c => c.Id == folderId);
+        if (!string.IsNullOrEmpty(category.Id))
+        {
+            _logger?.LogInformation("FolderId is category '{Name}', searching for: {SearchTerm}", category.Name, category.SearchTerm);
+            return await SearchAndReturnResultsAsync(category.SearchTerm, cancellationToken);
         }
 
         // Check if FolderId is a magnet link (multi-file navigation - T090)
@@ -159,37 +191,52 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback
             return await GetTorrentFilesAsync(folderId, cancellationToken);
         }
 
-        // Check if FolderId is an encoded search query (from TunnelFinSearchProvider)
+        // Check if FolderId is an encoded search query (from TunnelFinSearchProvider or API)
         if (folderId.StartsWith("search:", StringComparison.OrdinalIgnoreCase))
         {
             var searchTerm = Uri.UnescapeDataString(folderId.Substring(7));
             _logger?.LogInformation("FolderId is encoded search query: {SearchTerm}", searchTerm);
-
-            try
-            {
-                var results = await _indexerManager.SearchAsync(searchTerm, cancellationToken);
-                _logger?.LogInformation("Found {Count} results for query: {Query}", results.Count, searchTerm);
-                var items = results.Select(ToChannelItem).ToList();
-                return new ChannelItemResult { Items = items, TotalRecordCount = items.Count };
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error searching for: {Query}", searchTerm);
-                return new ChannelItemResult { Items = new List<ChannelItemInfo>(), TotalRecordCount = 0 };
-            }
+            return await SearchAndReturnResultsAsync(searchTerm, cancellationToken);
         }
 
         // Otherwise, treat FolderId as a direct search query (for backward compatibility)
         // Note: This path may not work if Jellyfin validates FolderId as GUID
+        _logger?.LogInformation("FolderId treated as direct search query: {Query}", folderId);
+        return await SearchAndReturnResultsAsync(folderId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Returns root-level search categories for the channel UI.
+    /// </summary>
+    private ChannelItemResult GetRootCategories()
+    {
+        var items = SearchCategories.Select(cat => new ChannelItemInfo
+        {
+            Id = cat.Id,
+            Name = cat.Name,
+            Overview = cat.Overview,
+            Type = ChannelItemType.Folder,
+            FolderType = ChannelFolderType.Container
+        }).ToList();
+
+        return new ChannelItemResult
+        {
+            Items = items,
+            TotalRecordCount = items.Count
+        };
+    }
+
+    /// <summary>
+    /// Performs a search and returns results as channel items.
+    /// </summary>
+    private async Task<ChannelItemResult> SearchAndReturnResultsAsync(string searchTerm, CancellationToken cancellationToken)
+    {
         try
         {
-            var results = await _indexerManager.SearchAsync(folderId, cancellationToken);
+            var results = await _indexerManager.SearchAsync(searchTerm, cancellationToken);
+            _logger?.LogInformation("Found {Count} results for query: {Query}", results.Count, searchTerm);
 
-            _logger?.LogInformation("Found {Count} results for query: {Query}", results.Count, folderId);
-
-            // Convert to ChannelItemInfo
             var items = results.Select(ToChannelItem).ToList();
-
             return new ChannelItemResult
             {
                 Items = items,
@@ -198,7 +245,7 @@ public class TunnelFinChannel : IChannel, IRequiresMediaInfoCallback
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error getting channel items for query: {Query}", folderId);
+            _logger?.LogError(ex, "Error searching for: {Query}", searchTerm);
             return new ChannelItemResult
             {
                 Items = new List<ChannelItemInfo>(),
