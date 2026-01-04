@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using TunnelFin.Configuration;
 using TunnelFin.Indexers.HtmlScrapers;
 using TunnelFin.Indexers.Torznab;
+using TunnelFin.Metadata;
 using TunnelFin.Models;
 using IndexerConfig = TunnelFin.Configuration.IndexerConfig;
 
@@ -35,7 +36,10 @@ public class IndexerManager : IIndexerManager
     private readonly ScraperTorrentGalaxy _scraperTorrentGalaxy;
     private readonly ScraperEZTV _scraperEZTV;
 
-    public IndexerManager(HttpClient httpClient, ILogger<IndexerManager>? logger = null)
+    // TMDB client for metadata enrichment
+    private readonly ITmdbClient _tmdbClient;
+
+    public IndexerManager(HttpClient httpClient, ILogger<IndexerManager>? logger = null, ITmdbClient? tmdbClient = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger;
@@ -47,6 +51,9 @@ public class IndexerManager : IIndexerManager
         _scraperNyaa = new ScraperNyaa(httpClient, logger as ILogger<ScraperNyaa>);
         _scraperTorrentGalaxy = new ScraperTorrentGalaxy(httpClient, logger as ILogger<ScraperTorrentGalaxy>);
         _scraperEZTV = new ScraperEZTV(httpClient, logger as ILogger<ScraperEZTV>);
+
+        // Initialize TMDB client (uses TmdbApiKey from environment or plugin config)
+        _tmdbClient = tmdbClient ?? new TmdbClient(httpClient, logger as ILogger<TmdbClient>);
     }
 
     /// <summary>
@@ -247,7 +254,18 @@ public class IndexerManager : IIndexerManager
         _logger?.LogInformation("Merged {Count} unique results from {SourceCount} sources for query '{Query}'",
             merged.Count, tasks.Count, query);
 
-        return merged;
+        // Enrich results with TMDB metadata (Phase 4)
+        try
+        {
+            var enriched = await _tmdbClient.EnrichResultsAsync(merged, cancellationToken);
+            _logger?.LogDebug("Enriched {Count} results with TMDB metadata", enriched.Count);
+            return enriched;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to enrich results with TMDB metadata, returning raw results");
+            return merged;
+        }
     }
 
     /// <summary>

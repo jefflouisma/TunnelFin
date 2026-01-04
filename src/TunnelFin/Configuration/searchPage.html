@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>TunnelFin Search</title>
+    <style>
+        .tunnelfin-search { padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .search-header { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-input { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #444; border-radius: 4px; background: #1a1a1a; color: #fff; }
+        .search-btn { padding: 12px 24px; font-size: 16px; background: #00a4dc; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        .search-btn:hover { background: #0084b4; }
+        .search-btn:disabled { background: #666; cursor: not-allowed; }
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .result-card { background: #1a1a1a; border-radius: 8px; padding: 15px; border: 1px solid #333; }
+        .result-card:hover { border-color: #00a4dc; }
+        .result-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #fff; word-break: break-word; }
+        .result-meta { font-size: 12px; color: #888; margin-bottom: 5px; }
+        .result-meta .network-badge { padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+        .network-badge.anonymous { background: #1b5e20; color: #a5d6a7; }
+        .network-badge.direct { background: #e65100; color: #ffcc80; }
+        .result-actions { margin-top: 10px; display: flex; gap: 8px; }
+        .play-btn { padding: 8px 16px; background: #00a4dc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .play-btn:hover { background: #0084b4; }
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .error { background: #4a1515; color: #ff6b6b; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+        .no-results { text-align: center; padding: 40px; color: #888; }
+        .status-bar { margin-bottom: 15px; padding: 10px; background: #222; border-radius: 4px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="tunnelfin-search">
+        <h2>🔍 TunnelFin Search</h2>
+        <div id="status-bar" class="status-bar">Loading network status...</div>
+        <div class="search-header">
+            <input type="text" id="search-input" class="search-input" placeholder="Search for movies, TV shows, anime..." autocomplete="off">
+            <button id="search-btn" class="search-btn">Search</button>
+        </div>
+        <div id="error-container"></div>
+        <div id="results-container"></div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('search-input');
+        const searchBtn = document.getElementById('search-btn');
+        const resultsContainer = document.getElementById('results-container');
+        const errorContainer = document.getElementById('error-container');
+        const statusBar = document.getElementById('status-bar');
+
+        let isAnonymous = false;
+
+        // Check network status
+        async function checkNetworkStatus() {
+            try {
+                const res = await ApiClient.fetch('/TunnelFin/Health');
+                if (res.status === 'Healthy') {
+                    isAnonymous = res.anonymousAvailable || false;
+                    const status = isAnonymous ? '🟢 Anonymous Network Available' : '🟠 Direct Connection Only';
+                    statusBar.innerHTML = `Network Status: ${status}`;
+                }
+            } catch (e) {
+                statusBar.innerHTML = '⚠️ Unable to check network status';
+            }
+        }
+
+        async function search() {
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+            errorContainer.innerHTML = '';
+            resultsContainer.innerHTML = '<div class="loading">Searching indexers...</div>';
+
+            try {
+                const res = await ApiClient.fetch('/TunnelFin/Search?query=' + encodeURIComponent(query) + '&limit=50');
+                renderResults(res.results || []);
+            } catch (e) {
+                errorContainer.innerHTML = `<div class="error">Search failed: ${e.message}</div>`;
+                resultsContainer.innerHTML = '';
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search';
+            }
+        }
+
+        function formatSize(bytes) {
+            if (!bytes) return 'Unknown';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let i = 0;
+            while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+            return bytes.toFixed(2) + ' ' + units[i];
+        }
+
+        function renderResults(results) {
+            if (!results.length) {
+                resultsContainer.innerHTML = '<div class="no-results">No results found. Try a different search term.</div>';
+                return;
+            }
+
+            const html = '<div class="results-grid">' + results.map(r => {
+                const networkBadge = isAnonymous 
+                    ? '<span class="network-badge anonymous">🟢 Anonymous</span>'
+                    : '<span class="network-badge direct">🟠 Direct</span>';
+                const seedersColor = r.seeders > 10 ? '#4caf50' : (r.seeders > 0 ? '#ff9800' : '#f44336');
+                
+                return `
+                    <div class="result-card" data-infohash="${r.infoHash}" data-magnet="${encodeURIComponent(r.magnetLink)}">
+                        <div class="result-title">${escapeHtml(r.title)}</div>
+                        <div class="result-meta">${networkBadge}</div>
+                        <div class="result-meta">📦 ${formatSize(r.size)} | <span style="color:${seedersColor}">👤 ${r.seeders} seeders</span> | 📥 ${r.leechers} leechers</div>
+                        <div class="result-meta">📡 Source: ${escapeHtml(r.indexerName || 'Unknown')}</div>
+                        <div class="result-actions">
+                            <button class="play-btn" onclick="playItem('${r.infoHash}')">▶ Play</button>
+                        </div>
+                    </div>
+                `;
+            }).join('') + '</div>';
+
+            resultsContainer.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        async function playItem(infoHash) {
+            try {
+                const res = await ApiClient.fetch('/TunnelFin/Stream/' + infoHash);
+                if (res.streamUrl) {
+                    // Open in Jellyfin player or new tab
+                    window.open(res.streamUrl, '_blank');
+                }
+            } catch (e) {
+                alert('Failed to start stream: ' + e.message);
+            }
+        }
+
+        // Event listeners
+        searchBtn.addEventListener('click', search);
+        searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') search(); });
+
+        // Initialize
+        checkNetworkStatus();
+        searchInput.focus();
+    </script>
+</body>
+</html>
+

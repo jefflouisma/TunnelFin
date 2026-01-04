@@ -52,6 +52,43 @@ public class TorrentResult
     /// </summary>
     public string? Category { get; init; }
 
+    // ===== TMDB Metadata (Phase 4: Rich Metadata Integration) =====
+
+    /// <summary>
+    /// TMDB ID for metadata enrichment.
+    /// </summary>
+    public int? TmdbId { get; set; }
+
+    /// <summary>
+    /// IMDB ID for metadata enrichment (e.g., "tt1234567").
+    /// </summary>
+    public string? ImdbId { get; set; }
+
+    /// <summary>
+    /// URL to poster image from TMDB.
+    /// </summary>
+    public string? PosterUrl { get; set; }
+
+    /// <summary>
+    /// Content description/overview from TMDB.
+    /// </summary>
+    public string? TmdbOverview { get; set; }
+
+    /// <summary>
+    /// Release year from TMDB.
+    /// </summary>
+    public int? Year { get; set; }
+
+    /// <summary>
+    /// TMDB rating (0-10).
+    /// </summary>
+    public float? TmdbRating { get; set; }
+
+    /// <summary>
+    /// Genres from TMDB (e.g., "Action, Sci-Fi").
+    /// </summary>
+    public string? Genres { get; set; }
+
     /// <summary>
     /// Validates the torrent result according to specification rules.
     /// </summary>

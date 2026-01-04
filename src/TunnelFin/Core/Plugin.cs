@@ -79,6 +79,12 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             Name = Name,
             EmbeddedResourcePath = "TunnelFin.Configuration.config.html"
         };
+
+        yield return new PluginPageInfo
+        {
+            Name = "TunnelFin Search",
+            EmbeddedResourcePath = "TunnelFin.Configuration.searchPage.html"
+        };
     }
 
     /// <summary>

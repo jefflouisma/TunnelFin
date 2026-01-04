@@ -153,7 +153,7 @@ public class TunnelFinChannelTests
     }
 
     [Fact]
-    public async Task GetChannelItems_EmptyFolderId_ReturnsEmptyResult()
+    public async Task GetChannelItems_EmptyFolderId_ReturnsSearchCategories()
     {
         // Arrange
         var query = new InternalChannelItemQuery
@@ -166,7 +166,85 @@ public class TunnelFinChannelTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Items.Should().BeEmpty();
+        result.Items.Should().NotBeEmpty();
+        result.Items.Should().AllSatisfy(item =>
+        {
+            item.Type.Should().Be(ChannelItemType.Folder);
+            item.FolderType.Should().Be(ChannelFolderType.Container);
+        });
+        // Should contain at least the test content categories
+        result.Items.Should().Contain(item => item.Name.Contains("Big Buck Bunny"));
+    }
+
+    [Fact]
+    public async Task GetChannelItems_CategoryFolderId_SearchesWithCategoryTerm()
+    {
+        // Arrange
+        var torrentResults = new List<TorrentResult>
+        {
+            new TorrentResult
+            {
+                InfoHash = "dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c",
+                Title = "Big Buck Bunny 1080p",
+                Size = 734003200,
+                Seeders = 42,
+                Leechers = 15,
+                Category = "Movies",
+                MagnetLink = "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c",
+                IndexerName = "TestIndexer"
+            }
+        };
+
+        _mockIndexerManager
+            .Setup(m => m.SearchAsync("big buck bunny", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(torrentResults);
+
+        var query = new InternalChannelItemQuery
+        {
+            FolderId = "cat_big_buck_bunny"
+        };
+
+        // Act
+        var result = await _channel.GetChannelItems(query, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Items.Should().HaveCount(1);
+        result.Items.First().Name.Should().Be("Big Buck Bunny 1080p");
+    }
+
+    [Fact]
+    public async Task GetLatestMedia_ReturnsPopularContent()
+    {
+        // Arrange
+        var torrentResults = new List<TorrentResult>
+        {
+            new TorrentResult
+            {
+                InfoHash = "dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c",
+                Title = "Big Buck Bunny 1080p",
+                Size = 734003200,
+                Seeders = 42,
+                Leechers = 15,
+                Category = "Movies",
+                MagnetLink = "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c",
+                IndexerName = "TestIndexer"
+            }
+        };
+
+        _mockIndexerManager
+            .Setup(m => m.SearchAsync("big buck bunny", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(torrentResults);
+
+        var request = new ChannelLatestMediaSearch { UserId = "test-user" };
+
+        // Act
+        var result = await _channel.GetLatestMedia(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Should().HaveCount(1);
+        result.First().Name.Should().Be("Big Buck Bunny 1080p");
     }
 }
 
